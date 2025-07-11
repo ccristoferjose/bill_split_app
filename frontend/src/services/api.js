@@ -1,10 +1,11 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { logout, setCredentials } from '../feature/auth/authSlice';
+import { logout, setCredentials } from '../features/auth/authSlice';
 
 const baseQuery = fetchBaseQuery({
   baseUrl: 'http://localhost:5001',
+  credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
-    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjMiLCJpYXQiOjE3MjUzMTk0NTQsImV4cCI6MTcyNTMyMDM1NH0.aN8GktINswN6lIziBN3G8hiC7itFgUwZ96XaKR11Rbo';
+    const token = getState().auth.token;
     if (token) {
       headers.set('authorization', `Bearer ${token}`);
     }
@@ -17,12 +18,14 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
   if (result.error && result.error.status === 401) {
     // Try to get a new token
-    const refreshResult = await baseQuery('/auth/refresh-token', api, extraOptions);
+    const refreshResult = await baseQuery({
+      url: '/auth/refresh-token',
+      method: 'POST'
+    }, api, extraOptions);
 
     if (refreshResult.data) {
       // Store the new token
       api.dispatch(setCredentials(refreshResult.data));
-
       // Retry the original query with the new token
       result = await baseQuery(args, api, extraOptions);
     } else {
@@ -35,7 +38,9 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
 export const api = createApi({
   baseQuery: baseQueryWithReauth,
+  tagTypes: ['Bill', 'User', 'Profile'],
   endpoints: (builder) => ({
+    // Auth endpoints
     login: builder.mutation({
       query: (credentials) => ({
         url: '/auth/login',
@@ -50,7 +55,116 @@ export const api = createApi({
         body: credentials,
       }),
     }),
+    logout: builder.mutation({
+      query: () => ({
+        url: '/auth/logout',
+        method: 'POST',
+      }),
+    }),
+    
+    // Bill endpoints
+    createBill: builder.mutation({
+      query: (billData) => ({
+        url: '/bills',
+        method: 'POST',
+        body: billData,
+      }),
+      invalidatesTags: ['Bill'],
+    }),
+    
+    getUserCreatedBills: builder.query({
+      query: (userId) => `/user/${userId}/bills/created`,
+      providesTags: ['Bill'],
+    }),
+    
+    getUserInvitedBills: builder.query({
+      query: (userId) => `/user/${userId}/bills/invited`,
+      providesTags: ['Bill'],
+    }),
+    
+    getUserParticipatingBills: builder.query({
+      query: (userId) => `/user/${userId}/bills/participating`,
+      providesTags: ['Bill'],
+    }),
+    
+    getBillDetails: builder.query({
+      query: (billId) => `/bills/${billId}`,
+      providesTags: ['Bill'],
+    }),
+    
+    inviteUsersToBill: builder.mutation({
+      query: ({ billId, ...data }) => ({
+        url: `/bills/${billId}/invite`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Bill'],
+    }),
+    
+    respondToBillInvitation: builder.mutation({
+      query: ({ billId, ...data }) => ({
+        url: `/bills/${billId}/respond`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Bill'],
+    }),
+    
+    finalizeBill: builder.mutation({
+      query: ({ billId, ...data }) => ({
+        url: `/bills/${billId}/finalize`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Bill'],
+    }),
+    
+    markBillAsPaid: builder.mutation({
+      query: ({ billId, ...data }) => ({
+        url: `/bills/${billId}/mark-paid`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Bill'],
+    }),
+    
+    // User search
+    searchUsers: builder.query({
+      query: (searchTerm) => `/users/search?q=${searchTerm}`,
+      providesTags: ['User'],
+    }),
+    
+    // Profile endpoints
+    getUserProfile: builder.query({
+      query: (userId) => `/user/${userId}/profile`,
+      providesTags: ['Profile'],
+    }),
+    
+    updateUserProfile: builder.mutation({
+      query: ({ userId, ...data }) => ({
+        url: `/user/${userId}/profile`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Profile'],
+    }),
   }),
 });
 
-export const { useLoginMutation, useRegisterMutation } = api;
+export const {
+  useLoginMutation,
+  useRegisterMutation,
+  useLogoutMutation,
+  useCreateBillMutation,
+  useGetUserCreatedBillsQuery,
+  useGetUserInvitedBillsQuery,
+  useGetUserParticipatingBillsQuery,
+  useGetBillDetailsQuery,
+  useInviteUsersToBillMutation,
+  useRespondToBillInvitationMutation,
+  useFinalizeBillMutation,
+  useMarkBillAsPaidMutation,
+  useSearchUsersQuery,
+  useGetUserProfileQuery,
+  useUpdateUserProfileMutation,
+} = api;
