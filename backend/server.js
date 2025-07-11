@@ -237,10 +237,15 @@ app.post('/bills', async (req, res) => {
 
     // Calculate next due date for monthly bills
     let next_due_date = null;
-    if (bill_type === 'monthly' && due_date) {
-      const dueDateObj = new Date(due_date);
-      dueDateObj.setMonth(dueDateObj.getMonth() + 1);
-      next_due_date = dueDateObj.toISOString().split('T')[0];
+    if (bill_type === 'monthly' && is_template) {
+      // Schedule next occurrence
+      const nextDueDate = new Date(due_date);
+      nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+      
+      await executeQuery(
+        'UPDATE service_bills SET next_due_date = ? WHERE id = ?',
+        [nextDueDate.toISOString().split('T')[0], billId]
+      );
     }
 
     // Set status based on bill type
@@ -914,6 +919,180 @@ app.get('/user/:userId/monthly-bills', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching monthly bills:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.get('/users/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) {
+      return res.json({ users: [] });
+    }
+
+    const users = await executeQuery(
+      'SELECT id, username, email FROM users WHERE username LIKE ? AND id != ?',
+      [`%${q}%`, req.user?.userId || 0] // Exclude current user if authenticated
+    );
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Update user profile
+app.put('/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { email, profile_picture, contact_info } = req.body;
+
+    // Verify user is updating their own profile
+    if (userId !== req.user?.userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const updates = [];
+    const values = [];
+
+    if (email) {
+      updates.push('email = ?');
+      values.push(email);
+    }
+    if (profile_picture) {
+      updates.push('profile_picture = ?');
+      values.push(profile_picture);
+    }
+    if (contact_info) {
+      updates.push('contact_info = ?');
+      values.push(contact_info);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ message: 'No fields to update' });
+    }
+
+    values.push(userId);
+    await executeQuery(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    res.json({ message: 'Profile updated successfully' });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get user profile
+app.get('/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await findOne(
+      'SELECT id, username, email, profile_picture, contact_info, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Process monthly bill recurrences (cron job or scheduled task)
+app.post('/bills/process-monthly', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Find monthly bills that are due
+    const dueBills = await executeQuery(
+      `SELECT * FROM service_bills 
+       WHERE bill_type = 'monthly' 
+       AND is_template = FALSE 
+       AND next_due_date <= ? 
+       AND status = 'paid'`,
+      [today]
+    );
+
+    let processed = 0;
+    for (const bill of dueBills) {
+      // Create new bill instance from template
+      const template = await findOne(
+        'SELECT * FROM service_bills WHERE id = ? AND is_template = TRUE',
+        [bill.parent_bill_id]
+      );
+
+      if (!template) continue;
+
+      // Generate new bill
+      const newBillCode = `BILL-${Date.now().toString(36).toUpperCase()}`;
+      const newBillDate = new Date(bill.next_due_date);
+      const newDueDate = new Date(newBillDate);
+      newDueDate.setMonth(newDueDate.getMonth() + 1);
+
+      const newBillResult = await executeQuery(
+        `INSERT INTO service_bills (
+          bill_code, created_by, title, total_amount, bill_date, due_date, 
+          bill_type, next_due_date, parent_bill_id, auto_invite_users, 
+          is_template, status, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newBillCode, template.created_by, template.title, template.total_amount,
+          newBillDate.toISOString().split('T')[0], newDueDate.toISOString().split('T')[0],
+          'monthly', newDueDate.toISOString().split('T')[0], template.id,
+          template.auto_invite_users, false, 'draft', template.notes
+        ]
+      );
+
+      const newBillId = newBillResult.insertId;
+
+      // Copy items
+      const items = await executeQuery(
+        'SELECT * FROM service_bill_items WHERE service_bill_id = ?',
+        [template.id]
+      );
+
+      for (const item of items) {
+        await executeQuery(
+          'INSERT INTO service_bill_items (service_bill_id, item_name, item_description, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?)',
+          [newBillId, item.item_name, item.item_description, item.quantity, item.unit_price, item.total_price]
+        );
+      }
+
+      // Auto-invite if enabled
+      if (template.auto_invite_users) {
+        const invitations = await executeQuery(
+          'SELECT * FROM bill_invitations WHERE bill_id = ?',
+          [template.id]
+        );
+
+        for (const inv of invitations) {
+          await executeQuery(
+            'INSERT INTO bill_invitations (bill_id, invited_user_id, invited_by, proposed_amount, status) VALUES (?, ?, ?, ?, ?)',
+            [newBillId, inv.invited_user_id, inv.invited_by, inv.proposed_amount, 'pending']
+          );
+        }
+
+        await executeQuery(
+          'UPDATE service_bills SET status = ? WHERE id = ?',
+          ['pending_responses', newBillId]
+        );
+      }
+
+      processed++;
+    }
+
+    res.json({ message: `Processed ${processed} monthly bills`, processed });
+  } catch (error) {
+    console.error('Error processing monthly bills:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
