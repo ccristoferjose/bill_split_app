@@ -918,6 +918,22 @@ app.get('/user/:userId/monthly-bills', async (req, res) => {
   }
 });
 
+app.get('/users/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.json({ users: [] });
+    }
+
+    const users = await executeQuery(
+      'SELECT id, username, email FROM users WHERE username LIKE ? OR email LIKE ? LIMIT 10',
+      [`%${q}%`, `%${q}%`]
+    );
+
+    res.json({ users });
+  } catch (error
+
 // Start server and initialize database
 const startServer = async () => {
   await initializeDatabase();
