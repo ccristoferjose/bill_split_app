@@ -14,7 +14,7 @@ const refreshSecret = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: ['http://localhost:5173'],
   credentials: true
 }));
 app.use(morgan('dev'));
@@ -932,7 +932,11 @@ app.get('/users/search', async (req, res) => {
     );
 
     res.json({ users });
-  } catch (error
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 // Start server and initialize database
 const startServer = async () => {

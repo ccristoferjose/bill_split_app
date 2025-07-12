@@ -1,6 +1,6 @@
 // frontend/src/components/bills/CreateBillModal.jsx
 import React, { useState } from 'react';
-import { useCreateBillMutation } from '../../services/api';
+import { useCreateBillMutation } from '../services/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

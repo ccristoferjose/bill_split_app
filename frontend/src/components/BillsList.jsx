@@ -4,11 +4,11 @@ import {
   useGetUserCreatedBillsQuery, 
   useGetUserInvitedBillsQuery, 
   useGetUserParticipatingBillsQuery 
-} from '../../services/api';
+} from '../services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, Users, Clock } from 'lucide-react';
+import { Calendar, DollarSign, Users, Clock, Receipt } from 'lucide-react';
 import { format } from 'date-fns';
 
 const BillsList = ({ userId, type, onSelectBill }) => {

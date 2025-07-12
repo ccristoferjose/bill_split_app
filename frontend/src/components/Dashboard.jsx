@@ -1,20 +1,26 @@
 // frontend/src/components/Dashboard.jsx
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from '../feature/auth/authSlice';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Receipt, Users, User, Settings } from 'lucide-react';
-import BillsList from './bills/BillsList';
-import CreateBillModal from './bills/CreateBillModal';
-import BillDetails from './bills/BillDetails';
-import UserProfile from './profile/UserProfile';
+import BillsList from './BillsList';
+import CreateBilModal from './CreateBilModal';
+import BillDetails from './BillDetails';
+import UserProfile from './UserProfile';
 
 const Dashboard = () => {
   const { user } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState('bills');
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState(null);
+
+  const handleLogout = () => {
+    dispatch(logout());
+  };
 
   if (!user) {
     return <div>Loading...</div>;
@@ -32,6 +38,13 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">Welcome, {user.username}</span>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+              >
+                Logout
+              </Button>
               <Button
                 onClick={() => setShowCreateBill(true)}
                 className="bg-blue-600 hover:bg-blue-700"
@@ -119,7 +132,7 @@ const Dashboard = () => {
 
       {/* Modals */}
       {showCreateBill && (
-        <CreateBillModal
+        <CreateBilModal
           isOpen={showCreateBill}
           onClose={() => setShowCreateBill(false)}
           userId={user.id}
@@ -129,7 +142,6 @@ const Dashboard = () => {
       {selectedBillId && (
         <BillDetails
           billId={selectedBillId}
-          userId={user.id}
           onClose={() => setSelectedBillId(null)}
         />
       )}
