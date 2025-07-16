@@ -69,13 +69,6 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
       return;
     }
 
-    const totalPercentage = getTotalPercentage();
-    // Allow small rounding errors (within 0.5%)
-    if (Math.abs(totalPercentage - 100) > 0.5) {
-      toast.error(`Total percentage must equal 100%. Currently at ${totalPercentage}%`);
-      return;
-    }
-
     setIsSubmitting(true);
     
     try {
@@ -249,7 +242,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={isSubmitting || selectedUsers.length === 0 || Math.abs(getTotalPercentage() - 100) > 0.5}
+            disabled={isSubmitting || selectedUsers.length === 0}
           >
             {isSubmitting ? 'Sending...' : `Send ${selectedUsers.length} Invitation(s)`}
           </Button>
@@ -259,4 +252,4 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
   );
 };
 
-export default BillSplitModal; 
+export default BillSplitModal;

@@ -5,6 +5,8 @@ const cors = require('cors');
 const morgan = require('morgan');
 const bcrypt = require('bcrypt');
 const { testConnection, findOne, executeQuery } = require('./config/database');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
 
@@ -258,7 +260,7 @@ app.post('/bills', async (req, res) => {
     if (items && items.length > 0) {
       for (const item of items) {
         await executeQuery(
-          'INSERT INTO service_bill_items (service_bill_id, item_name, item_description, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?)',
+          'INSERT INTO service_bill_items (service_bill_id, item_name, item_description, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [billId, item.name, item.description || null, item.quantity || 1, item.unit_price, item.total_price]
         );
       }
@@ -326,6 +328,27 @@ app.post('/bills/:billId/invite', async (req, res) => {
       [billId, invited_by, 'invited_user', `Invited ${users.length} users to bill`]
     );
 
+    // Send real-time notifications to invited users
+    users.forEach(user => {
+      const userId = user.user_id;
+      console.log(`Sending new_invitation to user ${userId}`);
+      console.log(`User ${userId} online status:`, isUserOnline(userId));
+      
+      const room = io.sockets.adapter.rooms.get(userId);
+      console.log(`Room ${userId} exists:`, !!room);
+      if (room) {
+        console.log(`Room ${userId} has ${room.size} members`);
+      }
+      
+      io.to(userId).emit('new_invitation', {
+        billId,
+        invited_by,
+        proposed_amount: user.proposed_amount,
+        bill_title: bill.title,
+        bill_total: bill.total_amount
+      });
+    });
+
     res.json({ message: 'Invitations sent successfully' });
 
   } catch (error) {
@@ -362,11 +385,40 @@ app.post('/bills/:billId/respond', async (req, res) => {
       [newStatus, invitation.id]
     );
 
+    // If user accepted, add them to participants table
+    if (action === 'accept') {
+      await executeQuery(
+        'INSERT INTO service_bill_participants (service_bill_id, user_id, amount_owed, is_creator, payment_status) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE amount_owed = VALUES(amount_owed)',
+        [billId, user_id, invitation.proposed_amount, false, 'pending']
+      );
+    }
+
     // Log activity
     await executeQuery(
       'INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES (?, ?, ?, ?)',
       [billId, user_id, action === 'accept' ? 'accepted' : 'rejected', `${action === 'accept' ? 'Accepted' : 'Rejected'} invitation for $${invitation.proposed_amount}`]
     );
+
+    // Notify bill creator about the response
+    const bill = await findOne('SELECT created_by FROM service_bills WHERE id = ?', [billId]);
+    if (bill) {
+      const creatorId = bill.created_by;
+      console.log(`Sending invitation_response to creator ${creatorId}`);
+      console.log(`Creator ${creatorId} online status:`, isUserOnline(creatorId));
+      
+      const room = io.sockets.adapter.rooms.get(creatorId);
+      console.log(`Creator room ${creatorId} exists:`, !!room);
+      if (room) {
+        console.log(`Creator room ${creatorId} has ${room.size} members`);
+      }
+      
+      io.to(creatorId).emit('invitation_response', {
+        billId,
+        user_id,
+        action,
+        proposed_amount: invitation.proposed_amount
+      });
+    }
 
     res.json({ message: `Invitation ${action}ed successfully` });
 
@@ -436,6 +488,26 @@ app.post('/bills/:billId/finalize', async (req, res) => {
       'INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES (?, ?, ?, ?)',
       [billId, user_id, 'finalized', `Finalized bill with ${acceptedInvitations.length} participants`]
     );
+
+    // Notify all participants that the bill has been finalized
+    const participants = [bill.created_by, ...acceptedInvitations.map(inv => inv.invited_user_id)];
+    participants.forEach(participantId => {
+      console.log(`Sending bill_finalized to participant ${participantId}`);
+      console.log(`Participant ${participantId} online status:`, isUserOnline(participantId));
+      
+      const room = io.sockets.adapter.rooms.get(participantId);
+      console.log(`Participant room ${participantId} exists:`, !!room);
+      if (room) {
+        console.log(`Participant room ${participantId} has ${room.size} members`);
+      }
+      
+      io.to(participantId).emit('bill_finalized', {
+        billId,
+        bill_title: bill.title,
+        total_amount: bill.total_amount,
+        participants_count: participants.length
+      });
+    });
 
     res.json({ 
       message: 'Bill finalized successfully',
@@ -911,7 +983,6 @@ app.get('/user/:userId/monthly-bills', async (req, res) => {
     `, [userId, userId, userId, userId]);
 
     res.json({ monthlyBills });
-
   } catch (error) {
     console.error('Error fetching monthly bills:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -928,7 +999,7 @@ app.get('/users/search', async (req, res) => {
 
     const users = await executeQuery(
       'SELECT id, username, email FROM users WHERE username LIKE ? OR email LIKE ? LIMIT 10',
-      [`%${q}%`, `%${q}%`]
+      [`%${q}%`, `%%${q}%`]
     );
 
     res.json({ users });
@@ -938,11 +1009,71 @@ app.get('/users/search', async (req, res) => {
   }
 });
 
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:5173'],
+    credentials: true
+  }
+});
+
+// Track online users: userId -> socket.id
+const onlineUsers = new Map();
+
+// Helper function to check if user is online
+function isUserOnline(userId) {
+  return onlineUsers.has(userId);
+}
+
+// Helper function to get socket for user
+function getUserSocket(userId) {
+  const socketId = onlineUsers.get(userId);
+  return socketId ? io.sockets.sockets.get(socketId) : null;
+}
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Join user to their personal room
+  socket.on('join', (userId) => {
+    console.log(`Join event received for user ${userId}`);
+    
+    // Join the room
+    socket.join(userId);
+    console.log(`User ${userId} joined room: ${userId}`);
+    
+    // Track online user
+    onlineUsers.set(userId, socket.id);
+    console.log(`Online users:`, Array.from(onlineUsers.keys()));
+    
+    // Verify room membership
+    const room = io.sockets.adapter.rooms.get(userId);
+    if (room) {
+      console.log(`Room ${userId} has ${room.size} members`);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+    
+    // Remove from online users
+    for (const [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        onlineUsers.delete(userId);
+        console.log(`Removed user ${userId} from online users`);
+        console.log(`Online users:`, Array.from(onlineUsers.keys()));
+        break;
+      }
+    }
+  });
+});
+
 // Start server and initialize database
 const startServer = async () => {
   await initializeDatabase();
   
-  app.listen(5001, () => {
+  server.listen(5001, () => {
     console.log(`Server running on http://localhost:5001`);
     console.log('Server started successfully with MySQL connection');
   });

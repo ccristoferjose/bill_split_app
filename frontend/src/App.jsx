@@ -3,6 +3,7 @@ import './App.css'
 import './index.css'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { SocketProvider } from './context/SocketContext'
 import Login from './components/Login'
 import Register from './components/Register'
 import Dashboard from './components/Dashboard'
@@ -14,30 +15,32 @@ function App() {
 
   return (
     <>
-      <Router>
-        <Routes>
-          <Route 
-            path="/" 
-            element={token ? <Navigate to="/dashboard" replace /> : <Login />} 
-          />
-          <Route 
-            path="/login" 
-            element={token ? <Navigate to="/dashboard" replace /> : <Login />} 
-          />
-          <Route 
-            path="/register" 
-            element={token ? <Navigate to="/dashboard" replace /> : <Register />} 
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </Router>
+      <SocketProvider>
+        <Router>
+          <Routes>
+            <Route 
+              path="/" 
+              element={token ? <Navigate to="/dashboard" replace /> : <Login />} 
+            />
+            <Route 
+              path="/login" 
+              element={token ? <Navigate to="/dashboard" replace /> : <Login />} 
+            />
+            <Route 
+              path="/register" 
+              element={token ? <Navigate to="/dashboard" replace /> : <Register />} 
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </Router>
+      </SocketProvider>
       <Toaster position="top-right" />
     </>
   )

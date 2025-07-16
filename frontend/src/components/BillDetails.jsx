@@ -1,17 +1,35 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { useGetBillDetailsQuery } from '../services/api';
+import { useGetBillDetailsQuery, useRespondToBillInvitationMutation } from '../services/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, DollarSign, User, X, Users } from 'lucide-react';
+import { Calendar, DollarSign, User, X, Users, Check, X as XIcon } from 'lucide-react';
 import BillSplitModal from './BillSplitModal';
+import { toast } from 'sonner';
 
 const BillDetails = ({ billId, onClose }) => {
   const { user } = useSelector((state) => state.auth);
   const [showSplitModal, setShowSplitModal] = useState(false);
+  const [respondToInvitation] = useRespondToBillInvitationMutation();
   const { data, isLoading, error } = useGetBillDetailsQuery(billId);
+
+  const handleRespondToInvitation = async (action) => {
+    try {
+      await respondToInvitation({
+        billId,
+        user_id: user.id,
+        action
+      }).unwrap();
+      
+      toast.success(`Successfully ${action}ed the bill invitation`);
+      onClose();
+    } catch (error) {
+      console.error('Error responding to invitation:', error);
+      toast.error('Failed to respond to invitation: ' + (error?.data?.message || error.message));
+    }
+  };
 
   if (isLoading) {
     return (
@@ -73,6 +91,11 @@ const BillDetails = ({ billId, onClose }) => {
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
+
+  // Check if this is an invitation that the current user can respond to
+  const isPendingInvitation = data?.invitations?.some(
+    inv => inv.invited_user_id === user?.id && inv.status === 'pending'
+  );
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -175,7 +198,7 @@ const BillDetails = ({ billId, onClose }) => {
         </div>
 
         <div className="flex justify-between">
-          <div>
+          <div className="flex space-x-2">
             {/* Show Split Bill button only for bill creator when bill is in draft status */}
             {bill.created_by === user?.id && bill.status === 'draft' && (
               <Button 
@@ -185,6 +208,26 @@ const BillDetails = ({ billId, onClose }) => {
                 <Users className="h-4 w-4 mr-2" />
                 Split Bill
               </Button>
+            )}
+            
+            {/* Show Accept/Reject buttons for pending invitations */}
+            {isPendingInvitation && (
+              <>
+                <Button 
+                  onClick={() => handleRespondToInvitation('accept')}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Accept
+                </Button>
+                <Button 
+                  onClick={() => handleRespondToInvitation('reject')}
+                  variant="destructive"
+                >
+                  <XIcon className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+              </>
             )}
           </div>
           <Button onClick={onClose}>Close</Button>
