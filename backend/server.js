@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
@@ -7,6 +9,13 @@ const bcrypt = require('bcrypt');
 const { testConnection, findOne, executeQuery } = require('./config/database');
 
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: ['http://localhost:5173'],
+    credentials: true
+  }
+});
 
 const accessSecret = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
 const refreshSecret = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
@@ -18,6 +27,41 @@ app.use(cors({
   credentials: true
 }));
 app.use(morgan('dev'));
+
+// Store connected users
+const connectedUsers = new Map();
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Handle user authentication and registration
+  socket.on('authenticate', (userData) => {
+    if (userData && userData.userId) {
+      connectedUsers.set(userData.userId, socket.id);
+      socket.userId = userData.userId;
+      console.log(`User ${userData.userId} authenticated with socket ${socket.id}`);
+    }
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    if (socket.userId) {
+      connectedUsers.delete(socket.userId);
+      console.log(`User ${socket.userId} disconnected`);
+    }
+  });
+});
+
+// Helper function to send notification to a specific user
+const sendNotificationToUser = (userId, notification) => {
+  const socketId = connectedUsers.get(userId);
+  if (socketId) {
+    io.to(socketId).emit('notification', notification);
+    return true;
+  }
+  return false;
+};
 
 // Initialize database connection
 const initializeDatabase = async () => {
@@ -306,12 +350,36 @@ app.post('/bills/:billId/invite', async (req, res) => {
       return res.status(404).json({ message: 'Bill not found or you are not the creator' });
     }
 
-    // Insert invitations
+    // Get inviter information
+    const inviter = await findOne(
+      'SELECT username FROM users WHERE id = ?',
+      [invited_by]
+    );
+
+    // Insert invitations and send notifications
     for (const user of users) {
       await executeQuery(
         'INSERT INTO bill_invitations (bill_id, invited_user_id, invited_by, proposed_amount, status) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE proposed_amount = VALUES(proposed_amount), status = VALUES(status)',
         [billId, user.user_id, invited_by, user.proposed_amount, 'pending']
       );
+
+      // Send real-time notification to the invited user
+      const notification = {
+        type: 'bill_invitation',
+        title: 'New Bill Invitation',
+        message: `${inviter.username} invited you to split "${bill.title}" - Your share: $${user.proposed_amount}`,
+        data: {
+          billId: billId,
+          billTitle: bill.title,
+          inviterName: inviter.username,
+          proposedAmount: user.proposed_amount,
+          totalAmount: bill.total_amount
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      const notificationSent = sendNotificationToUser(user.user_id, notification);
+      console.log(`Notification ${notificationSent ? 'sent' : 'failed'} to user ${user.user_id}`);
     }
 
     // Update bill status
@@ -361,6 +429,45 @@ app.post('/bills/:billId/respond', async (req, res) => {
       'UPDATE bill_invitations SET status = ?, response_date = NOW() WHERE id = ?',
       [newStatus, invitation.id]
     );
+
+    // If accepted, add user as participant
+    if (action === 'accept') {
+      await executeQuery(
+        'INSERT INTO service_bill_participants (service_bill_id, user_id, amount_owed, is_creator, payment_status) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE amount_owed = VALUES(amount_owed)',
+        [billId, user_id, invitation.proposed_amount, false, 'pending']
+      );
+    }
+
+    // Get bill and user information for notification
+    const bill = await findOne(
+      'SELECT sb.*, creator.username as creator_name FROM service_bills sb JOIN users creator ON sb.created_by = creator.id WHERE sb.id = ?',
+      [billId]
+    );
+
+    const respondingUser = await findOne(
+      'SELECT username FROM users WHERE id = ?',
+      [user_id]
+    );
+
+    // Send real-time notification to bill creator
+    if (bill && respondingUser) {
+      const notification = {
+        type: 'bill_response',
+        title: `Bill Response: ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
+        message: `${respondingUser.username} ${action === 'accept' ? 'accepted' : 'rejected'} the invitation for "${bill.title}" ($${invitation.proposed_amount})`,
+        data: {
+          billId: billId,
+          billTitle: bill.title,
+          respondingUser: respondingUser.username,
+          action: action,
+          amount: invitation.proposed_amount
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      const notificationSent = sendNotificationToUser(bill.created_by, notification);
+      console.log(`Response notification ${notificationSent ? 'sent' : 'failed'} to bill creator ${bill.created_by}`);
+    }
 
     // Log activity
     await executeQuery(
@@ -478,7 +585,7 @@ app.get('/user/:userId/bills/created', async (req, res) => {
   }
 });
 
-// Get bills where user was invited
+// Get bills where user was invited (only pending invitations)
 app.get('/user/:userId/bills/invited', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -490,10 +597,11 @@ app.get('/user/:userId/bills/invited', async (req, res) => {
       FROM service_bills sb
       JOIN bill_invitations bi ON sb.id = bi.bill_id
       JOIN users creator ON sb.created_by = creator.id
-      WHERE bi.invited_user_id = ?
+      WHERE bi.invited_user_id = ? AND bi.status = 'pending'
       ORDER BY bi.created_at DESC
     `, [userId]);
 
+    console.log(`Found ${bills.length} pending invitations for user ${userId}`);
     res.json({ bills });
   } catch (error) {
     console.error('Error fetching invited bills:', error);
@@ -942,9 +1050,9 @@ app.get('/users/search', async (req, res) => {
 const startServer = async () => {
   await initializeDatabase();
   
-  app.listen(5001, () => {
+  server.listen(5001, () => {
     console.log(`Server running on http://localhost:5001`);
-    console.log('Server started successfully with MySQL connection');
+    console.log('Server started successfully with MySQL connection and Socket.IO');
   });
 };
 
