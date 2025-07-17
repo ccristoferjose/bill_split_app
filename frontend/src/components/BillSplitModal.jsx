@@ -30,7 +30,13 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
     const totalUsers = selectedUsers.length + 2; // +1 for new user, +1 for current user
     const defaultPercentage = parseFloat((100 / totalUsers).toFixed(1));
     
-    setSelectedUsers([...selectedUsers, {
+    // Update existing users' percentages and add new user
+    const updatedUsers = selectedUsers.map(user => ({
+      ...user,
+      percentage: defaultPercentage
+    }));
+    
+    setSelectedUsers([...updatedUsers, {
       id: searchUser.id,
       username: searchUser.username,
       email: searchUser.email,
@@ -41,7 +47,22 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
   };
 
   const removeUser = (userId) => {
-    setSelectedUsers(selectedUsers.filter(u => u.id !== userId));
+    const remainingUsers = selectedUsers.filter(u => u.id !== userId);
+    
+    if (remainingUsers.length > 0) {
+      // Redistribute percentages equally among remaining users
+      const totalUsers = remainingUsers.length + 1; // +1 for current user
+      const defaultPercentage = parseFloat((100 / totalUsers).toFixed(1));
+      
+      const updatedUsers = remainingUsers.map(user => ({
+        ...user,
+        percentage: defaultPercentage
+      }));
+      
+      setSelectedUsers(updatedUsers);
+    } else {
+      setSelectedUsers([]);
+    }
   };
 
   const updatePercentage = (userId, percentage) => {
@@ -69,10 +90,16 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
       return;
     }
 
+    // Validate that all users have valid amounts
+    const invalidUsers = selectedUsers.filter(user => user.percentage <= 0);
+    if (invalidUsers.length > 0) {
+      toast.error('All users must have a percentage greater than 0%');
+      return;
+    }
+
     const totalPercentage = getTotalPercentage();
-    // Allow small rounding errors (within 0.5%)
-    if (Math.abs(totalPercentage - 100) > 0.5) {
-      toast.error(`Total percentage must equal 100%. Currently at ${totalPercentage}%`);
+    if (totalPercentage > 100) {
+      toast.error(`Total percentage cannot exceed 100%. Currently at ${totalPercentage}%`);
       return;
     }
 
@@ -227,7 +254,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                 <div className="border-t pt-3">
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Total Percentage:</span>
-                    <Badge variant={Math.abs(getTotalPercentage() - 100) <= 0.5 ? "default" : "destructive"}>
+                    <Badge variant={getTotalPercentage() <= 100 ? "default" : "destructive"}>
                       {getTotalPercentage()}%
                     </Badge>
                   </div>
@@ -249,7 +276,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={isSubmitting || selectedUsers.length === 0 || Math.abs(getTotalPercentage() - 100) > 0.5}
+            disabled={isSubmitting || selectedUsers.length === 0}
           >
             {isSubmitting ? 'Sending...' : `Send ${selectedUsers.length} Invitation(s)`}
           </Button>
@@ -259,4 +286,4 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
   );
 };
 
-export default BillSplitModal; 
+export default BillSplitModal;

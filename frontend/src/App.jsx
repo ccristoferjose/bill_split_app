@@ -7,13 +7,14 @@ import Login from './components/Login'
 import Register from './components/Register'
 import Dashboard from './components/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
+import { SocketProvider } from './contexts/SocketContext'
 import { Toaster } from 'sonner'
 
 function App() {
   const { token } = useSelector((state) => state.auth);
 
   return (
-    <>
+    <SocketProvider>
       <Router>
         <Routes>
           <Route 
@@ -39,7 +40,7 @@ function App() {
         </Routes>
       </Router>
       <Toaster position="top-right" />
-    </>
+    </SocketProvider>
   )
 }
 

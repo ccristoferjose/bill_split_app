@@ -1,17 +1,20 @@
 // frontend/src/components/bills/BillsList.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   useGetUserCreatedBillsQuery, 
   useGetUserInvitedBillsQuery, 
-  useGetUserParticipatingBillsQuery 
+  useGetUserParticipatingBillsQuery
 } from '../services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, Users, Clock, Receipt } from 'lucide-react';
+import { Calendar, DollarSign, Users, Clock, Receipt, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import InvitationResponseModal from './InvitationResponseModal';
 
 const BillsList = ({ userId, type, onSelectBill }) => {
+  const [selectedInvitation, setSelectedInvitation] = useState(null);
   const {
     data: createdBills,
     isLoading: isLoadingCreated,
@@ -92,79 +95,115 @@ const BillsList = ({ userId, type, onSelectBill }) => {
     );
   }
 
+  const handleInvitationResponse = (action) => {
+    // Refresh the bills list after response
+    // The query will automatically refetch due to cache invalidation
+    toast.success(`Invitation ${action}ed successfully!`);
+  };
+
   return (
-    <div className="space-y-4">
-      {bills.map((bill) => (
-        <Card key={bill.id} className="hover:shadow-md transition-shadow cursor-pointer">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  {getBillTypeIcon(bill.bill_type)}
-                  <h3 className="font-semibold text-lg">{bill.title}</h3>
-                  <Badge className={getStatusColor(bill.status)}>
-                    {bill.status.replace('_', ' ')}
-                  </Badge>
-                  {bill.bill_type === 'monthly' && (
-                    <Badge variant="outline">Monthly</Badge>
+    <>
+      <div className="space-y-4">
+        {bills.map((bill) => (
+          <Card key={bill.id} className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    {getBillTypeIcon(bill.bill_type)}
+                    <h3 className="font-semibold text-lg">{bill.title}</h3>
+                    <Badge className={getStatusColor(bill.status)}>
+                      {bill.status.replace('_', ' ')}
+                    </Badge>
+                    {bill.bill_type === 'monthly' && (
+                      <Badge variant="outline">Monthly</Badge>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                    <div className="flex items-center">
+                      <DollarSign className="h-4 w-4 mr-1" />
+                      ${bill.total_amount}
+                    </div>
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      {format(new Date(bill.bill_date), 'MMM dd, yyyy')}
+                    </div>
+                    {type === 'created' && (
+                      <div className="flex items-center">
+                        <Users className="h-4 w-4 mr-1" />
+                        {bill.total_invitations || 0} invited
+                      </div>
+                    )}
+                    {type === 'invited' && bill.creator_name && (
+                      <div>
+                        Created by {bill.creator_name}
+                      </div>
+                    )}
+                    {type === 'participating' && (
+                      <div className="flex items-center">
+                        <DollarSign className="h-4 w-4 mr-1" />
+                        You owe: ${bill.amount_owed}
+                      </div>
+                    )}
+                  </div>
+
+                  {bill.due_date && (
+                    <p className="text-sm text-gray-500">
+                      Due: {format(new Date(bill.due_date), 'MMM dd, yyyy')}
+                    </p>
+                  )}
+
+                  {type === 'invited' && bill.invitation_status === 'pending' && (
+                    <div className="mt-3 flex space-x-2">
+                      <Badge className="bg-orange-100 text-orange-800">
+                        Awaiting your response - ${bill.proposed_amount}
+                      </Badge>
+                    </div>
                   )}
                 </div>
                 
-                <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-                  <div className="flex items-center">
-                    <DollarSign className="h-4 w-4 mr-1" />
-                    ${bill.total_amount}
-                  </div>
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    {format(new Date(bill.bill_date), 'MMM dd, yyyy')}
-                  </div>
-                  {type === 'created' && (
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 mr-1" />
-                      {bill.total_invitations || 0} invited
-                    </div>
+                <div className="flex space-x-2">
+                  {type === 'invited' && bill.invitation_status === 'pending' && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => setSelectedInvitation(bill)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Respond
+                      </Button>
+                    </>
                   )}
-                  {type === 'invited' && bill.creator_name && (
-                    <div>
-                      Created by {bill.creator_name}
-                    </div>
-                  )}
-                  {type === 'participating' && (
-                    <div className="flex items-center">
-                      <DollarSign className="h-4 w-4 mr-1" />
-                      You owe: ${bill.amount_owed}
-                    </div>
-                  )}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onSelectBill(bill.id)}
+                  >
+                    View Details
+                  </Button>
                 </div>
-
-                {bill.due_date && (
-                  <p className="text-sm text-gray-500">
-                    Due: {format(new Date(bill.due_date), 'MMM dd, yyyy')}
-                  </p>
-                )}
-
-                {type === 'invited' && bill.invitation_status === 'pending' && (
-                  <div className="mt-3 flex space-x-2">
-                    <Badge className="bg-orange-100 text-orange-800">
-                      Awaiting your response
-                    </Badge>
-                  </div>
-                )}
               </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onSelectBill(bill.id)}
-              >
-                View Details
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Invitation Response Modal */}
+      {selectedInvitation && (
+        <InvitationResponseModal
+          bill={selectedInvitation}
+          invitation={{
+            status: selectedInvitation.invitation_status,
+            proposed_amount: selectedInvitation.proposed_amount
+          }}
+          onClose={() => setSelectedInvitation(null)}
+          onResponse={handleInvitationResponse}
+        />
+      )}
+    </>
   );
 };
 
