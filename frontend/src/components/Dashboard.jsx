@@ -1,73 +1,45 @@
 // frontend/src/components/Dashboard.jsx
 import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../feature/auth/authSlice';
+import { useSelector } from 'react-redux';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, Receipt, Users, User, Settings } from 'lucide-react';
+import { Receipt, Users, User, Settings } from 'lucide-react';
 import BillsList from './BillsList';
 import CreateBilModal from './CreateBilModal';
 import BillDetails from './BillDetails';
 import UserProfile from './UserProfile';
-import { useLogoutMutation } from '../services/api';
-import { persistor } from '../store';
-
+import Navbar from './Navbar';
 
 const Dashboard = () => {
-  const [logoutMutation] = useLogoutMutation();
-  
   const { user } = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState('bills');
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState(null);
 
-  const handleLogout = async () => {
-    await logoutMutation(); // API call
-    dispatch(logout()); // Clear Redux state
-    await persistor.purge(); // Clear persisted state
-    navigate('/login');
-  };
-
+  // Loading state
   if (!user) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Receipt className="h-8 w-8 text-blue-600 mr-3" />
-              <h1 className="text-xl font-semibold text-gray-900">BillSplit</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">Welcome, {user.username}</span>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                size="sm"
-              >
-                Logout
-              </Button>
-              <Button
-                onClick={() => setShowCreateBill(true)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Bill
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Navbar Component */}
+      <Navbar 
+        onCreateBill={() => setShowCreateBill(true)} 
+        onNavigateToProfile={() => setActiveTab('profile')}
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          {/* Tabs Navigation */}
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="bills" className="flex items-center">
               <Receipt className="h-4 w-4 mr-2" />
@@ -87,6 +59,7 @@ const Dashboard = () => {
             </TabsTrigger>
           </TabsList>
 
+          {/* My Bills Tab */}
           <TabsContent value="bills" className="space-y-6">
             <Card>
               <CardHeader>
@@ -102,6 +75,7 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
+          {/* Invitations Tab */}
           <TabsContent value="invitations" className="space-y-6">
             <Card>
               <CardHeader>
@@ -117,6 +91,7 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
+          {/* Participating Tab */}
           <TabsContent value="participating" className="space-y-6">
             <Card>
               <CardHeader>
@@ -132,6 +107,7 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
+          {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-6">
             <UserProfile userId={user.id} />
           </TabsContent>
