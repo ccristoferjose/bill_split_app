@@ -10,16 +10,24 @@ import BillsList from './BillsList';
 import CreateBilModal from './CreateBilModal';
 import BillDetails from './BillDetails';
 import UserProfile from './UserProfile';
+import { useLogoutMutation } from '../services/api';
+import { persistor } from '../store';
+
 
 const Dashboard = () => {
+  const [logoutMutation] = useLogoutMutation();
+  
   const { user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState('bills');
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState(null);
 
-  const handleLogout = () => {
-    dispatch(logout());
+  const handleLogout = async () => {
+    await logoutMutation(); // API call
+    dispatch(logout()); // Clear Redux state
+    await persistor.purge(); // Clear persisted state
+    navigate('/login');
   };
 
   if (!user) {
