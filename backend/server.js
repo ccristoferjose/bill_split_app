@@ -406,7 +406,7 @@ app.post('/bills/:billId/invite', async (req, res) => {
 app.post('/bills/:billId/respond', async (req, res) => {
   try {
     const { billId } = req.params;
-    const { user_id, action } = req.body; // action: 'accept' or 'reject'
+    const { user_id, action } = req.body;
 
     if (!['accept', 'reject'].includes(action)) {
       return res.status(400).json({ message: 'Invalid action. Use "accept" or "reject"' });
@@ -420,6 +420,16 @@ app.post('/bills/:billId/respond', async (req, res) => {
 
     if (!invitation) {
       return res.status(404).json({ message: 'Invitation not found or already responded' });
+    }
+
+    // **GET BILL AND CREATOR INFO EARLY** - We need this for logging
+    const bill = await findOne(
+      'SELECT sb.*, creator.username as creator_name FROM service_bills sb JOIN users creator ON sb.created_by = creator.id WHERE sb.id = ?',
+      [billId]
+    );
+
+    if (!bill) {
+      return res.status(404).json({ message: 'Bill not found' });
     }
 
     const newStatus = action === 'accept' ? 'accepted' : 'rejected';
@@ -438,47 +448,186 @@ app.post('/bills/:billId/respond', async (req, res) => {
       );
     }
 
-    // Get bill and user information for notification
-    const bill = await findOne(
-      'SELECT sb.*, creator.username as creator_name FROM service_bills sb JOIN users creator ON sb.created_by = creator.id WHERE sb.id = ?',
+    // **Check if all invitations have been responded to**
+    const allInvitations = await findOne(
+      'SELECT COUNT(*) as total, COUNT(CASE WHEN status != "pending" THEN 1 END) as responded FROM bill_invitations WHERE bill_id = ?',
       [billId]
     );
 
+    const shouldAutoFinalize = allInvitations.total > 0 && 
+                              allInvitations.total === allInvitations.responded;
+
+    let billStatus = null;
+    
+    if (shouldAutoFinalize) {
+      // Check if there are any accepted invitations
+      const acceptedInvitations = await findOne(
+        'SELECT COUNT(*) as accepted_count FROM bill_invitations WHERE bill_id = ? AND status = "accepted"',
+        [billId]
+      );
+
+      if (acceptedInvitations.accepted_count > 0) {
+        // Auto-finalize the bill
+        await executeQuery(
+          'UPDATE service_bills SET status = "finalized" WHERE id = ?',
+          [billId]
+        );
+        billStatus = 'finalized';
+
+        // **Log the auto-finalization with BILL CREATOR's ID**
+        await executeQuery(
+          'INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES (?, ?, ?, ?)',
+          [billId, bill.created_by, 'finalized', 'Bill automatically finalized - all invitations responded to']
+        );
+      } else {
+        // All invitations were rejected, mark as cancelled
+        await executeQuery(
+          'UPDATE service_bills SET status = "cancelled" WHERE id = ?',
+          [billId]
+        );
+        billStatus = 'cancelled';
+
+        // **Log the cancellation with BILL CREATOR's ID**
+        await executeQuery(
+          'INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES (?, ?, ?, ?)',
+          [billId, bill.created_by, 'cancelled', 'Bill automatically cancelled - all invitations rejected']
+        );
+      }
+    }
+
+    // Get responding user information for notifications
     const respondingUser = await findOne(
       'SELECT username FROM users WHERE id = ?',
       [user_id]
     );
 
-    // Send real-time notification to bill creator
     if (bill && respondingUser) {
-      const notification = {
-        type: 'bill_response',
-        title: `Bill Response: ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
-        message: `${respondingUser.username} ${action === 'accept' ? 'accepted' : 'rejected'} the invitation for "${bill.title}" ($${invitation.proposed_amount})`,
+      // Send notification to the responding user
+      const userNotification = {
+        type: 'bill_status_update',
+        title: 'Response Recorded',
+        message: `Your response to "${bill.title}" has been recorded${billStatus ? ` and bill is now ${billStatus}` : ''}`,
+        data: {
+          billId: billId,
+          billTitle: bill.title,
+          action: action,
+          status: billStatus || 'pending_responses',
+          autoFinalized: shouldAutoFinalize
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Send notification to bill creator
+      const creatorNotification = {
+        type: billStatus ? 'bill_finalized' : 'bill_response',
+        title: billStatus ? `Bill ${billStatus.charAt(0).toUpperCase() + billStatus.slice(1)}` : `Bill Response: ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
+        message: billStatus 
+          ? `"${bill.title}" has been automatically ${billStatus} - all responses received`
+          : `${respondingUser.username} ${action === 'accept' ? 'accepted' : 'rejected'} the invitation for "${bill.title}" ($${invitation.proposed_amount})`,
         data: {
           billId: billId,
           billTitle: bill.title,
           respondingUser: respondingUser.username,
           action: action,
-          amount: invitation.proposed_amount
+          amount: invitation.proposed_amount,
+          status: billStatus || 'pending_responses',
+          autoFinalized: shouldAutoFinalize
         },
         timestamp: new Date().toISOString()
       };
 
-      const notificationSent = sendNotificationToUser(bill.created_by, notification);
-      console.log(`Response notification ${notificationSent ? 'sent' : 'failed'} to bill creator ${bill.created_by}`);
+      // Send to both users
+      sendNotificationToUser(user_id, userNotification);
+      sendNotificationToUser(bill.created_by, creatorNotification);
+
+      // **If auto-finalized, notify all participants**
+      if (shouldAutoFinalize && billStatus === 'finalized') {
+        const allParticipants = await executeQuery(
+          'SELECT DISTINCT user_id FROM service_bill_participants WHERE service_bill_id = ? AND user_id != ?',
+          [billId, bill.created_by]
+        );
+
+        const finalizationNotification = {
+          type: 'bill_finalized',
+          title: 'Bill Finalized',
+          message: `"${bill.title}" has been finalized and is ready for payment`,
+          data: {
+            billId: billId,
+            billTitle: bill.title,
+            status: 'finalized',
+            autoFinalized: true
+          },
+          timestamp: new Date().toISOString()
+        };
+
+        // Send to all participants
+        for (const participant of allParticipants) {
+          if (participant.user_id !== user_id) { // Don't send to the user who just responded
+            sendNotificationToUser(participant.user_id, finalizationNotification);
+          }
+        }
+      }
     }
 
-    // Log activity
+    // Log activity for the response (using the responding user's ID)
     await executeQuery(
       'INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES (?, ?, ?, ?)',
       [billId, user_id, action === 'accept' ? 'accepted' : 'rejected', `${action === 'accept' ? 'Accepted' : 'Rejected'} invitation for $${invitation.proposed_amount}`]
     );
 
-    res.json({ message: `Invitation ${action}ed successfully` });
+    res.json({ 
+      message: `Invitation ${action}ed successfully`,
+      data: {
+        billId: billId,
+        status: billStatus || 'pending_responses',
+        action: action,
+        autoFinalized: shouldAutoFinalize
+      }
+    });
 
   } catch (error) {
     console.error('Error responding to invitation:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+// Get current bill status and invitations
+app.get('/bills/:billId/status', async (req, res) => {
+  try {
+    const { billId } = req.params;
+    const { user_id } = req.query;
+
+    // Get bill information
+    const bill = await findOne(
+      'SELECT * FROM service_bills WHERE id = ?',
+      [billId]
+    );
+
+    if (!bill) {
+      return res.status(404).json({ message: 'Bill not found' });
+    }
+
+    // Get invitation status for this user
+    const invitation = await findOne(
+      'SELECT * FROM bill_invitations WHERE bill_id = ? AND invited_user_id = ?',
+      [billId, user_id]
+    );
+
+    // Get all invitations for this bill (if user is creator)
+    const allInvitations = await executeQuery(
+      'SELECT bi.*, u.username FROM bill_invitations bi JOIN users u ON bi.invited_user_id = u.id WHERE bi.bill_id = ?',
+      [billId]
+    );
+
+    res.json({
+      bill,
+      userInvitation: invitation,
+      allInvitations: bill.created_by == user_id ? allInvitations : null
+    });
+
+  } catch (error) {
+    console.error('Error fetching bill status:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1042,6 +1191,178 @@ app.get('/users/search', async (req, res) => {
     res.json({ users });
   } catch (error) {
     console.error('Error searching users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+// Utility function to check and update bill status
+async function checkAndUpdateBillStatus(billId) {
+  try {
+    // Get current bill status
+    const bill = await findOne('SELECT * FROM service_bills WHERE id = ?', [billId]);
+    
+    if (!bill || bill.status !== 'pending_responses') {
+      return bill; // Nothing to update
+    }
+
+    // Check invitation status
+    const invitationStats = await findOne(
+      `SELECT 
+        COUNT(*) as total_invitations,
+        SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+      FROM bill_invitations 
+      WHERE bill_id = ?`,
+      [billId]
+    );
+
+    const { total_invitations, accepted, rejected, pending } = invitationStats;
+
+    // If all invitations have been responded to
+    if (pending === 0 && total_invitations > 0) {
+      let newStatus;
+      
+      if (accepted > 0) {
+        newStatus = 'finalized';
+        await executeQuery(
+          'UPDATE service_bills SET status = ?, finalized_date = NOW() WHERE id = ?',
+          ['finalized', billId]
+        );
+      } else {
+        newStatus = 'cancelled';
+        await executeQuery(
+          'UPDATE service_bills SET status = ? WHERE id = ?',
+          ['cancelled', billId]
+        );
+      }
+
+      // Log the status change
+      await executeQuery(
+        'INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES (?, ?, ?, ?)',
+        [billId, null, `auto_${newStatus}`, `Bill automatically ${newStatus} - all invitations responded to`]
+      );
+
+      return { ...bill, status: newStatus };
+    }
+
+    return bill;
+  } catch (error) {
+    console.error('Error checking bill status:', error);
+    throw error;
+  }
+}
+
+
+// Check and update bill status
+app.post('/bills/:billId/check-status', async (req, res) => {
+  try {
+    const { billId } = req.params;
+    
+    // Get current bill status AND creator info
+    const bill = await findOne('SELECT * FROM service_bills WHERE id = ?', [billId]);
+    
+    if (!bill) {
+      return res.status(404).json({ message: 'Bill not found' });
+    }
+
+    if (bill.status !== 'pending_responses') {
+      return res.json({
+        message: 'Bill status is already final',
+        data: {
+          billId: billId,
+          status: bill.status,
+          noChangeNeeded: true
+        }
+      });
+    }
+
+    // Check invitation status
+    const invitationStats = await findOne(
+      `SELECT 
+        COUNT(*) as total_invitations,
+        SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+      FROM bill_invitations 
+      WHERE bill_id = ?`,
+      [billId]
+    );
+
+    const { total_invitations, accepted, rejected, pending } = invitationStats;
+
+    // If all invitations have been responded to
+    if (pending === 0 && total_invitations > 0) {
+      let newStatus;
+      
+      if (accepted > 0) {
+        newStatus = 'finalized';
+        await executeQuery(
+          'UPDATE service_bills SET status = ? WHERE id = ?',
+          ['finalized', billId]
+        );
+      } else {
+        newStatus = 'cancelled';
+        await executeQuery(
+          'UPDATE service_bills SET status = ? WHERE id = ?',
+          ['cancelled', billId]
+        );
+      }
+
+      // **Log the status change with BILL CREATOR's ID**
+      await executeQuery(
+        'INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES (?, ?, ?, ?)',
+        [billId, bill.created_by, newStatus, `Bill manually ${newStatus} via status check - all invitations responded to`]
+      );
+
+      // Send notifications to all relevant users
+      const participants = await executeQuery(
+        'SELECT u.id, u.username FROM service_bill_participants sbp JOIN users u ON sbp.user_id = u.id WHERE sbp.service_bill_id = ?',
+        [billId]
+      );
+
+      const statusNotification = {
+        type: `bill_${newStatus}`,
+        title: `Bill ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
+        message: `"${bill.title}" has been ${newStatus}`,
+        data: {
+          billId: billId,
+          billTitle: bill.title,
+          status: newStatus
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Send to all participants
+      for (const participant of participants) {
+        sendNotificationToUser(participant.id, statusNotification);
+      }
+
+      return res.json({
+        message: 'Bill status updated successfully',
+        data: {
+          billId: billId,
+          status: newStatus,
+          previousStatus: 'pending_responses',
+          updated: true
+        }
+      });
+    }
+
+    res.json({
+      message: 'Bill status checked - no update needed',
+      data: {
+        billId: billId,
+        status: bill.status,
+        pendingResponses: pending,
+        totalInvitations: total_invitations,
+        updated: false
+      }
+    });
+
+  } catch (error) {
+    console.error('Error checking bill status:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });

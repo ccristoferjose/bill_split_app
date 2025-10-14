@@ -38,7 +38,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
 export const api = createApi({
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Bill', 'User', 'Profile'],
+  tagTypes: ['Bill', 'User', 'Profile', 'BillStatus'],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation({
@@ -62,6 +62,7 @@ export const api = createApi({
       }),
     }),
     
+
     // Bill endpoints
     createBill: builder.mutation({
       query: (billData) => ({
@@ -98,8 +99,12 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Bill'],
+      invalidatesTags: (result, error, { billId }) => [
+        'Bill',
+        { type: 'BillStatus', id: billId }
+      ],
     }),
+
     
     respondToBillInvitation: builder.mutation({
       query: ({ billId, ...data }) => ({
@@ -107,7 +112,10 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Bill'],
+      invalidatesTags: (result, error, { billId }) => [
+        'Bill',
+        { type: 'BillStatus', id: billId }
+      ],
     }),
     
     finalizeBill: builder.mutation({
@@ -126,6 +134,17 @@ export const api = createApi({
         body: data,
       }),
       invalidatesTags: ['Bill'],
+    }),
+
+    getBillStatus: builder.query({
+      query: ({ billId, userId }) => ({
+        url: `/bills/${billId}/status`,
+        params: { user_id: userId }
+      }),
+      providesTags: (result, error, { billId }) => [
+        { type: 'BillStatus', id: billId },
+        'Bill'
+      ],
     }),
     
     // User search
@@ -167,4 +186,5 @@ export const {
   useSearchUsersQuery,
   useGetUserProfileQuery,
   useUpdateUserProfileMutation,
+  useGetBillStatusQuery,
 } = api;

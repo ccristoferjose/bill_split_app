@@ -1,5 +1,4 @@
-// frontend/src/components/bills/BillsList.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   useGetUserCreatedBillsQuery, 
   useGetUserInvitedBillsQuery, 
@@ -8,30 +7,146 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, Users, Clock, Receipt, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, DollarSign, Users, Clock, Receipt, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { useSocket } from '../contexts/SocketContext';
+import { useDispatch, useSelector } from 'react-redux'; // Added useSelector
+import { api } from '../services/api';
 import InvitationResponseModal from './InvitationResponseModal';
 
 const BillsList = ({ userId, type, onSelectBill }) => {
   const [selectedInvitation, setSelectedInvitation] = useState(null);
+  const { socket, isConnected } = useSocket();
+  const dispatch = useDispatch();
+  const { token } = useSelector((state) => state.auth); // Access token from auth state
+  
+  // Queries with shorter polling intervals for invited bills
   const {
     data: createdBills,
     isLoading: isLoadingCreated,
-    error: createdError
-  } = useGetUserCreatedBillsQuery(userId, { skip: type !== 'created' });
+    error: createdError,
+    refetch: refetchCreated
+  } = useGetUserCreatedBillsQuery(userId, { 
+    skip: type !== 'created',
+    pollingInterval: type === 'created' ? 30000 : 0
+  });
 
   const {
     data: invitedBills,
     isLoading: isLoadingInvited,
-    error: invitedError
-  } = useGetUserInvitedBillsQuery(userId, { skip: type !== 'invited' });
+    error: invitedError,
+    refetch: refetchInvited
+  } = useGetUserInvitedBillsQuery(userId, { 
+    skip: type !== 'invited',
+    pollingInterval: type === 'invited' ? 15000 : 0
+  });
 
   const {
     data: participatingBills,
     isLoading: isLoadingParticipating,
-    error: participatingError
-  } = useGetUserParticipatingBillsQuery(userId, { skip: type !== 'participating' });
+    error: participatingError,
+    refetch: refetchParticipating
+  } = useGetUserParticipatingBillsQuery(userId, { 
+    skip: type !== 'participating',
+    pollingInterval: type === 'participating' ? 30000 : 0
+  });
+
+  // Socket event handlers for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleBillNotification = (notification) => {
+      console.log('BillsList received notification:', notification);
+      
+      const { type: notificationType, data } = notification;
+      
+      // Handle different notification types
+      switch (notificationType) {
+        case 'bill_invitation':
+          // New invitation received
+          if (type === 'invited') {
+            dispatch(api.util.invalidateTags(['Bill']));
+            refetchInvited();
+          }
+          break;
+          
+        case 'bill_response':
+        case 'bill_status_update':
+        case 'bill_finalized': // Added this case
+          // Bill response, status update, or finalization
+          if (data.billId) {
+            // Invalidate cache for the specific bill
+            dispatch(api.util.invalidateTags([
+              { type: 'Bill', id: data.billId },
+              'Bill' // Invalidate all bill queries to be safe
+            ]));
+            
+            // Refetch the appropriate query based on current view
+            switch (type) {
+              case 'created':
+                refetchCreated();
+                break;
+              case 'invited':
+                refetchInvited();
+                break;
+              case 'participating':
+                refetchParticipating();
+                break;
+            }
+          }
+          break;
+          
+        default:
+          break;
+      }
+    };
+
+    // Listen for notifications
+    socket.on('notification', handleBillNotification);
+
+    return () => {
+      socket.off('notification', handleBillNotification);
+    };
+  }, [socket, type, dispatch, refetchCreated, refetchInvited, refetchParticipating]);
+
+  // Status check function with proper error handling
+  const handleStatusCheck = async (billId) => {
+    try {
+      const response = await fetch(`http://localhost:5001/bills/${billId}/check-status`, { // Added full URL
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        toast.success('Bill status updated');
+        console.log('Status check result:', result);
+        
+        // Refresh the current view
+        switch (type) {
+          case 'created':
+            await refetchCreated();
+            break;
+          case 'invited':
+            await refetchInvited();
+            break;
+          case 'participating':
+            await refetchParticipating();
+            break;
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to check bill status');
+      }
+    } catch (error) {
+      console.error('Error checking status:', error);
+      toast.error('Failed to check bill status');
+    }
+  };
 
   const getBillsData = () => {
     switch (type) {
@@ -55,12 +170,62 @@ const BillsList = ({ userId, type, onSelectBill }) => {
       finalized: 'bg-blue-100 text-blue-800',
       paid: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
+      accepted: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
   const getBillTypeIcon = (billType) => {
     return billType === 'monthly' ? <Clock className="h-4 w-4" /> : <Calendar className="h-4 w-4" />;
+  };
+
+  // Enhanced invitation response handler
+  const handleInvitationResponse = async (action) => {
+    try {
+      // Force refresh the current view
+      switch (type) {
+        case 'created':
+          await refetchCreated();
+          break;
+        case 'invited':
+          await refetchInvited();
+          break;
+        case 'participating':
+          await refetchParticipating();
+          break;
+      }
+      
+      // Also invalidate all bill-related cache
+      dispatch(api.util.invalidateTags(['Bill']));
+      
+      toast.success(`Invitation ${action}ed successfully!`);
+      
+      // Close the modal
+      setSelectedInvitation(null);
+    } catch (error) {
+      console.error('Error refreshing after invitation response:', error);
+    }
+  };
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    try {
+      switch (type) {
+        case 'created':
+          await refetchCreated();
+          break;
+        case 'invited':
+          await refetchInvited();
+          break;
+        case 'participating':
+          await refetchParticipating();
+          break;
+      }
+      toast.success('Bills refreshed!');
+    } catch (error) {
+      toast.error('Failed to refresh bills');
+    }
   };
 
   if (isLoading) {
@@ -82,6 +247,9 @@ const BillsList = ({ userId, type, onSelectBill }) => {
     return (
       <div className="text-center py-8">
         <p className="text-red-600">Error loading bills: {error.message}</p>
+        <Button onClick={handleManualRefresh} className="mt-2" variant="outline">
+          Try Again
+        </Button>
       </div>
     );
   }
@@ -91,18 +259,31 @@ const BillsList = ({ userId, type, onSelectBill }) => {
       <div className="text-center py-8">
         <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-500">No bills found</p>
+        <Button onClick={handleManualRefresh} className="mt-2" variant="outline">
+          Refresh
+        </Button>
       </div>
     );
   }
 
-  const handleInvitationResponse = (action) => {
-    // Refresh the bills list after response
-    // The query will automatically refetch due to cache invalidation
-    toast.success(`Invitation ${action}ed successfully!`);
-  };
-
   return (
     <>
+      {/* Connection status indicator */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center space-x-2">
+          <div 
+            className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+          />
+          <span className="text-xs text-gray-500">
+            {isConnected ? 'Live updates active' : 'Offline - using cached data'}
+          </span>
+        </div>
+        <Button onClick={handleManualRefresh} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-1" />
+          Refresh
+        </Button>
+      </div>
+
       <div className="space-y-4">
         {bills.map((bill) => (
           <Card key={bill.id} className="hover:shadow-md transition-shadow cursor-pointer">
@@ -117,6 +298,18 @@ const BillsList = ({ userId, type, onSelectBill }) => {
                     </Badge>
                     {bill.bill_type === 'monthly' && (
                       <Badge variant="outline">Monthly</Badge>
+                    )}
+                    {/* Moved the Check Status button here for better visibility */}
+                    {bill.status === 'pending_responses' && type === 'created' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleStatusCheck(bill.id)}
+                        className="ml-2"
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Check Status
+                      </Button>
                     )}
                   </div>
                   
@@ -154,27 +347,40 @@ const BillsList = ({ userId, type, onSelectBill }) => {
                     </p>
                   )}
 
-                  {type === 'invited' && bill.invitation_status === 'pending' && (
+                  {/* Enhanced invitation status display */}
+                  {type === 'invited' && (
                     <div className="mt-3 flex space-x-2">
-                      <Badge className="bg-orange-100 text-orange-800">
-                        Awaiting your response - ${bill.proposed_amount}
-                      </Badge>
+                      {bill.invitation_status === 'pending' && (
+                        <Badge className="bg-orange-100 text-orange-800">
+                          Awaiting your response - ${bill.proposed_amount}
+                        </Badge>
+                      )}
+                      {bill.invitation_status === 'accepted' && (
+                        <Badge className="bg-green-100 text-green-800">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Accepted - ${bill.proposed_amount}
+                        </Badge>
+                      )}
+                      {bill.invitation_status === 'rejected' && (
+                        <Badge className="bg-red-100 text-red-800">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Rejected
+                        </Badge>
+                      )}
                     </div>
                   )}
                 </div>
                 
                 <div className="flex space-x-2">
                   {type === 'invited' && bill.invitation_status === 'pending' && (
-                    <>
-                      <Button
-                        size="sm"
-                        onClick={() => setSelectedInvitation(bill)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Respond
-                      </Button>
-                    </>
+                    <Button
+                      size="sm"
+                      onClick={() => setSelectedInvitation(bill)}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Respond
+                    </Button>
                   )}
                   
                   <Button
@@ -191,7 +397,7 @@ const BillsList = ({ userId, type, onSelectBill }) => {
         ))}
       </div>
 
-      {/* Invitation Response Modal */}
+      {/* Enhanced Invitation Response Modal */}
       {selectedInvitation && (
         <InvitationResponseModal
           bill={selectedInvitation}
