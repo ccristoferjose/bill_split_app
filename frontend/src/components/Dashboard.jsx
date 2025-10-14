@@ -10,6 +10,7 @@ import BillsList from './BillsList';
 import CreateBilModal from './CreateBilModal';
 import BillDetails from './BillDetails';
 import UserProfile from './UserProfile';
+import { useLogoutMutation } from '../services/api';
 
 const Dashboard = () => {
   const { user } = useSelector((state) => state.auth);
@@ -18,8 +19,17 @@ const Dashboard = () => {
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState(null);
 
-  const handleLogout = () => {
-    dispatch(logout());
+  const [logoutMutation] = useLogoutMutation();
+
+  const handleLogout = async () => {
+    try {
+      await logoutMutation().unwrap();
+      dispatch(logout());
+      localStorage.removeItem('authState'); // Clear saved state
+      // Navigate to login
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   if (!user) {
