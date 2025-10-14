@@ -1195,6 +1195,113 @@ app.get('/users/search', async (req, res) => {
   }
 });
 
+// ===== USER PROFILE ENDPOINTS =====
+
+// Get user profile
+app.get('/user/:userId/profile', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Get user profile with statistics
+    const profile = await findOne(`
+      SELECT 
+        u.id,
+        u.username,
+        u.email,
+        u.phone,
+        u.address,
+        u.city,
+        u.country,
+        u.created_at,
+        COUNT(DISTINCT sb_created.id) as bills_created,
+        COUNT(DISTINCT sbp.service_bill_id) as bills_participated,
+        COALESCE(SUM(sbp.amount_owed), 0) as total_paid
+      FROM users u
+      LEFT JOIN service_bills sb_created ON u.id = sb_created.created_by
+      LEFT JOIN service_bill_participants sbp ON u.id = sbp.user_id AND sbp.payment_status = 'paid'
+      WHERE u.id = ?
+      GROUP BY u.id
+    `, [userId]);
+
+    if (!profile) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(profile);
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Update user profile
+app.put('/user/:userId/profile', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { username, email, phone, address, city, country } = req.body;
+
+    // Validate required fields
+    if (!username || !email) {
+      return res.status(400).json({ message: 'Username and email are required' });
+    }
+
+    // Check if user exists
+    const existingUser = await findOne(
+      'SELECT id FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!existingUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if username is already taken by another user
+    const usernameExists = await findOne(
+      'SELECT id FROM users WHERE username = ? AND id != ?',
+      [username, userId]
+    );
+
+    if (usernameExists) {
+      return res.status(409).json({ message: 'Username already taken' });
+    }
+
+    // Check if email is already taken by another user
+    const emailExists = await findOne(
+      'SELECT id FROM users WHERE email = ? AND id != ?',
+      [email, userId]
+    );
+
+    if (emailExists) {
+      return res.status(409).json({ message: 'Email already taken' });
+    }
+
+    // Update user profile
+    await executeQuery(
+      'UPDATE users SET username = ?, email = ?, phone = ?, address = ?, city = ?, country = ? WHERE id = ?',
+      [username, email, phone || null, address || null, city || null, country || null, userId]
+    );
+
+    // Get updated user data
+    const updatedUser = await findOne(
+      'SELECT id, username, email, phone, address, city, country, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+
+    // Generate new access token with updated user info
+    const accessToken = jwt.sign({ userId: userId }, accessSecret, { expiresIn: '15m' });
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: updatedUser,
+      access_token: accessToken
+    });
+
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 
 // Utility function to check and update bill status
 async function checkAndUpdateBillStatus(billId) {
