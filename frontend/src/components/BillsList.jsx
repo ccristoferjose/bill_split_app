@@ -199,7 +199,7 @@ const BillsList = ({ userId, type, onSelectBill }) => {
       // Also invalidate all bill-related cache
       dispatch(api.util.invalidateTags(['Bill']));
       
-      toast.success(`Invitation ${action}ed successfully!`);
+      //toast.success(`Invitation ${action}ed successfully!`);
       
       // Close the modal
       setSelectedInvitation(null);

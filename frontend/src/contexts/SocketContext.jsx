@@ -74,16 +74,20 @@ export const SocketProvider = ({ children }) => {
             break;
           
           case 'bill_response':
-            toast.success(notification.title, {
-              description: notification.message,
-              duration: 4000,
-              action: {
-                label: 'View Details',
-                onClick: () => {
-                  window.location.href = `/bills/${notification.data.billId}`;
+            // Only show toast if the notification is for someone else's action
+            // (not the current user's own response)
+            if (notification.data?.responderId !== user.id) {
+              toast.success(notification.title, {
+                description: notification.message,
+                duration: 4000,
+                action: {
+                  label: 'View Details',
+                  onClick: () => {
+                    window.location.href = `/bills/${notification.data.billId}`;
+                  }
                 }
-              }
-            });
+              });
+            }
             break;
 
           case 'bill_status_update':
