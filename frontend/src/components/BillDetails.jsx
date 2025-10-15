@@ -7,11 +7,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, DollarSign, User, X, Users } from 'lucide-react';
 import BillSplitModal from './BillSplitModal';
+import { useMarkBillAsPaidMutation } from '../services/api';
+import PaymentStatus from './PaymentStatus';
+import PaymentButton from './PaymentButton';
+import { toast } from 'sonner';
 
 const BillDetails = ({ billId, onClose }) => {
   const { user } = useSelector((state) => state.auth);
   const [showSplitModal, setShowSplitModal] = useState(false);
   const { data, isLoading, error } = useGetBillDetailsQuery(billId);
+
+  const [markAsPaid] = useMarkBillAsPaidMutation();
+
+
+  const handleMarkAsPaid = async () => {
+    try {
+      await markBillAsPaid({
+        billId: bill.id,
+        user_id: currentUser.id  // Marks THIS user's portion only
+      }).unwrap();
+      
+      toast.success('Your payment has been recorded!');
+    } catch (error) {
+      toast.error('Failed to record payment');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -153,20 +173,29 @@ const BillDetails = ({ billId, onClose }) => {
           {data?.participants && data.participants.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Participants</CardTitle>
+                <CardTitle>Payment Status</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {data.participants.map((participant, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span>{participant.username}</span>
-                      <div className="flex items-center space-x-2">
-                        <span>${participant.amount_owed}</span>
-                        <Badge variant={participant.payment_status === 'paid' ? 'default' : 'outline'}>
-                          {participant.payment_status}
-                        </Badge>
+                <PaymentStatus 
+                  bill={bill}
+                  participants={data.participants}
+                />
+                
+                {/* Agregar botones de pago después del PaymentStatus */}
+                <div className="mt-4 space-y-2">
+                  {data.participants.map((participant) => (
+                    participant.user_id === user?.id && participant.payment_status === 'pending' && (
+                      <div key={participant.user_id} className="flex justify-end">
+                        <Button
+                          onClick={() => handleMarkAsPaid(participant.user_id)}
+                          disabled={isLoading || bill.status !== 'finalized'}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <DollarSign className="h-4 w-4 mr-1" />
+                          {isLoading ? 'Processing...' : 'Mark as Paid'}
+                        </Button>
                       </div>
-                    </div>
+                    )
                   ))}
                 </div>
               </CardContent>
