@@ -74,16 +74,36 @@ export const SocketProvider = ({ children }) => {
             break;
           
           case 'bill_response':
-            toast.success(notification.title, {
-              description: notification.message,
-              duration: 4000,
-              action: {
-                label: 'View Details',
-                onClick: () => {
-                  window.location.href = `/bills/${notification.data.billId}`;
+            // Check if it's specifically an invitation acceptance
+            if (notification.data?.action === 'accept') {
+              toast.success('Invitation accepted successfully', {
+                description: notification.message || `You've been added to ${notification.data?.billTitle || 'the bill'}`,
+                duration: 4000,
+                action: {
+                  label: 'View Details',
+                  onClick: () => {
+                    window.location.href = `/bills/${notification.data.billId}`;
+                  }
                 }
-              }
-            });
+              });
+            } else if (notification.data?.action === 'reject') {
+              toast.info('Invitation rejected', {
+                description: notification.message,
+                duration: 4000,
+              });
+            } else {
+              // Default bill response handling
+              toast.success(notification.title, {
+                description: notification.message,
+                duration: 4000,
+                action: {
+                  label: 'View Details',
+                  onClick: () => {
+                    window.location.href = `/bills/${notification.data.billId}`;
+                  }
+                }
+              });
+            }
             break;
 
           case 'bill_status_update':

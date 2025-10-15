@@ -23,14 +23,16 @@ const InvitationResponseModal = ({ bill, invitation, onClose, onResponse }) => {
         user_id: user.id,
         action
       }).unwrap();
-
-      toast.success(`Invitation ${action}ed successfully!`);
+  
+      // Remove this line - let SocketContext handle the toast
+      // toast.success(`Invitation ${action}ed successfully!`);
+      
       onResponse?.(action);
       onClose();
     } catch (error) {
       console.error('Error responding to invitation:', error);
       const errorMessage = error?.data?.message || error?.message || `Failed to ${action} invitation`;
-      toast.error(errorMessage);
+      toast.error(errorMessage); // Keep error toasts as they're local failures
     } finally {
       setIsSubmitting(false);
     }

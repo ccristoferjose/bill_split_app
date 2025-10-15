@@ -199,7 +199,8 @@ const BillsList = ({ userId, type, onSelectBill }) => {
       // Also invalidate all bill-related cache
       dispatch(api.util.invalidateTags(['Bill']));
       
-      toast.success(`Invitation ${action}ed successfully!`);
+      // Remove this line - SocketContext will handle the notification
+      // toast.success(`Invitation ${action}ed successfully!`);
       
       // Close the modal
       setSelectedInvitation(null);
