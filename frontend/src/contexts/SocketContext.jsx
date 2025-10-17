@@ -121,7 +121,34 @@ export const SocketProvider = ({ children }) => {
               ]));
             }
             break;
-          
+
+          // SocketContext.jsx - Add new case
+          case 'payment_made':
+            toast.success(notification.title, {
+              description: notification.message,
+              duration: 4000,
+            });
+            
+            // Invalidate bill cache
+            if (notification.data?.billId) {
+              dispatch(api.util.invalidateTags([
+                { type: 'Bill', id: notification.data.billId },
+                'Bill'
+              ]));
+            }
+            break;
+
+          case 'bill_fully_paid':
+            toast.success(notification.title, {
+              description: notification.message,
+              duration: 5000,
+              action: {
+                label: 'View Bill',
+                onClick: () => window.location.href = `/bills/${notification.data.billId}`
+              }
+            });
+            break;
+                    
           default:
             toast(notification.title, {
               description: notification.message,
