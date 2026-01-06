@@ -2,16 +2,14 @@ const mysql = require('mysql2/promise');
 
 // Database configuration
 const dbConfig = {
-  host: 'localhost',
-  user: 'root', // Change this to your MySQL username
-  password: 'admin123', // Change this to your MySQL password
+  host: '34.94.127.139',
+  user: 'backend',
+  password: 'A&urJyHhK&6=dx8k',
   database: 'work_db',
+  port: 3306,
   waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true
+  connectionLimit: 5,
+  queueLimit: 0
 };
 
 // Create connection pool
@@ -25,7 +23,7 @@ const testConnection = async () => {
     connection.release();
     return true;
   } catch (error) {
-    console.error('Error connecting to MySQL database:', error.message);
+    console.error('FULL MYSQL ERROR:', error);
     return false;
   }
 };

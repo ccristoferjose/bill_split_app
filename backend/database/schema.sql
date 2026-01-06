@@ -113,14 +113,14 @@ INSERT INTO users (username, password, email) VALUES
 ('user3', 'password3', 'user3@example.com'),
 ('user4', 'password4', 'user4@example.com');
 
--- Insert sample services
+-- sample services
 INSERT INTO services (user_id, service_name, service_description, price) VALUES 
 (1, 'Web Development', 'Custom website development', 1500.00),
 (1, 'SEO Optimization', 'Search engine optimization service', 800.00),
 (2, 'Graphic Design', 'Logo and brand design', 500.00),
 (3, 'Consulting', 'Business consulting services', 200.00);
 
--- Insert sample service bills with unique codes (both one-time and monthly)
+-- sample service bills with unique codes (both one-time and monthly)
 INSERT INTO service_bills (bill_code, created_by, title, total_amount, bill_date, bill_type, status, due_date, next_due_date, auto_invite_users, is_template) VALUES 
 ('BILL-XYZ123', 1, 'Restaurant Dinner Split', 240.00, '2024-01-15', 'one_time', 'pending_responses', '2024-02-15', NULL, FALSE, FALSE),
 ('BILL-ABC456', 2, 'Office Supplies', 150.00, '2024-01-20', 'one_time', 'finalized', '2024-02-20', NULL, FALSE, FALSE),
@@ -130,7 +130,7 @@ INSERT INTO service_bills (bill_code, created_by, title, total_amount, bill_date
 ('BILL-UTIL002', 1, 'January Utility Bill', 180.00, '2024-01-01', 'monthly', 'finalized', '2024-02-01', '2024-02-01', FALSE, FALSE),
 ('BILL-RENT002', 2, 'January Office Rent', 1500.00, '2024-01-01', 'monthly', 'paid', '2024-02-01', '2024-02-01', FALSE, FALSE);
 
--- Insert sample bill invitations
+-- sample bill invitations
 INSERT INTO bill_invitations (bill_id, invited_user_id, invited_by, status, proposed_amount, response_date) VALUES 
 (1, 2, 1, 'accepted', 60.00, '2024-01-16 10:30:00'),
 (1, 3, 1, 'accepted', 60.00, '2024-01-16 14:20:00'),
@@ -148,7 +148,7 @@ INSERT INTO bill_invitations (bill_id, invited_user_id, invited_by, status, prop
 (7, 1, 2, 'accepted', 500.00, '2024-01-02 11:00:00'),
 (7, 3, 2, 'accepted', 500.00, '2024-01-02 12:00:00');
 
--- Insert final bill participants (only accepted users + creator)
+--  final bill participants (only accepted users + creator)
 INSERT INTO service_bill_participants (service_bill_id, user_id, amount_owed, is_creator, payment_status) VALUES 
 -- Bill 1: Creator pays extra since user4 rejected
 (1, 1, 120.00, TRUE, 'pending'),   -- Creator pays 120 (his 60 + rejected user's 60)
@@ -173,7 +173,7 @@ INSERT INTO service_bill_participants (service_bill_id, user_id, amount_owed, is
 (7, 1, 500.00, FALSE, 'paid'),     -- January rent participant
 (7, 3, 500.00, FALSE, 'paid');     -- January rent participant
 
--- Insert sample bill items
+-- sample bill items
 INSERT INTO service_bill_items (service_bill_id, item_name, item_description, quantity, unit_price, total_price) VALUES 
 (1, 'Appetizers', 'Shared appetizers for the table', 2, 15.00, 30.00),
 (1, 'Main Courses', 'Individual main courses', 4, 45.00, 180.00),
@@ -182,7 +182,7 @@ INSERT INTO service_bill_items (service_bill_id, item_name, item_description, qu
 (2, 'Pens', 'Blue ballpoint pens', 10, 2.00, 20.00),
 (2, 'Notebooks', 'Spiral notebooks', 7, 10.00, 70.00);
 
--- Insert activity log entries
+-- activity log entries
 INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES 
 (1, 1, 'created', 'Created restaurant dinner bill'),
 (1, 1, 'invited_user', 'Invited user2, user3, user4'),
