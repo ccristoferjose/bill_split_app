@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, DollarSign, User, X, Users } from 'lucide-react';
 import BillSplitModal from './BillSplitModal';
+import PaymentSection from './PaymentSection';
+
 
 const BillDetails = ({ billId, onClose }) => {
   const { user } = useSelector((state) => state.auth);
@@ -149,29 +151,14 @@ const BillDetails = ({ billId, onClose }) => {
             </Card>
           )}
 
-          {/* Participants */}
-          {data?.participants && data.participants.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Participants</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {data.participants.map((participant, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span>{participant.username}</span>
-                      <div className="flex items-center space-x-2">
-                        <span>${participant.amount_owed}</span>
-                        <Badge variant={participant.payment_status === 'paid' ? 'default' : 'outline'}>
-                          {participant.payment_status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+           {/* Payment Section */}
+            {data?.participants && data.participants.length > 0 && (
+              <PaymentSection 
+                bill={bill}
+                participants={data.participants}
+                currentUserId={user?.id}
+              />
+            )}
         </div>
 
         <div className="flex justify-between">

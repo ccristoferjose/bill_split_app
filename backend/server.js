@@ -909,6 +909,46 @@ app.post('/bills/:billId/mark-paid', async (req, res) => {
       }
     }
 
+    // After marking payment, emit notification
+    if (result.affectedRows > 0) {
+      // Get user who paid
+      const paidUser = await findOne(
+        'SELECT u.username FROM users u WHERE u.id = ?',
+        [user_id]
+      );
+      
+      // Get bill creator
+      const bill = await findOne(
+        'SELECT created_by FROM service_bills WHERE id = ?',
+        [billId]
+      );
+      
+      // Notify bill creator
+      io.to(`user_${bill.created_by}`).emit('notification', {
+        type: 'payment_made',
+        title: 'Payment Received',
+        message: `${paidUser.username} marked their payment as complete`,
+        data: { billId, userId: user_id }
+      });
+      
+      // If all paid, notify everyone
+      if (unpaidCount.count === 0) {
+        const participants = await executeQuery(
+          'SELECT user_id FROM service_bill_participants WHERE service_bill_id = ?',
+          [billId]
+        );
+        
+        participants.forEach(participant => {
+          io.to(`user_${participant.user_id}`).emit('notification', {
+            type: 'bill_fully_paid',
+            title: 'Bill Fully Paid!',
+            message: 'All participants have paid their share',
+            data: { billId }
+          });
+        });
+      }
+    }
+
     res.json({ message: 'Payment status updated successfully' });
 
   } catch (error) {
