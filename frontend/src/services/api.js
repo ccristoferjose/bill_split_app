@@ -129,11 +129,35 @@ export const api = createApi({
     
     markBillAsPaid: builder.mutation({
       query: ({ billId, ...data }) => ({
-        url: `/bills/${billId}/mark-paid`,
+        url: `/api/pay-bills/${billId}/pay`,
         method: 'POST',
         body: data,
       }),
       invalidatesTags: ['Bill'],
+    }),
+
+    // Get payment status for a bill
+    getPaymentStatus: builder.query({
+      query: ({ billId, userId }) => ({
+        url: `/api/pay-bills/${billId}/status`,
+        params: userId ? { user_id: userId } : {}
+      }),
+      providesTags: ['Bill'],
+    }),
+
+    // Get user's pending payments
+    getUserPendingPayments: builder.query({
+      query: (userId) => `/api/pay-bills/user/${userId}/pending`,
+      providesTags: ['Bill'],
+    }),
+
+    // Get user's payment history
+    getUserPaymentHistory: builder.query({
+      query: ({ userId, limit = 20, offset = 0 }) => ({
+        url: `/api/pay-bills/user/${userId}/history`,
+        params: { limit, offset }
+      }),
+      providesTags: ['Bill'],
     }),
 
     getBillStatus: builder.query({
@@ -187,4 +211,7 @@ export const {
   useGetUserProfileQuery,
   useUpdateUserProfileMutation,
   useGetBillStatusQuery,
+  useGetPaymentStatusQuery,
+  useGetUserPendingPaymentsQuery,
+  useGetUserPaymentHistoryQuery,
 } = api;

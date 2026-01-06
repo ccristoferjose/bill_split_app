@@ -8,6 +8,9 @@ const morgan = require('morgan');
 const bcrypt = require('bcrypt');
 const { testConnection, findOne, executeQuery } = require('./config/database');
 
+// Import routes
+const payBillsRoutes = require('./routes/payBillsRoutes');
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -27,6 +30,9 @@ app.use(cors({
   credentials: true
 }));
 app.use(morgan('dev'));
+
+// Use routes
+app.use('/api/pay-bills', payBillsRoutes);
 
 // Store connected users
 const connectedUsers = new Map();
@@ -474,6 +480,24 @@ app.post('/bills/:billId/respond', async (req, res) => {
         );
         billStatus = 'finalized';
 
+        // Get all accepted invitations to calculate creator's amount
+        const acceptedInvitationsList = await executeQuery(
+          'SELECT * FROM bill_invitations WHERE bill_id = ? AND status = "accepted"',
+          [billId]
+        );
+
+        // Calculate creator's amount (total - sum of all accepted amounts)
+        const acceptedTotal = acceptedInvitationsList.reduce(
+          (sum, inv) => sum + parseFloat(inv.proposed_amount), 0
+        );
+        const creatorAmount = parseFloat(bill.total_amount) - acceptedTotal;
+
+        // Add bill creator as participant (if not already added)
+        await executeQuery(
+          'INSERT INTO service_bill_participants (service_bill_id, user_id, amount_owed, is_creator, payment_status) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE amount_owed = VALUES(amount_owed)',
+          [billId, bill.created_by, creatorAmount, true, 'pending']
+        );
+
         // **Log the auto-finalization with BILL CREATOR's ID**
         await executeQuery(
           'INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES (?, ?, ?, ?)',
@@ -758,19 +782,31 @@ app.get('/user/:userId/bills/invited', async (req, res) => {
   }
 });
 
-// Get bills where user is a participant (finalized bills)
+// Get bills where user is a participant (finalized or paid bills)
+// This shows all bills where the user can make payments or has already paid
 app.get('/user/:userId/bills/participating', async (req, res) => {
   try {
     const { userId } = req.params;
     
     const bills = await executeQuery(`
-      SELECT sb.*, sbp.amount_owed, sbp.is_creator, sbp.payment_status, sbp.paid_date,
-             creator.username as creator_name
+      SELECT 
+        sb.*, 
+        sbp.amount_owed, 
+        sbp.is_creator, 
+        sbp.payment_status as participant_payment_status, 
+        sbp.paid_date,
+        creator.username as creator_name,
+        (SELECT COUNT(*) FROM service_bill_participants WHERE service_bill_id = sb.id AND payment_status = 'paid') as paid_participants_count,
+        (SELECT COUNT(*) FROM service_bill_participants WHERE service_bill_id = sb.id) as total_participants_count
       FROM service_bills sb
       JOIN service_bill_participants sbp ON sb.id = sbp.service_bill_id
       JOIN users creator ON sb.created_by = creator.id
       WHERE sbp.user_id = ?
-      ORDER BY sb.created_at DESC
+        AND sb.status IN ('finalized', 'paid')
+      ORDER BY 
+        CASE WHEN sbp.payment_status = 'pending' THEN 0 ELSE 1 END,
+        sb.due_date ASC,
+        sb.created_at DESC
     `, [userId]);
 
     res.json({ bills });
@@ -859,100 +895,6 @@ app.get('/bills/code/:billCode', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching bill by code:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// Mark bill as paid
-app.post('/bills/:billId/mark-paid', async (req, res) => {
-  try {
-    const { billId } = req.params;
-    const { user_id } = req.body;
-
-    // Update participant payment status
-    const result = await executeQuery(
-      'UPDATE service_bill_participants SET payment_status = ?, paid_date = NOW() WHERE service_bill_id = ? AND user_id = ?',
-      ['paid', billId, user_id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Participant not found' });
-    }
-
-    // Check if all participants have paid
-    const unpaidCount = await findOne(
-      'SELECT COUNT(*) as count FROM service_bill_participants WHERE service_bill_id = ? AND payment_status = ?',
-      [billId, 'pending']
-    );
-
-    // If all paid, mark bill as paid
-    if (unpaidCount.count === 0) {
-      await executeQuery(
-        'UPDATE service_bills SET status = ? WHERE id = ?',
-        ['paid', billId]
-      );
-
-      // If this is a monthly bill, update next due date
-      const bill = await findOne(
-        'SELECT * FROM service_bills WHERE id = ?',
-        [billId]
-      );
-
-      if (bill && bill.bill_type === 'monthly' && bill.next_due_date) {
-        const nextDueDate = new Date(bill.next_due_date);
-        nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-        
-        await executeQuery(
-          'UPDATE service_bills SET next_due_date = ? WHERE id = ?',
-          [nextDueDate.toISOString().split('T')[0], billId]
-        );
-      }
-    }
-
-    // After marking payment, emit notification
-    if (result.affectedRows > 0) {
-      // Get user who paid
-      const paidUser = await findOne(
-        'SELECT u.username FROM users u WHERE u.id = ?',
-        [user_id]
-      );
-      
-      // Get bill creator
-      const bill = await findOne(
-        'SELECT created_by FROM service_bills WHERE id = ?',
-        [billId]
-      );
-      
-      // Notify bill creator
-      io.to(`user_${bill.created_by}`).emit('notification', {
-        type: 'payment_made',
-        title: 'Payment Received',
-        message: `${paidUser.username} marked their payment as complete`,
-        data: { billId, userId: user_id }
-      });
-      
-      // If all paid, notify everyone
-      if (unpaidCount.count === 0) {
-        const participants = await executeQuery(
-          'SELECT user_id FROM service_bill_participants WHERE service_bill_id = ?',
-          [billId]
-        );
-        
-        participants.forEach(participant => {
-          io.to(`user_${participant.user_id}`).emit('notification', {
-            type: 'bill_fully_paid',
-            title: 'Bill Fully Paid!',
-            message: 'All participants have paid their share',
-            data: { billId }
-          });
-        });
-      }
-    }
-
-    res.json({ message: 'Payment status updated successfully' });
-
-  } catch (error) {
-    console.error('Error marking bill as paid:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
