@@ -5,7 +5,7 @@ const {
   getPaymentStatus,
   getUserPendingPayments,
   getUserPaymentHistory
-} = require('../controllers/payBillsController');
+} = require('../controllers/payBill.controller');
 
 /**
  * @route   POST /api/pay-bills/:billId/pay
