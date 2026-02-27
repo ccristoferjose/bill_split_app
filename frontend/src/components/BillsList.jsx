@@ -1,25 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  useGetUserCreatedBillsQuery, 
-  useGetUserInvitedBillsQuery, 
-  useGetUserParticipatingBillsQuery
+import {
+  useGetUserCreatedBillsQuery,
+  useGetUserInvitedBillsQuery,
+  useGetUserParticipatingBillsQuery,
+  useMarkBillAsPaidMutation,
+  useDeleteBillMutation,
+  usePayBillInFullMutation
 } from '../services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, Users, Clock, Receipt, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Calendar, DollarSign, Users, Clock, Receipt, CheckCircle, XCircle, RefreshCw, Trash2, Star, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useSocket } from '../contexts/SocketContext';
 import { useDispatch, useSelector } from 'react-redux'; // Added useSelector
 import { api } from '../services/api';
 import InvitationResponseModal from './InvitationResponseModal';
+import BillSplitModal from './BillSplitModal';
 
 const BillsList = ({ userId, type, onSelectBill }) => {
   const [selectedInvitation, setSelectedInvitation] = useState(null);
+  const [splitBill, setSplitBill] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null);
   const { socket, isConnected } = useSocket();
   const dispatch = useDispatch();
-  const { token } = useSelector((state) => state.auth); // Access token from auth state
+  const { token } = useSelector((state) => state.auth);
+  const [markBillAsPaid, { isLoading: isMarkingPaid }] = useMarkBillAsPaidMutation();
+  const [deleteBill, { isLoading: isDeleting }] = useDeleteBillMutation();
+  const [payBillInFull, { isLoading: isPayingFull }] = usePayBillInFullMutation();
   
   // Queries with shorter polling intervals for invited bills
   const {
@@ -27,9 +37,9 @@ const BillsList = ({ userId, type, onSelectBill }) => {
     isLoading: isLoadingCreated,
     error: createdError,
     refetch: refetchCreated
-  } = useGetUserCreatedBillsQuery(userId, { 
-    skip: type !== 'created',
-    pollingInterval: type === 'created' ? 30000 : 0
+  } = useGetUserCreatedBillsQuery(userId, {
+    skip: type !== 'created' && type !== 'all',
+    pollingInterval: (type === 'created' || type === 'all') ? 30000 : 0
   });
 
   const {
@@ -37,7 +47,7 @@ const BillsList = ({ userId, type, onSelectBill }) => {
     isLoading: isLoadingInvited,
     error: invitedError,
     refetch: refetchInvited
-  } = useGetUserInvitedBillsQuery(userId, { 
+  } = useGetUserInvitedBillsQuery(userId, {
     skip: type !== 'invited',
     pollingInterval: type === 'invited' ? 15000 : 0
   });
@@ -47,9 +57,9 @@ const BillsList = ({ userId, type, onSelectBill }) => {
     isLoading: isLoadingParticipating,
     error: participatingError,
     refetch: refetchParticipating
-  } = useGetUserParticipatingBillsQuery(userId, { 
-    skip: type !== 'participating',
-    pollingInterval: type === 'participating' ? 30000 : 0
+  } = useGetUserParticipatingBillsQuery(userId, {
+    skip: type !== 'participating' && type !== 'all',
+    pollingInterval: (type === 'participating' || type === 'all') ? 30000 : 0
   });
 
   // Socket event handlers for real-time updates
@@ -65,9 +75,10 @@ const BillsList = ({ userId, type, onSelectBill }) => {
       switch (notificationType) {
         case 'bill_invitation':
           // New invitation received
-          if (type === 'invited') {
+          if (type === 'invited' || type === 'all') {
             dispatch(api.util.invalidateTags(['Bill']));
-            refetchInvited();
+            if (type === 'invited') refetchInvited();
+            if (type === 'all') { refetchCreated(); refetchParticipating(); }
           }
           break;
           
@@ -91,6 +102,10 @@ const BillsList = ({ userId, type, onSelectBill }) => {
                 refetchInvited();
                 break;
               case 'participating':
+                refetchParticipating();
+                break;
+              case 'all':
+                refetchCreated();
                 refetchParticipating();
                 break;
             }
@@ -137,6 +152,10 @@ const BillsList = ({ userId, type, onSelectBill }) => {
           case 'participating':
             await refetchParticipating();
             break;
+          case 'all':
+            await refetchCreated();
+            await refetchParticipating();
+            break;
         }
       } else {
         const errorData = await response.json();
@@ -156,6 +175,12 @@ const BillsList = ({ userId, type, onSelectBill }) => {
         return { bills: invitedBills?.bills || [], isLoading: isLoadingInvited, error: invitedError };
       case 'participating':
         return { bills: participatingBills?.bills || [], isLoading: isLoadingParticipating, error: participatingError };
+      case 'all': {
+        const created = (createdBills?.bills || []).map(b => ({ ...b, _isCreator: true }));
+        const participating = (participatingBills?.bills || []).filter(b => !created.some(c => c.id === b.id)).map(b => ({ ...b, _isCreator: false }));
+        const merged = [...created, ...participating].sort((a, b) => new Date(b.bill_date) - new Date(a.bill_date));
+        return { bills: merged, isLoading: isLoadingCreated || isLoadingParticipating, error: createdError || participatingError };
+      }
       default:
         return { bills: [], isLoading: false, error: null };
     }
@@ -167,13 +192,26 @@ const BillsList = ({ userId, type, onSelectBill }) => {
     const colors = {
       draft: 'bg-gray-100 text-gray-800',
       pending_responses: 'bg-yellow-100 text-yellow-800',
-      finalized: 'bg-blue-100 text-blue-800',
+      finalized: 'bg-orange-100 text-orange-800',
       paid: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
       accepted: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      draft: 'Draft',
+      pending_responses: 'Pending Responses',
+      finalized: 'Awaiting Payment',
+      paid: 'Paid',
+      cancelled: 'Cancelled',
+      accepted: 'Accepted',
+      rejected: 'Rejected',
+    };
+    return labels[status] || status.replace('_', ' ');
   };
 
   const getBillTypeIcon = (billType) => {
@@ -192,6 +230,10 @@ const BillsList = ({ userId, type, onSelectBill }) => {
           await refetchInvited();
           break;
         case 'participating':
+          await refetchParticipating();
+          break;
+        case 'all':
+          await refetchCreated();
           await refetchParticipating();
           break;
       }
@@ -221,11 +263,63 @@ const BillsList = ({ userId, type, onSelectBill }) => {
         case 'participating':
           await refetchParticipating();
           break;
+        case 'all':
+          await refetchCreated();
+          await refetchParticipating();
+          break;
       }
       toast.success('Bills refreshed!');
     } catch (error) {
       toast.error('Failed to refresh bills');
     }
+  };
+
+  const handleMarkAsPaid = async (billId) => {
+    try {
+      await markBillAsPaid({ billId, user_id: userId }).unwrap();
+      toast.success('Payment marked successfully!');
+    } catch (err) {
+      console.error('Error marking as paid:', err);
+      toast.error(err?.data?.message || 'Failed to mark as paid');
+    }
+  };
+
+  const handleDeleteBill = (billId, e) => {
+    e.stopPropagation();
+    setConfirmModal({
+      title: 'Delete Bill',
+      message: 'Are you sure? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      confirmClass: 'bg-red-600 hover:bg-red-700',
+      onConfirm: async () => {
+        try {
+          const result = await deleteBill({ billId, user_id: userId }).unwrap();
+          toast.success(result.message);
+        } catch (err) {
+          toast.error(err?.data?.message || 'Failed to delete bill');
+        }
+        setConfirmModal(null);
+      }
+    });
+  };
+
+  const handlePayInFull = (bill, e) => {
+    e.stopPropagation();
+    setConfirmModal({
+      title: 'Pay Bill in Full',
+      message: `You are about to pay the full amount of $${bill.total_amount} for "${bill.title}".`,
+      confirmLabel: `Pay $${bill.total_amount}`,
+      confirmClass: 'bg-green-600 hover:bg-green-700',
+      onConfirm: async () => {
+        try {
+          await payBillInFull({ billId: bill.id, user_id: userId }).unwrap();
+          toast.success('Bill paid in full!');
+        } catch (err) {
+          toast.error(err?.data?.message || 'Failed to pay bill');
+        }
+        setConfirmModal(null);
+      }
+    });
   };
 
   if (isLoading) {
@@ -293,14 +387,16 @@ const BillsList = ({ userId, type, onSelectBill }) => {
                   <div className="flex items-center space-x-2 mb-2">
                     {getBillTypeIcon(bill.bill_type)}
                     <h3 className="font-semibold text-lg">{bill.title}</h3>
+                    {(type === 'all' ? bill._isCreator : type === 'created') && (
+                      <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                    )}
                     <Badge className={getStatusColor(bill.status)}>
-                      {bill.status.replace('_', ' ')}
+                      {getStatusLabel(bill.status)}
                     </Badge>
                     {bill.bill_type === 'monthly' && (
                       <Badge variant="outline">Monthly</Badge>
                     )}
-                    {/* Moved the Check Status button here for better visibility */}
-                    {bill.status === 'pending_responses' && type === 'created' && (
+                    {bill.status === 'pending_responses' && (type === 'created' || (type === 'all' && bill._isCreator)) && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -322,22 +418,43 @@ const BillsList = ({ userId, type, onSelectBill }) => {
                       <Calendar className="h-4 w-4 mr-1" />
                       {format(new Date(bill.bill_date), 'MMM dd, yyyy')}
                     </div>
-                    {type === 'created' && (
-                      <div className="flex items-center">
-                        <Users className="h-4 w-4 mr-1" />
-                        {bill.total_invitations || 0} invited
-                      </div>
+                    {(type === 'created' || (type === 'all' && bill._isCreator)) && (
+                      <>
+                        <div className="flex items-center">
+                          <Users className="h-4 w-4 mr-1" />
+                          {bill.total_invitations || 0} invited
+                        </div>
+                        {bill.creator_amount_owed && bill.status === 'finalized' && (
+                          <>
+                            <div className="flex items-center">
+                              <DollarSign className="h-4 w-4 mr-1" />
+                              Your share: ${bill.creator_amount_owed}
+                            </div>
+                            <Badge className={bill.creator_payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
+                              {bill.creator_payment_status === 'paid' ? 'You Paid' : 'Payment Pending'}
+                            </Badge>
+                          </>
+                        )}
+                      </>
                     )}
                     {type === 'invited' && bill.creator_name && (
                       <div>
                         Created by {bill.creator_name}
                       </div>
                     )}
-                    {type === 'participating' && (
-                      <div className="flex items-center">
-                        <DollarSign className="h-4 w-4 mr-1" />
-                        You owe: ${bill.amount_owed}
-                      </div>
+                    {(type === 'participating' || (type === 'all' && !bill._isCreator)) && (
+                      <>
+                        <div className="flex items-center">
+                          <DollarSign className="h-4 w-4 mr-1" />
+                          You owe: ${bill.amount_owed}
+                        </div>
+                        {bill.creator_name && (
+                          <div>Created by {bill.creator_name}</div>
+                        )}
+                        <Badge className={bill.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
+                          {bill.payment_status === 'paid' ? 'You Paid' : 'Payment Pending'}
+                        </Badge>
+                      </>
                     )}
                   </div>
 
@@ -371,7 +488,7 @@ const BillsList = ({ userId, type, onSelectBill }) => {
                   )}
                 </div>
                 
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap gap-2">
                   {type === 'invited' && bill.invitation_status === 'pending' && (
                     <Button
                       size="sm"
@@ -382,7 +499,122 @@ const BillsList = ({ userId, type, onSelectBill }) => {
                       Respond
                     </Button>
                   )}
-                  
+
+                  {/* Mark as paid — for any participant (including creator) */}
+                  {(() => {
+                    if (bill.status !== 'finalized') return null;
+                    const isCreator = type === 'all' ? bill._isCreator : type === 'created';
+                    // Creator: use creator_payment_status from getCreatedBills
+                    if (isCreator && bill.creator_payment_status === 'pending') {
+                      return (
+                        <Button
+                          size="sm"
+                          onClick={() => handleMarkAsPaid(bill.id)}
+                          disabled={isMarkingPaid}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          {isMarkingPaid ? 'Processing...' : 'Pay'}
+                        </Button>
+                      );
+                    }
+                    // Participant: use payment_status from getParticipatingBills
+                    if (!isCreator && bill.payment_status === 'pending') {
+                      return (
+                        <Button
+                          size="sm"
+                          onClick={() => handleMarkAsPaid(bill.id)}
+                          disabled={isMarkingPaid}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          {isMarkingPaid ? 'Processing...' : 'Pay'}
+                        </Button>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* Owner: Pay in full & Split buttons */}
+                  {(() => {
+                    const isCreator = type === 'all' ? bill._isCreator : type === 'created';
+                    if (!isCreator || bill.status === 'paid') return null;
+
+                    const showPay = ['draft', 'cancelled'].includes(bill.status);
+                    const showSplit = bill.status !== 'paid';
+
+                    return (
+                      <>
+                        {showPay && (
+                          <Button
+                            size="sm"
+                            onClick={(e) => handlePayInFull(bill, e)}
+                            disabled={isPayingFull}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <DollarSign className="h-4 w-4 mr-1" />
+                            {isPayingFull ? 'Processing...' : 'Pay'}
+                          </Button>
+                        )}
+                        {showSplit && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => { e.stopPropagation(); setSplitBill(bill); }}
+                          >
+                            <Users className="h-4 w-4 mr-1" />
+                            Split
+                          </Button>
+                        )}
+                      </>
+                    );
+                  })()}
+
+                  {/* Delete / Remove / Cancel */}
+                  {(() => {
+                    const isCreator = type === 'all' ? bill._isCreator : type === 'created';
+                    const isPaidOneTime = bill.bill_type === 'one_time' && bill.status === 'paid';
+
+                    if (isPaidOneTime) {
+                      return (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => handleDeleteBill(bill.id, e)}
+                          disabled={isDeleting}
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      );
+                    }
+
+                    if (!isCreator) return null;
+
+                    const canDelete =
+                      ['draft', 'cancelled'].includes(bill.status) ||
+                      bill.bill_type === 'monthly' ||
+                      ['finalized', 'pending_responses'].includes(bill.status);
+
+                    if (!canDelete) return null;
+
+                    const label = bill.bill_type === 'monthly' && !['draft', 'cancelled'].includes(bill.status) ? 'Cancel' : 'Delete';
+
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => handleDeleteBill(bill.id, e)}
+                        disabled={isDeleting}
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        {label}
+                      </Button>
+                    );
+                  })()}
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -408,6 +640,39 @@ const BillsList = ({ userId, type, onSelectBill }) => {
           onClose={() => setSelectedInvitation(null)}
           onResponse={handleInvitationResponse}
         />
+      )}
+
+      {/* Split Bill Modal */}
+      {splitBill && (
+        <BillSplitModal
+          billId={splitBill.id}
+          billAmount={splitBill.total_amount}
+          billTitle={splitBill.title}
+          onClose={() => setSplitBill(null)}
+        />
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <Dialog open={true} onOpenChange={() => setConfirmModal(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                {confirmModal.title}
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-gray-600">{confirmModal.message}</p>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setConfirmModal(null)}>
+                Cancel
+              </Button>
+              <Button className={confirmModal.confirmClass} onClick={confirmModal.onConfirm}>
+                {confirmModal.confirmLabel}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );

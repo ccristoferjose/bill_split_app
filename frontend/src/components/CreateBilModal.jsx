@@ -178,17 +178,6 @@ const CreateBillModal = ({ isOpen, onClose, userId }) => {
 
           {/* Options */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="is_template">Save as Template</Label>
-                <p className="text-sm text-gray-500">Save this bill as a template for future use</p>
-              </div>
-              <Switch
-                id="is_template"
-                checked={formData.is_template}
-                onCheckedChange={(checked) => handleInputChange('is_template', checked)}
-              />
-            </div>
 
             {formData.bill_type === 'monthly' && (
               <div className="flex items-center justify-between">

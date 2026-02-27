@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useSelector } from 'react-redux';
-import { useGetBillDetailsQuery } from '../services/api';
+import { useGetBillDetailsQuery, useReopenBillMutation, useDeleteBillMutation, usePayBillInFullMutation } from '../services/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, DollarSign, User, X, Users } from 'lucide-react';
-import BillSplitModal from './BillSplitModal';
+import { Calendar, DollarSign, User, X, RefreshCw, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const BillDetails = ({ billId, onClose }) => {
   const { user } = useSelector((state) => state.auth);
-  const [showSplitModal, setShowSplitModal] = useState(false);
   const { data, isLoading, error } = useGetBillDetailsQuery(billId);
+  const [reopenBill, { isLoading: isReopening }] = useReopenBillMutation();
+  const [deleteBill, { isLoading: isDeleting }] = useDeleteBillMutation();
 
   if (isLoading) {
     return (
@@ -67,12 +68,49 @@ const BillDetails = ({ billId, onClose }) => {
     const colors = {
       draft: 'bg-gray-100 text-gray-800',
       pending_responses: 'bg-yellow-100 text-yellow-800',
-      finalized: 'bg-blue-100 text-blue-800',
+      finalized: 'bg-orange-100 text-orange-800',
       paid: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      draft: 'Draft',
+      pending_responses: 'Pending Responses',
+      finalized: 'Awaiting Payment',
+      paid: 'Paid',
+      cancelled: 'Cancelled',
+    };
+    return labels[status] || status.replace('_', ' ');
+  };
+
+  const handleReopenBill = async () => {
+    try {
+      const result = await reopenBill({ billId, user_id: user.id }).unwrap();
+      toast.success(result.message);
+    } catch (err) {
+      toast.error(err?.data?.message || 'Failed to resend invitations');
+    }
+  };
+
+  const handleDeleteBill = async () => {
+    if (!window.confirm('Are you sure? This action cannot be undone.')) return;
+    try {
+      const result = await deleteBill({ billId, user_id: user.id }).unwrap();
+      toast.success(result.message);
+      onClose();
+    } catch (err) {
+      toast.error(err?.data?.message || 'Failed to delete bill');
+    }
+  };
+
+  // Owner actions: show when bill has rejected invitations or is cancelled
+  const isOwner = bill.created_by === user?.id;
+  const hasRejections = data?.invitations?.some(inv => inv.status === 'rejected');
+  const allRejected = bill.status === 'cancelled' && data?.invitations?.every(inv => inv.status === 'rejected');
+  const showOwnerActions = isOwner && (allRejected || (hasRejections && ['pending_responses', 'finalized', 'cancelled'].includes(bill.status)));
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -93,7 +131,7 @@ const BillDetails = ({ billId, onClose }) => {
               <CardTitle className="flex items-center justify-between">
                 Bill Information
                 <Badge className={getStatusColor(bill.status)}>
-                  {bill.status.replace('_', ' ')}
+                  {getStatusLabel(bill.status)}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -156,14 +194,22 @@ const BillDetails = ({ billId, onClose }) => {
                 <CardTitle>Participants</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {data.participants.map((participant, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span>{participant.username}</span>
+                    <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                       <div className="flex items-center space-x-2">
-                        <span>${participant.amount_owed}</span>
-                        <Badge variant={participant.payment_status === 'paid' ? 'default' : 'outline'}>
-                          {participant.payment_status}
+                        <span className="font-medium">
+                          {participant.username}
+                          {participant.user_id === user?.id && ' (You)'}
+                        </span>
+                        {participant.is_creator === 1 && (
+                          <Badge variant="outline" className="text-xs">Creator</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-semibold">${participant.amount_owed}</span>
+                        <Badge className={participant.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
+                          {participant.payment_status === 'paid' ? 'Paid' : 'Pending'}
                         </Badge>
                       </div>
                     </div>
@@ -172,34 +218,43 @@ const BillDetails = ({ billId, onClose }) => {
               </CardContent>
             </Card>
           )}
+
+          {/* Owner actions when invitations are rejected */}
+          {showOwnerActions && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-4 space-y-3">
+                <p className="font-semibold text-red-800">
+                  {allRejected ? 'All invitations were rejected' : 'Some invitations were rejected'}
+                </p>
+                <p className="text-sm text-gray-600">You can resend invitations or delete this bill from the bills list.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={handleReopenBill}
+                    disabled={isReopening}
+                    variant="outline"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    {isReopening ? 'Resending...' : 'Resend Invitations'}
+                  </Button>
+                  <Button
+                    onClick={handleDeleteBill}
+                    disabled={isDeleting}
+                    variant="outline"
+                    className="text-red-600 hover:bg-red-100 hover:text-red-700"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    {isDeleting ? 'Deleting...' : 'Delete Bill'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        <div className="flex justify-between">
-          <div>
-            {/* Show Split Bill button only for bill creator when bill is in draft status */}
-            {bill.created_by === user?.id && bill.status === 'draft' && (
-              <Button 
-                onClick={() => setShowSplitModal(true)}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Split Bill
-              </Button>
-            )}
-          </div>
+        <div className="flex justify-end">
           <Button onClick={onClose}>Close</Button>
         </div>
       </DialogContent>
-      
-      {/* Split Bill Modal */}
-      {showSplitModal && (
-        <BillSplitModal
-          billId={billId}
-          billAmount={bill.total_amount}
-          billTitle={bill.title}
-          onClose={() => setShowSplitModal(false)}
-        />
-      )}
     </Dialog>
   );
 };

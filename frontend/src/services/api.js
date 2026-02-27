@@ -38,7 +38,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
 export const api = createApi({
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Bill', 'User', 'Profile', 'BillStatus'],
+  tagTypes: ['Bill', 'User', 'Profile', 'BillStatus', 'Friend'],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation({
@@ -135,6 +135,30 @@ export const api = createApi({
       }),
       invalidatesTags: ['Bill'],
     }),
+    deleteBill: builder.mutation({
+      query: ({ billId, ...data }) => ({
+        url: `/bills/${billId}`,
+        method: 'DELETE',
+        body: data,
+      }),
+      invalidatesTags: ['Bill'],
+    }),
+    payBillInFull: builder.mutation({
+      query: ({ billId, ...data }) => ({
+        url: `/bills/${billId}/pay-in-full`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Bill'],
+    }),
+    reopenBill: builder.mutation({
+      query: ({ billId, ...data }) => ({
+        url: `/bills/${billId}/reopen`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Bill'],
+    }),
 
     getBillStatus: builder.query({
       query: ({ billId, userId }) => ({
@@ -167,6 +191,47 @@ export const api = createApi({
       }),
       invalidatesTags: ['Profile'],
     }),
+
+    // Friend endpoints
+    getFriends: builder.query({
+      query: (userId) => `/friends/${userId}`,
+      providesTags: ['Friend'],
+    }),
+    getPendingRequests: builder.query({
+      query: (userId) => `/friends/${userId}/pending`,
+      providesTags: ['Friend'],
+    }),
+    getSentRequests: builder.query({
+      query: (userId) => `/friends/${userId}/sent`,
+      providesTags: ['Friend'],
+    }),
+    searchNonFriends: builder.query({
+      query: ({ userId, searchTerm }) => `/friends/${userId}/search?q=${searchTerm}`,
+      providesTags: ['Friend'],
+    }),
+    sendFriendRequest: builder.mutation({
+      query: (data) => ({
+        url: '/friends/request',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Friend'],
+    }),
+    respondToFriendRequest: builder.mutation({
+      query: (data) => ({
+        url: '/friends/respond',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Friend'],
+    }),
+    removeFriend: builder.mutation({
+      query: (friendshipId) => ({
+        url: `/friends/${friendshipId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Friend'],
+    }),
   }),
 });
 
@@ -183,8 +248,18 @@ export const {
   useRespondToBillInvitationMutation,
   useFinalizeBillMutation,
   useMarkBillAsPaidMutation,
+  useDeleteBillMutation,
+  usePayBillInFullMutation,
+  useReopenBillMutation,
   useSearchUsersQuery,
   useGetUserProfileQuery,
   useUpdateUserProfileMutation,
   useGetBillStatusQuery,
+  useGetFriendsQuery,
+  useGetPendingRequestsQuery,
+  useGetSentRequestsQuery,
+  useSearchNonFriendsQuery,
+  useSendFriendRequestMutation,
+  useRespondToFriendRequestMutation,
+  useRemoveFriendMutation,
 } = api;

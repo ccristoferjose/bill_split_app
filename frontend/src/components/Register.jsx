@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 
 const Register = () => {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [register, { isLoading }] = useRegisterMutation();
@@ -16,10 +17,10 @@ const Register = () => {
     e.preventDefault();
     setError(null);
     try {
-      await register({ username, password }).unwrap();
+      await register({ username, email, password }).unwrap();
       navigate('/');
     } catch (err) {
-      setError('Registration failed. Username may already exist.');
+      setError(err?.data?.message || 'Registration failed.');
       console.error('Failed to register: ', err);
     }
   };
@@ -37,6 +38,15 @@ const Register = () => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>

@@ -66,8 +66,7 @@ export const SocketProvider = ({ children }) => {
               action: {
                 label: 'View',
                 onClick: () => {
-                  // Navigation logic here
-                  window.location.href = `/bills/${notification.data.billId}`;
+                  window.location.href = `/dashboard?tab=invitations`;
                 }
               }
             });
@@ -83,7 +82,7 @@ export const SocketProvider = ({ children }) => {
                 action: {
                   label: 'View Details',
                   onClick: () => {
-                    window.location.href = `/bills/${notification.data.billId}`;
+                    window.location.href = `/dashboard?tab=invitations`;
                   }
                 }
               });
@@ -104,9 +103,28 @@ export const SocketProvider = ({ children }) => {
               duration: 6000,
             });
             break;
-          // In your SocketContext.jsx, add to the notification handler:
+          case 'friend_request':
+            dispatch(api.util.invalidateTags(['Friend']));
+            toast.info(notification.title, {
+              description: notification.message,
+              duration: 5000,
+              action: {
+                label: 'View',
+                onClick: () => {
+                  window.location.href = `/dashboard?tab=friends`;
+                }
+              }
+            });
+            break;
 
-          // In your SocketContext.jsx, add to the notification handler:
+          case 'friend_accepted':
+            dispatch(api.util.invalidateTags(['Friend']));
+            toast.success(notification.title, {
+              description: notification.message,
+              duration: 4000,
+            });
+            break;
+
           case 'bill_finalized':
             toast.success(notification.title, {
               description: notification.message,
