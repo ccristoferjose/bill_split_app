@@ -38,7 +38,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
 export const api = createApi({
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Bill', 'User', 'Profile', 'BillStatus', 'Friend'],
+  tagTypes: ['Bill', 'User', 'Profile', 'BillStatus', 'Friend', 'MonthlyPayment', 'Transaction'],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation({
@@ -159,6 +159,34 @@ export const api = createApi({
       }),
       invalidatesTags: ['Bill'],
     }),
+    startMonthlyBillCycle: builder.mutation({
+      query: ({ billId, ...data }) => ({
+        url: `/bills/${billId}/new-cycle`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Bill'],
+    }),
+    getMonthlyPayments: builder.query({
+      query: (userId) => `/user/${userId}/monthly-payments`,
+      providesTags: ['MonthlyPayment'],
+    }),
+    getBillCyclePayments: builder.query({
+      query: ({ billId, year, month }) => `/bills/${billId}/cycle-payments?year=${year}&month=${month}`,
+      providesTags: ['MonthlyPayment'],
+    }),
+    getBillCycleHistory: builder.query({
+      query: (billId) => `/bills/${billId}/cycle-history`,
+      providesTags: ['MonthlyPayment'],
+    }),
+    payMonthlyCycle: builder.mutation({
+      query: ({ billId, ...data }) => ({
+        url: `/bills/${billId}/pay-cycle`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['MonthlyPayment'],
+    }),
 
     getBillStatus: builder.query({
       query: ({ billId, userId }) => ({
@@ -171,6 +199,80 @@ export const api = createApi({
       ],
     }),
     
+    // Transaction endpoints
+    createTransaction: builder.mutation({
+      query: (data) => ({
+        url: '/transactions',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Transaction'],
+    }),
+    getUserTransactions: builder.query({
+      query: (userId) => `/transactions/user/${userId}`,
+      providesTags: ['Transaction'],
+    }),
+    getTransactionInvitations: builder.query({
+      query: (userId) => `/transactions/user/${userId}/invitations`,
+      providesTags: ['Transaction'],
+    }),
+    respondToTransactionSplit: builder.mutation({
+      query: ({ transactionId, ...data }) => ({
+        url: `/transactions/${transactionId}/respond`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Transaction'],
+    }),
+    resendTransactionInvitation: builder.mutation({
+      query: ({ transactionId, participantUserId, ...data }) => ({
+        url: `/transactions/${transactionId}/participants/${participantUserId}/resend`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Transaction'],
+    }),
+    deleteTransaction: builder.mutation({
+      query: ({ transactionId, ...data }) => ({
+        url: `/transactions/${transactionId}`,
+        method: 'DELETE',
+        body: data,
+      }),
+      invalidatesTags: ['Transaction'],
+    }),
+    updateTransactionParticipants: builder.mutation({
+      query: ({ transactionId, ...data }) => ({
+        url: `/transactions/${transactionId}/participants`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Transaction'],
+    }),
+    markTransactionPaid: builder.mutation({
+      query: ({ transactionId, ...data }) => ({
+        url: `/transactions/${transactionId}/mark-paid`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Transaction'],
+    }),
+    markParticipantPaid: builder.mutation({
+      query: ({ transactionId, participantUserId, ...data }) => ({
+        url: `/transactions/${transactionId}/participants/${participantUserId}/mark-paid`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Transaction'],
+    }),
+    markTransactionCyclePaid: builder.mutation({
+      query: ({ transactionId, year, month, user_id }) => ({
+        url: `/transactions/${transactionId}/cycles/${year}/${month}/mark-paid`,
+        method: 'POST',
+        body: { user_id },
+      }),
+      invalidatesTags: ['Transaction'],
+    }),
+
     // User search
     searchUsers: builder.query({
       query: (searchTerm) => `/users/search?q=${searchTerm}`,
@@ -251,6 +353,21 @@ export const {
   useDeleteBillMutation,
   usePayBillInFullMutation,
   useReopenBillMutation,
+  useStartMonthlyBillCycleMutation,
+  useGetMonthlyPaymentsQuery,
+  useGetBillCyclePaymentsQuery,
+  useGetBillCycleHistoryQuery,
+  usePayMonthlyCycleMutation,
+  useCreateTransactionMutation,
+  useGetUserTransactionsQuery,
+  useDeleteTransactionMutation,
+  useGetTransactionInvitationsQuery,
+  useRespondToTransactionSplitMutation,
+  useResendTransactionInvitationMutation,
+  useUpdateTransactionParticipantsMutation,
+  useMarkTransactionPaidMutation,
+  useMarkParticipantPaidMutation,
+  useMarkTransactionCyclePaidMutation,
   useSearchUsersQuery,
   useGetUserProfileQuery,
   useUpdateUserProfileMutation,

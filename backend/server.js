@@ -14,6 +14,7 @@ const invitationRoutes = require('./routes/invitation.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const userRoutes = require('./routes/user.routes');
 const friendRoutes = require('./routes/friend.routes');
+const transactionRoutes = require('./routes/transaction.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -64,6 +65,7 @@ app.use('/bills', paymentRoutes);
 app.use('/user', userRoutes);
 app.use('/users', userRoutes);
 app.use('/friends', friendRoutes);
+app.use('/transactions', transactionRoutes);
 
 // Initialize database and start server
 const startServer = async () => {

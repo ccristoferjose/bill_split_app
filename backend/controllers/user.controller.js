@@ -118,6 +118,23 @@ const getMonthlyBills = async (req, res) => {
   }
 };
 
+const getMonthlyPayments = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const payments = await executeQuery(
+      `SELECT bill_id, cycle_year, cycle_month, paid_at
+       FROM monthly_cycle_payments
+       WHERE user_id = ?
+       ORDER BY cycle_year DESC, cycle_month DESC`,
+      [userId]
+    );
+    res.json({ payments });
+  } catch (error) {
+    console.error('Error fetching monthly payments:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 const searchUsers = async (req, res) => {
   try {
     const { q } = req.query;
@@ -210,5 +227,5 @@ const updateProfile = async (req, res) => {
 
 module.exports = {
   getUserServices, getUserBills, getCreatedBills, getInvitedBills,
-  getParticipatingBills, getMonthlyBills, searchUsers, getProfile, updateProfile
+  getParticipatingBills, getMonthlyBills, getMonthlyPayments, searchUsers, getProfile, updateProfile
 };

@@ -4,9 +4,13 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Drop tables in reverse dependency order
+DROP TABLE IF EXISTS transaction_cycle_payments;
+DROP TABLE IF EXISTS transaction_participants;
+DROP TABLE IF EXISTS transactions;
 DROP TABLE IF EXISTS bill_activity_log;
 DROP TABLE IF EXISTS service_bill_items;
 DROP TABLE IF EXISTS service_bill_participants;
+DROP TABLE IF EXISTS monthly_cycle_payments;
 DROP TABLE IF EXISTS bill_invitations;
 DROP TABLE IF EXISTS email_invitations;
 DROP TABLE IF EXISTS service_bills;
@@ -20,7 +24,10 @@ SET FOREIGN_KEY_CHECKS = 1;
 CREATE DATABASE IF NOT EXISTS work_db;
 USE work_db;
 
--- Users table
+-- =====================
+-- Core tables
+-- =====================
+
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -34,7 +41,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Friendships table — mutual (both must accept)
+-- Friendships — mutual (both must accept)
 CREATE TABLE IF NOT EXISTS friendships (
     id INT AUTO_INCREMENT PRIMARY KEY,
     requester_id INT NOT NULL,
@@ -48,7 +55,6 @@ CREATE TABLE IF NOT EXISTS friendships (
     UNIQUE KEY unique_friendship (requester_id, addressee_id)
 );
 
--- Services table (one user can have many services)
 CREATE TABLE IF NOT EXISTS services (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -60,7 +66,10 @@ CREATE TABLE IF NOT EXISTS services (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Service bills table
+-- =====================
+-- Service bills system (complex invitation/payment workflow)
+-- =====================
+
 CREATE TABLE IF NOT EXISTS service_bills (
     id INT AUTO_INCREMENT PRIMARY KEY,
     bill_code VARCHAR(20) UNIQUE NOT NULL,
@@ -69,7 +78,7 @@ CREATE TABLE IF NOT EXISTS service_bills (
     total_amount DECIMAL(12, 2) NOT NULL,
     currency VARCHAR(3) NOT NULL DEFAULT 'USD',
     bill_date DATE NOT NULL,
-    due_date DATE,
+    due_date DATE NULL,
     bill_type ENUM('one_time', 'monthly') DEFAULT 'one_time',
     next_due_date DATE NULL,
     parent_bill_id INT NULL,
@@ -81,7 +90,7 @@ CREATE TABLE IF NOT EXISTS service_bills (
     FOREIGN KEY (parent_bill_id) REFERENCES service_bills(id) ON DELETE SET NULL
 );
 
--- Email invitations — invite non-registered users to the platform
+-- Invite non-registered users to the platform
 CREATE TABLE IF NOT EXISTS email_invitations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     invited_by INT NOT NULL,
@@ -98,7 +107,6 @@ CREATE TABLE IF NOT EXISTS email_invitations (
     FOREIGN KEY (registered_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
--- Bill invitations/requests table
 CREATE TABLE IF NOT EXISTS bill_invitations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     bill_id INT NOT NULL,
@@ -115,7 +123,7 @@ CREATE TABLE IF NOT EXISTS bill_invitations (
     UNIQUE KEY unique_bill_invitation (bill_id, invited_user_id)
 );
 
--- Final bill participants - supports partial payments
+-- Supports partial payments per participant
 CREATE TABLE IF NOT EXISTS service_bill_participants (
     id INT AUTO_INCREMENT PRIMARY KEY,
     service_bill_id INT NOT NULL,
@@ -134,7 +142,7 @@ CREATE TABLE IF NOT EXISTS service_bill_participants (
     UNIQUE KEY unique_bill_participant (service_bill_id, user_id)
 );
 
--- Service bill items table (optional - for itemized bills)
+-- Optional itemised breakdown for a service bill
 CREATE TABLE IF NOT EXISTS service_bill_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     service_bill_id INT NOT NULL,
@@ -150,7 +158,19 @@ CREATE TABLE IF NOT EXISTS service_bill_items (
     FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
 );
 
--- Bill activity log
+-- Per-cycle payment tracking for monthly service bills
+CREATE TABLE IF NOT EXISTS monthly_cycle_payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    bill_id INT NOT NULL,
+    user_id INT NOT NULL,
+    cycle_year INT NOT NULL,
+    cycle_month INT NOT NULL,
+    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bill_id) REFERENCES service_bills(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_cycle_payment (bill_id, user_id, cycle_year, cycle_month)
+);
+
 CREATE TABLE IF NOT EXISTS bill_activity_log (
     id INT AUTO_INCREMENT PRIMARY KEY,
     bill_id INT NOT NULL,
@@ -163,37 +183,85 @@ CREATE TABLE IF NOT EXISTS bill_activity_log (
 );
 
 -- =====================
+-- Transactions system (expense | bill | income — simple personal tracking)
+-- =====================
+
+CREATE TABLE IF NOT EXISTS transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type ENUM('expense', 'bill', 'income') NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    amount DECIMAL(12, 2) NOT NULL,
+    date DATE NULL,
+    due_date DATE NULL,
+    category VARCHAR(50) NULL,
+    recurrence ENUM('monthly', 'weekly', 'yearly', 'custom') NULL,
+    notes TEXT NULL,
+    is_shared BOOLEAN DEFAULT FALSE,
+    status ENUM('pending', 'paid') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Split participants for shared transactions
+-- invitation_status tracks accept/reject flow; status tracks payment
+CREATE TABLE IF NOT EXISTS transaction_participants (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    transaction_id INT NOT NULL,
+    user_id INT NOT NULL,
+    amount_owed DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    status ENUM('pending', 'paid') DEFAULT 'pending',
+    invitation_status ENUM('pending', 'accepted', 'rejected') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_transaction_participant (transaction_id, user_id)
+);
+
+-- Per-cycle payment tracking for monthly transaction bills
+-- Each row = one user marking their share paid for a specific year+month
+CREATE TABLE IF NOT EXISTS transaction_cycle_payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    transaction_id INT NOT NULL,
+    user_id INT NOT NULL,
+    cycle_year SMALLINT NOT NULL,
+    cycle_month TINYINT NOT NULL,
+    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_cycle (transaction_id, user_id, cycle_year, cycle_month),
+    FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
+);
+
+-- =====================
 -- Sample seed data
 -- =====================
 
 INSERT INTO users (username, password, email, phone, address, city, country) VALUES
-('user',  'password',  'user@example.com',  '+1 (555) 123-4567', '123 Main Street',  'New York',    'United States'),
-('user2', 'password2', 'user2@example.com', '+1 (555) 234-5678', '456 Oak Avenue',   'Los Angeles', 'United States'),
-('user3', 'password3', 'user3@example.com', '+1 (555) 345-6789', '789 Pine Road',    'Chicago',     'United States'),
-('user4', 'password4', 'user4@example.com', '+1 (555) 456-7890', '321 Elm Street',   'Houston',     'United States');
+('user',  'password',  'user@example.com',  '+1 (555) 123-4567', '123 Main Street', 'New York',    'United States'),
+('user2', 'password2', 'user2@example.com', '+1 (555) 234-5678', '456 Oak Avenue',  'Los Angeles', 'United States'),
+('user3', 'password3', 'user3@example.com', '+1 (555) 345-6789', '789 Pine Road',   'Chicago',     'United States'),
+('user4', 'password4', 'user4@example.com', '+1 (555) 456-7890', '321 Elm Street',  'Houston',     'United States');
 
--- Friendships — matches existing bill invitation relationships
 INSERT INTO friendships (requester_id, addressee_id, status, responded_at) VALUES
-(1, 2, 'accepted', '2024-01-01 08:00:00'),   -- user1 ↔ user2 (friends)
-(1, 3, 'accepted', '2024-01-01 09:00:00'),   -- user1 ↔ user3 (friends)
-(1, 4, 'accepted', '2024-01-01 10:00:00'),   -- user1 ↔ user4 (friends)
-(2, 3, 'accepted', '2024-01-01 11:00:00'),   -- user2 ↔ user3 (friends)
-(3, 4, 'pending',  NULL);                     -- user3 → user4 (pending)
+(1, 2, 'accepted', '2024-01-01 08:00:00'),
+(1, 3, 'accepted', '2024-01-01 09:00:00'),
+(1, 4, 'accepted', '2024-01-01 10:00:00'),
+(2, 3, 'accepted', '2024-01-01 11:00:00'),
+(3, 4, 'pending',  NULL);
 
 INSERT INTO services (user_id, service_name, service_description, price) VALUES
-(1, 'Web Development', 'Custom website development', 1500.00),
-(1, 'SEO Optimization', 'Search engine optimization service', 800.00),
-(2, 'Graphic Design', 'Logo and brand design', 500.00),
-(3, 'Consulting', 'Business consulting services', 200.00);
+(1, 'Web Development', 'Custom website development',    1500.00),
+(1, 'SEO Optimization', 'Search engine optimization',   800.00),
+(2, 'Graphic Design',   'Logo and brand design',         500.00),
+(3, 'Consulting',       'Business consulting services',  200.00);
 
 INSERT INTO service_bills (bill_code, created_by, title, total_amount, currency, bill_date, bill_type, status, due_date, next_due_date) VALUES
-('BILL-XYZ123', 1, 'Restaurant Dinner Split', 240.00, 'USD', '2024-01-15', 'one_time', 'finalized',  '2024-02-15', NULL),
-('BILL-ABC456', 2, 'Office Supplies',         150.00, 'USD', '2024-01-20', 'one_time', 'finalized',  '2024-02-20', NULL),
-('BILL-DEF789', 3, 'Team Building Event',     800.00, 'USD', '2024-01-25', 'one_time', 'draft',      '2024-02-25', NULL),
-('BILL-UTIL002', 1, 'January Utility Bill',   180.00, 'USD', '2024-01-01', 'monthly',  'finalized',  '2024-02-01', '2024-02-01'),
-('BILL-RENT002', 2, 'January Office Rent',   1500.00, 'USD', '2024-01-01', 'monthly',  'paid',       '2024-02-01', '2024-02-01');
+('BILL-XYZ123',  1, 'Restaurant Dinner Split', 240.00,  'USD', '2024-01-15', 'one_time', 'finalized', '2024-02-15', NULL),
+('BILL-ABC456',  2, 'Office Supplies',          150.00,  'USD', '2024-01-20', 'one_time', 'finalized', '2024-02-20', NULL),
+('BILL-DEF789',  3, 'Team Building Event',      800.00,  'USD', '2024-01-25', 'one_time', 'draft',     '2024-02-25', NULL),
+('BILL-UTIL002', 1, 'January Utility Bill',     180.00,  'USD', '2024-01-01', 'monthly',  'finalized', '2024-02-01', '2024-02-01'),
+('BILL-RENT002', 2, 'January Office Rent',     1500.00,  'USD', '2024-01-01', 'monthly',  'paid',      '2024-02-01', '2024-02-01');
 
--- Email invitation (example: user1 invited someone not yet registered)
 INSERT INTO email_invitations (invited_by, email, token, bill_id, status, registered_user_id, expires_at) VALUES
 (1, 'newuser@example.com', 'invite-token-abc123', NULL, 'pending', NULL, '2024-02-01 00:00:00');
 
@@ -227,12 +295,12 @@ INSERT INTO service_bill_participants (service_bill_id, user_id, amount_owed, am
 (5, 3, 500.00, 500.00, FALSE, 'paid',    'transfer', '2024-01-03 10:00:00');
 
 INSERT INTO service_bill_items (service_bill_id, item_name, item_description, quantity, unit_price, total_price) VALUES
-(1, 'Appetizers',    'Shared appetizers for the table', 2, 15.00,  30.00),
-(1, 'Main Courses',  'Individual main courses',         4, 45.00, 180.00),
-(1, 'Desserts',      'Shared desserts',                  1, 30.00,  30.00),
-(2, 'Printer Paper', 'A4 paper packs',                   5, 12.00,  60.00),
-(2, 'Pens',          'Blue ballpoint pens',             10,  2.00,  20.00),
-(2, 'Notebooks',     'Spiral notebooks',                 7, 10.00,  70.00);
+(1, 'Appetizers',   'Shared appetizers for the table', 2,  15.00,  30.00),
+(1, 'Main Courses', 'Individual main courses',         4,  45.00, 180.00),
+(1, 'Desserts',     'Shared desserts',                 1,  30.00,  30.00),
+(2, 'Printer Paper','A4 paper packs',                  5,  12.00,  60.00),
+(2, 'Pens',         'Blue ballpoint pens',            10,   2.00,  20.00),
+(2, 'Notebooks',    'Spiral notebooks',                7,  10.00,  70.00);
 
 INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES
 (1, 1, 'created',      'Created restaurant dinner bill'),

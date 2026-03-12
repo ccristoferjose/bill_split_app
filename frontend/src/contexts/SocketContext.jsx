@@ -90,7 +90,7 @@ export const SocketProvider = ({ children }) => {
             break;
 
           case 'bill_status_update':
-            // New case for status updates
+            dispatch(api.util.invalidateTags(['Bill']));
             toast.info('Bill Status Updated', {
               description: notification.message,
               duration: 4000,
@@ -103,6 +103,41 @@ export const SocketProvider = ({ children }) => {
               duration: 6000,
             });
             break;
+          case 'transaction_split_invitation':
+            dispatch(api.util.invalidateTags(['Transaction']));
+            toast.info(notification.title, {
+              description: notification.message,
+              duration: 5000,
+              action: {
+                label: 'View',
+                onClick: () => { window.location.href = '/dashboard?tab=invitations'; },
+              },
+            });
+            break;
+
+          case 'transaction_split_response':
+            dispatch(api.util.invalidateTags(['Transaction']));
+            toast.info(notification.title, {
+              description: notification.message,
+              duration: 4000,
+            });
+            break;
+
+          case 'transaction_payment':
+            dispatch(api.util.invalidateTags(['Transaction']));
+            if (notification.data?.allPaid) {
+              toast.success(notification.title, {
+                description: notification.message,
+                duration: 5000,
+              });
+            } else {
+              toast.info(notification.title, {
+                description: notification.message,
+                duration: 4000,
+              });
+            }
+            break;
+
           case 'friend_request':
             dispatch(api.util.invalidateTags(['Friend']));
             toast.info(notification.title, {

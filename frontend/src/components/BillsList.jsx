@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, DollarSign, Users, Clock, Receipt, CheckCircle, XCircle, RefreshCw, Trash2, Star, AlertTriangle } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { useSocket } from '../contexts/SocketContext';
 import { useDispatch, useSelector } from 'react-redux'; // Added useSelector
@@ -20,7 +20,28 @@ import { api } from '../services/api';
 import InvitationResponseModal from './InvitationResponseModal';
 import BillSplitModal from './BillSplitModal';
 
-const BillsList = ({ userId, type, onSelectBill }) => {
+const parseServiceBillDate = (raw) => {
+  if (!raw) return null;
+  const [y, m, d] = raw.split('T')[0].split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
+const isServiceBillInMonth = (bill, monthDate) => {
+  const monthStart = startOfMonth(monthDate);
+  const monthEnd = endOfMonth(monthDate);
+
+  if (bill.bill_type === 'monthly') {
+    const start = parseServiceBillDate(bill.due_date || bill.bill_date);
+    if (!start) return false;
+    return startOfMonth(start) <= monthStart;
+  }
+
+  const billDate = parseServiceBillDate(bill.due_date || bill.bill_date);
+  if (!billDate) return true;
+  return billDate >= monthStart && billDate <= monthEnd;
+};
+
+const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
   const [selectedInvitation, setSelectedInvitation] = useState(null);
   const [splitBill, setSplitBill] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
@@ -186,7 +207,10 @@ const BillsList = ({ userId, type, onSelectBill }) => {
     }
   };
 
-  const { bills, isLoading, error } = getBillsData();
+  const { bills: rawBills, isLoading, error } = getBillsData();
+  const bills = viewMonth
+    ? rawBills.filter(b => isServiceBillInMonth(b, viewMonth))
+    : rawBills;
 
   const getStatusColor = (status) => {
     const colors = {

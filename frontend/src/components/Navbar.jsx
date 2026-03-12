@@ -46,21 +46,22 @@ const Navbar = ({ onCreateBill, onNavigateToProfile }) => {
 
           {/* Actions */}
           <div className="flex items-center space-x-4">
-            {/* New Bill Button */}
+            {/* New Transaction Button */}
             <Button
               onClick={onCreateBill}
               className="bg-blue-600 hover:bg-blue-700"
+              size="sm"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              New Bill
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">New Transaction</span>
             </Button>
 
             {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span>{user?.username || 'User'}</span>
+                <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+                  <User className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">{user?.username || 'User'}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
