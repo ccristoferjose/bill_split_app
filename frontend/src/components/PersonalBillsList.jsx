@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import TransactionSplitModal from './TransactionSplitModal';
+import TransactionBillDetailModal from './TransactionBillDetailModal';
 import { useResendTransactionInvitationMutation } from '../services/api';
 
 const RECURRENCE_LABELS = {
@@ -64,6 +65,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
   const { user } = useSelector((state) => state.auth);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [splitBill, setSplitBill] = useState(null);
+  const [detailBill, setDetailBill] = useState(null);
 
   const { data, isLoading, error, refetch } = useGetUserTransactionsQuery(userId);
   const [deleteTransaction, { isLoading: isDeleting }] = useDeleteTransactionMutation();
@@ -89,20 +91,39 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
         Number(cp.cycle_month) === cycleMonth
     );
 
-  // Effective due date for a monthly bill adjusted to viewMonth
+  // Effective due date adjusted to viewMonth for recurring bills
   const getEffectiveDueDate = (bill) => {
-    if (bill.recurrence !== 'monthly' || !viewMonth) return parseLocalDate(bill.due_date);
-    const start = parseLocalDate(bill.due_date);
-    if (!start) return null;
-    const clamped = Math.min(start.getDate(), endOfMonth(viewMonth).getDate());
-    return new Date(viewMonth.getFullYear(), viewMonth.getMonth(), clamped);
+    if (!viewMonth) return parseLocalDate(bill.due_date);
+
+    if (bill.recurrence === 'monthly') {
+      const start = parseLocalDate(bill.due_date);
+      if (!start) return null;
+      const clamped = Math.min(start.getDate(), endOfMonth(viewMonth).getDate());
+      return new Date(viewMonth.getFullYear(), viewMonth.getMonth(), clamped);
+    }
+
+    if (bill.recurrence === 'weekly') {
+      const start = parseLocalDate(bill.due_date);
+      if (!start) return null;
+      const monthStart = startOfMonth(viewMonth);
+      const monthEnd   = endOfMonth(viewMonth);
+      let d = new Date(start.getTime());
+      // Advance to first occurrence on or after the start of viewMonth
+      while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
+      return d <= monthEnd ? d : null;
+    }
+
+    return parseLocalDate(bill.due_date);
   };
 
   // --- Handlers ---
 
+  const isCycleBased = (bill) =>
+    bill.recurrence === 'monthly' || bill.recurrence === 'weekly';
+
   const handleTogglePaid = async (bill) => {
     try {
-      if (bill.recurrence === 'monthly') {
+      if (isCycleBased(bill)) {
         const result = await markCyclePaid({ transactionId: bill.id, year: cycleYear, month: cycleMonth, user_id: userId }).unwrap();
         toast.success(result.message);
       } else {
@@ -116,7 +137,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
 
   const handleToggleParticipantPaid = async (bill, participant) => {
     try {
-      if (bill.recurrence === 'monthly') {
+      if (isCycleBased(bill)) {
         const result = await markCyclePaid({ transactionId: bill.id, year: cycleYear, month: cycleMonth, user_id: userId }).unwrap();
         toast.success(result.message);
       } else {
@@ -217,8 +238,11 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3">
 
-                  {/* Left: info */}
-                  <div className="flex-1 min-w-0">
+                  {/* Left: info — click to open detail modal */}
+                  <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => setDetailBill(bill)}
+                  >
 
                     {/* Title row */}
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
@@ -380,7 +404,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                       >
                         {myParticipantIsPaid
                           ? <><RotateCcw className="h-3.5 w-3.5 mr-1" />Undo</>
-                          : <><CheckCircle className="h-3.5 w-3.5 mr-1" />I Paid</>}
+                          : <><CheckCircle className="h-3.5 w-3.5 mr-1" />Pay</>}
                       </Button>
                     )}
 
@@ -404,6 +428,15 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
           );
         })}
       </div>
+
+      {detailBill && (
+        <TransactionBillDetailModal
+          transaction={detailBill}
+          userId={userId}
+          viewMonth={viewMonth}
+          onClose={() => setDetailBill(null)}
+        />
+      )}
 
       {splitBill && (
         <TransactionSplitModal

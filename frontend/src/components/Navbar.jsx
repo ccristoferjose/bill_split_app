@@ -41,7 +41,7 @@ const Navbar = ({ onCreateBill, onNavigateToProfile }) => {
           {/* Logo */}
           <div className="flex items-center cursor-pointer" onClick={() => navigate('/dashboard')}>
             <Receipt className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-semibold text-gray-900">BillSplit</h1>
+            <h1 className="text-xl font-semibold text-gray-900">SpendSync</h1>
           </div>
 
           {/* Actions */}
