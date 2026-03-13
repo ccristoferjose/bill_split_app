@@ -1,5 +1,5 @@
 import React from 'react';
-import { format } from 'date-fns';
+import { format, endOfMonth } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   useMarkParticipantPaidMutation,
   useResendTransactionInvitationMutation,
   useMarkTransactionPaidMutation,
+  useMarkTransactionCyclePaidMutation,
 } from '../services/api';
 
 const RECURRENCE_LABELS = {
@@ -31,24 +32,54 @@ const InvStatusBadge = ({ status }) => {
   return <Badge className="bg-yellow-100 text-yellow-700 text-xs">Pending</Badge>;
 };
 
-const PayStatusBadge = ({ status }) => {
-  if (status === 'paid') return <Badge className="bg-green-100 text-green-700 text-xs">Paid</Badge>;
+const PayStatusBadge = ({ paid }) => {
+  if (paid) return <Badge className="bg-green-100 text-green-700 text-xs">Paid</Badge>;
   return <Badge className="bg-orange-100 text-orange-700 text-xs">Unpaid</Badge>;
 };
 
-const TransactionBillDetailModal = ({ transaction, userId, onClose }) => {
+// viewMonth: the currently viewed month (Date object), used for cycle-aware status
+const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose }) => {
   const [respondToSplit, { isLoading: isResponding }] = useRespondToTransactionSplitMutation();
   const [markParticipantPaid, { isLoading: isMarkingPaid }] = useMarkParticipantPaidMutation();
   const [resendInvitation, { isLoading: isResending }] = useResendTransactionInvitationMutation();
   const [markTransactionPaid, { isLoading: isMarkingBillPaid }] = useMarkTransactionPaidMutation();
+  const [markCyclePaid, { isLoading: isMarkingCycle }] = useMarkTransactionCyclePaidMutation();
+
+  const isMonthly = transaction.recurrence === 'monthly' || transaction.recurrence === 'weekly';
+  const cycleYear = (viewMonth || new Date()).getFullYear();
+  const cycleMonth = (viewMonth || new Date()).getMonth() + 1; // 1-12
+
+  // Returns true if a given user has a cycle payment record for the viewed month
+  const hasCyclePaid = (uid) =>
+    (transaction.cycle_payments || []).some(
+      cp =>
+        Number(cp.user_id) === Number(uid) &&
+        Number(cp.cycle_year) === cycleYear &&
+        Number(cp.cycle_month) === cycleMonth
+    );
 
   const isOwner = transaction._role === 'owner' || Number(transaction.user_id) === Number(userId);
   const myRecord = !isOwner
     ? transaction.participants?.find(p => Number(p.user_id) === Number(userId))
     : null;
 
-  const isPaid = transaction.status === 'paid';
-  const dueDate = parseLocalDate(transaction.due_date);
+  // Effective paid status — cycle-aware for monthly bills
+  const myIsPaid = isMonthly ? hasCyclePaid(userId) : transaction.status === 'paid';
+  const myParticipantPaid = isMonthly ? hasCyclePaid(userId) : myRecord?.status === 'paid';
+
+  // Effective due date adjusted to the viewed month for recurring bills
+  const getEffectiveDueDate = () => {
+    if (!isMonthly || !viewMonth) return parseLocalDate(transaction.due_date);
+    const start = parseLocalDate(transaction.due_date);
+    if (!start) return null;
+    const clamped = Math.min(start.getDate(), endOfMonth(viewMonth).getDate());
+    return new Date(viewMonth.getFullYear(), viewMonth.getMonth(), clamped);
+  };
+  const effectiveDueDate = getEffectiveDueDate();
+
+  const isActioning = isMarkingPaid || isMarkingBillPaid || isMarkingCycle;
+
+  // --- Handlers ---
 
   const handleRespond = async (action) => {
     try {
@@ -62,24 +93,43 @@ const TransactionBillDetailModal = ({ transaction, userId, onClose }) => {
 
   const handleMyPay = async () => {
     try {
-      await markParticipantPaid({
-        transactionId: transaction.id,
-        participantUserId: userId,
-        user_id: userId,
-      }).unwrap();
-      toast.success('Marked as paid');
-      onClose();
+      if (isMonthly) {
+        const result = await markCyclePaid({
+          transactionId: transaction.id,
+          year: cycleYear,
+          month: cycleMonth,
+          user_id: userId,
+        }).unwrap();
+        toast.success(result.message);
+      } else {
+        await markParticipantPaid({
+          transactionId: transaction.id,
+          participantUserId: userId,
+          user_id: userId,
+        }).unwrap();
+        toast.success('Marked as paid');
+      }
     } catch (err) {
-      toast.error('Failed to mark as paid');
+      toast.error(err?.data?.message || 'Failed to mark as paid');
     }
   };
 
   const handleToggleBillPaid = async () => {
     try {
-      const result = await markTransactionPaid({ transactionId: transaction.id, user_id: userId }).unwrap();
-      toast.success(result.message);
+      if (isMonthly) {
+        const result = await markCyclePaid({
+          transactionId: transaction.id,
+          year: cycleYear,
+          month: cycleMonth,
+          user_id: userId,
+        }).unwrap();
+        toast.success(result.message);
+      } else {
+        const result = await markTransactionPaid({ transactionId: transaction.id, user_id: userId }).unwrap();
+        toast.success(result.message);
+      }
     } catch (err) {
-      toast.error('Failed to update status');
+      toast.error(err?.data?.message || 'Failed to update status');
     }
   };
 
@@ -117,21 +167,29 @@ const TransactionBillDetailModal = ({ transaction, userId, onClose }) => {
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Status</p>
-              {isPaid
+              <p className="text-xs text-gray-400 mb-0.5">
+                {isMonthly ? `Status (${format(viewMonth || new Date(), 'MMM yyyy')})` : 'Status'}
+              </p>
+              {myIsPaid
                 ? <Badge className="bg-green-100 text-green-700"><CheckCircle className="h-3 w-3 mr-1" />Paid</Badge>
                 : <Badge className="bg-orange-100 text-orange-700"><Clock className="h-3 w-3 mr-1" />Unpaid</Badge>}
             </div>
-            {dueDate && (
+            {effectiveDueDate && (
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Due Date</p>
-                <p className="text-sm">{format(dueDate, 'MMM dd, yyyy')}</p>
+                <p className="text-sm">{format(effectiveDueDate, 'MMM dd, yyyy')}</p>
               </div>
             )}
             {transaction.recurrence && (
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Recurrence</p>
                 <Badge variant="outline" className="text-xs">{RECURRENCE_LABELS[transaction.recurrence]}</Badge>
+              </div>
+            )}
+            {transaction.category && (
+              <div>
+                <p className="text-xs text-gray-400 mb-0.5">Category</p>
+                <p className="text-sm">{transaction.category}</p>
               </div>
             )}
             {!isOwner && transaction.owner_username && (
@@ -152,6 +210,7 @@ const TransactionBillDetailModal = ({ transaction, userId, onClose }) => {
                 {transaction.participants.map(p => {
                   const isMe = Number(p.user_id) === Number(userId);
                   const canResend = isOwner && p.invitation_status === 'rejected';
+                  const participantPaid = isMonthly ? hasCyclePaid(p.user_id) : p.status === 'paid';
 
                   return (
                     <div
@@ -165,7 +224,7 @@ const TransactionBillDetailModal = ({ transaction, userId, onClose }) => {
                           {p.username}{isMe && <span className="text-blue-500 font-normal"> (you)</span>}
                         </span>
                         <InvStatusBadge status={p.invitation_status} />
-                        {p.invitation_status === 'accepted' && <PayStatusBadge status={p.status} />}
+                        {p.invitation_status === 'accepted' && <PayStatusBadge paid={participantPaid} />}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-sm font-medium">${Number(p.amount_owed).toFixed(2)}</span>
@@ -200,13 +259,13 @@ const TransactionBillDetailModal = ({ transaction, userId, onClose }) => {
           {isOwner && (
             <div className="flex gap-2 pt-1 border-t">
               <Button
-                className={`flex-1 ${isPaid ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-green-600 hover:bg-green-700 text-white'}`}
-                variant={isPaid ? 'outline' : 'default'}
-                disabled={isMarkingBillPaid}
+                className={`flex-1 ${myIsPaid ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                variant={myIsPaid ? 'outline' : 'default'}
+                disabled={isActioning}
                 onClick={handleToggleBillPaid}
               >
-                {isPaid
-                  ? <><RotateCcw className="h-4 w-4 mr-1.5" />Reopen</>
+                {myIsPaid
+                  ? <><RotateCcw className="h-4 w-4 mr-1.5" />Undo</>
                   : <><CheckCircle className="h-4 w-4 mr-1.5" />Mark as Paid</>}
               </Button>
             </div>
@@ -234,20 +293,30 @@ const TransactionBillDetailModal = ({ transaction, userId, onClose }) => {
                   </Button>
                 </div>
               )}
-              {myRecord.invitation_status === 'accepted' && myRecord.status === 'pending' && (
+              {myRecord.invitation_status === 'accepted' && !myParticipantPaid && (
                 <Button
                   className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={isMarkingPaid}
+                  disabled={isActioning}
                   onClick={handleMyPay}
                 >
                   <CheckCircle className="h-4 w-4 mr-1.5" />
                   Pay My Share (${Number(myRecord.amount_owed).toFixed(2)})
                 </Button>
               )}
-              {myRecord.invitation_status === 'accepted' && myRecord.status === 'paid' && (
-                <div className="flex items-center justify-center gap-2 py-2 text-green-600 bg-green-50 rounded-lg">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">You've paid your share</span>
+              {myRecord.invitation_status === 'accepted' && myParticipantPaid && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center gap-2 py-2 text-green-600 bg-green-50 rounded-lg">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">You've paid your share</span>
+                  </div>
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    disabled={isActioning}
+                    onClick={handleMyPay}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1.5" />Undo Payment
+                  </Button>
                 </div>
               )}
               {myRecord.invitation_status === 'rejected' && (
