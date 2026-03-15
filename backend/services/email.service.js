@@ -44,8 +44,8 @@ const getTransporter = () => {
 const sendEmail = async ({ to, subject, html, text, replyTo }) => {
   // Silently skip in test environment
   //if (process.env.NODE_ENV === 'test') {
-    console.log(`[EmailService] TEST MODE — skipping send to ${to}`);
-    return { success: true, messageId: 'test-mode' };
+    //console.log(`[EmailService] TEST MODE — skipping send to ${to}`);
+    //return { success: true, messageId: 'test-mode' };
   //}
 
   // Validate required fields
