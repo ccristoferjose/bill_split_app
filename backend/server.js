@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -6,6 +7,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const { testConnection } = require('./config/database');
 const { connectedUsers, setIo } = require('./utils/notifications');
+const emailService = require('./services/email.service');
 
 // Route imports
 const authRoutes = require('./routes/auth.routes');
@@ -21,8 +23,8 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: ['http://localhost:5173'],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 
 // Pass io instance to notification utils
@@ -31,10 +33,12 @@ setIo(io);
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({
-  origin: ['http://localhost:5173'],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: ['http://localhost:5173'],
+    credentials: true,
+  })
+);
 app.use(morgan('dev'));
 
 // Socket.IO connection handling
@@ -67,7 +71,16 @@ app.use('/users', userRoutes);
 app.use('/friends', friendRoutes);
 app.use('/transactions', transactionRoutes);
 
-// Initialize database and start server
+// Health check for email service
+app.get('/health/email', async (req, res) => {
+  res.json({
+    email: emailService.isReady ? 'connected' : 'disconnected',
+    provider: 'Amazon SES SMTP',
+    region: process.env.SES_SMTP_HOST,
+  });
+});
+
+// Initialize database, email service, and start server
 const startServer = async () => {
   const isConnected = await testConnection();
   if (!isConnected) {
@@ -75,13 +88,35 @@ const startServer = async () => {
     process.exit(1);
   }
 
-  server.listen(5001, () => {
-    console.log('Server running on http://localhost:5001');
+  // Initialize email service (non-blocking – server starts even if SES fails)
+  const emailReady = await emailService.initialize();
+  if (!emailReady) {
+    console.warn(
+      '⚠️  Email service failed to initialize. Emails will be unavailable until connection is restored.'
+    );
+  }
+
+  server.listen(process.env.PORT || 5001, () => {
+    console.log(`Server running on http://localhost:${process.env.PORT || 5001}`);
     console.log('Server started successfully with MySQL connection and Socket.IO');
+    console.log(`Email service: ${emailReady ? '✅ Ready' : '❌ Unavailable'}`);
   });
 };
 
-startServer().catch(error => {
+startServer().catch((error) => {
   console.error('Failed to start server:', error);
   process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received – shutting down gracefully');
+  emailService.close();
+  server.close(() => process.exit(0));
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received – shutting down gracefully');
+  emailService.close();
+  server.close(() => process.exit(0));
 });
