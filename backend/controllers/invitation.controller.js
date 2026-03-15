@@ -17,24 +17,33 @@ const getUserContact = async (userId) =>
 // ─────────────────────────────────────────────────────────────
 const inviteUsers = async (req, res) => {
   try {
-    const { billId }              = req.params;
-    const { invited_by, users }   = req.body;
+    const { billId }            = req.params;
+    const { invited_by, users } = req.body;
 
-    // Verify bill ownership
+    // ── Trace incoming request ────────────────────────────────
+    console.log('[inviteUsers] Called with:');
+    console.log('  billId:', billId);
+    console.log('  invited_by:', invited_by);
+    console.log('  users:', JSON.stringify(users));
+
     const bill = await findOne(
       'SELECT * FROM service_bills WHERE id = ? AND created_by = ?',
       [billId, invited_by]
     );
+
     if (!bill) {
+      console.log('[inviteUsers] ❌ Bill not found for id:', billId, 'creator:', invited_by);
       return res.status(404).json({ message: 'Bill not found or you are not the creator' });
     }
 
-    // Keep paid participants untouched
+    console.log('[inviteUsers] ✅ Bill found:', bill.title);
+
     const paidParticipants = await executeQuery(
       'SELECT user_id FROM service_bill_participants WHERE service_bill_id = ? AND payment_status = ? AND is_creator = FALSE',
       [billId, 'paid']
     );
     const paidUserIds = paidParticipants.map((p) => p.user_id);
+    console.log('[inviteUsers] Paid user IDs to skip:', paidUserIds);
 
     if (paidUserIds.length > 0) {
       await executeQuery(
@@ -51,11 +60,16 @@ const inviteUsers = async (req, res) => {
     }
 
     const inviter = await getUserContact(invited_by);
+    console.log('[inviteUsers] Inviter resolved:', inviter?.username, '| email:', inviter?.email);
 
     for (const user of users) {
-      if (paidUserIds.includes(user.user_id)) continue;
+      console.log(`\n[inviteUsers] Processing user_id: ${user.user_id}`);
 
-      // Upsert invitation row
+      if (paidUserIds.includes(user.user_id)) {
+        console.log(`[inviteUsers] ⏭ Skipping paid user: ${user.user_id}`);
+        continue;
+      }
+
       await executeQuery(
         `INSERT INTO bill_invitations
            (bill_id, invited_user_id, invited_by, proposed_amount, status)
@@ -66,7 +80,7 @@ const inviteUsers = async (req, res) => {
         [billId, user.user_id, invited_by, user.proposed_amount, 'pending']
       );
 
-      // ── Socket notification ───────────────────────────────
+      // Socket
       const socketNotification = {
         type: 'bill_invitation',
         title: 'New Bill Invitation',
@@ -81,33 +95,49 @@ const inviteUsers = async (req, res) => {
         timestamp: new Date().toISOString(),
       };
       const socketSent = sendNotificationToUser(user.user_id, socketNotification);
-      console.log(`Socket notification ${socketSent ? 'sent' : 'failed'} → user ${user.user_id}`);
+      console.log(`[inviteUsers] Socket → user ${user.user_id}: ${socketSent ? '✅ sent' : '⚠️ user not connected'}`);
 
-      // ── Email notification ────────────────────────────────
+      // ── Email trace ───────────────────────────────────────
+      console.log(`[inviteUsers] Fetching contact for user_id: ${user.user_id}`);
       const invitedUser = await getUserContact(user.user_id);
-      if (invitedUser?.email) {
-        const html = billInvitationTemplate({
-          recipientName:    invitedUser.username,
-          inviterName:      inviter.username,
-          billTitle:        bill.title,
-          billDescription:  bill.description || null,
-          totalAmount:      bill.total_amount,
-          proposedAmount:   user.proposed_amount,
-          participantCount: users.length + 1,  // +1 for creator
-          billId,
-          dueDate:          bill.due_date
-            ? new Date(bill.due_date).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric',
-              })
-            : null,
-        });
 
-        await sendEmail({
-          to:      invitedUser.email,
-          subject: `💰 ${inviter.username} invited you to split "${bill.title}"`,
-          html,
-        });
+      console.log('[inviteUsers] invitedUser resolved:', JSON.stringify(invitedUser));
+
+      if (!invitedUser) {
+        console.warn(`[inviteUsers] ⚠️ No user record found for user_id: ${user.user_id}`);
+        continue;
       }
+
+      if (!invitedUser.email) {
+        console.warn(`[inviteUsers] ⚠️ User ${user.user_id} (${invitedUser.username}) has no email address in DB`);
+        continue;
+      }
+
+      console.log(`[inviteUsers] 📧 Sending email to: ${invitedUser.email}`);
+
+      const html = billInvitationTemplate({
+        recipientName:    invitedUser.username,
+        inviterName:      inviter.username,
+        billTitle:        bill.title,
+        billDescription:  bill.description || null,
+        totalAmount:      bill.total_amount,
+        proposedAmount:   user.proposed_amount,
+        participantCount: users.length + 1,
+        billId,
+        dueDate: bill.due_date
+          ? new Date(bill.due_date).toLocaleDateString('en-US', {
+              year: 'numeric', month: 'long', day: 'numeric',
+            })
+          : null,
+      });
+
+      const emailResult = await sendEmail({
+        to:      invitedUser.email,
+        subject: `💰 ${inviter.username} invited you to split "${bill.title}"`,
+        html,
+      });
+
+      console.log(`[inviteUsers] Email result for ${invitedUser.email}:`, JSON.stringify(emailResult));
     }
 
     await executeQuery(
@@ -122,7 +152,7 @@ const inviteUsers = async (req, res) => {
 
     res.json({ message: 'Invitations sent successfully' });
   } catch (error) {
-    console.error('Error inviting users:', error);
+    console.error('[inviteUsers] ❌ Uncaught error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

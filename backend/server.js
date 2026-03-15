@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -21,7 +23,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:5173'],
+    origin: [process.env.FRONTEND_URL || 'http://localhost:5173'],
     credentials: true
   }
 });
@@ -33,7 +35,7 @@ setIo(io);
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-  origin: ['http://localhost:5173'],
+  origin: [process.env.FRONTEND_URL || 'http://localhost:5173'],
   credentials: true
 }));
 app.use(morgan('dev'));
@@ -70,21 +72,27 @@ app.use('/transactions', transactionRoutes);
 
 // Initialize database and start server
 const startServer = async () => {
+  // ── Verify env loaded correctly ──────────────────────────
+  console.log('[Config] NODE_ENV:', process.env.NODE_ENV);
+  console.log('[Config] SES_SMTP_HOST:', process.env.SES_SMTP_HOST || '❌ NOT SET');
+  console.log('[Config] SES_FROM_EMAIL:', process.env.SES_FROM_EMAIL || '❌ NOT SET');
+
   const isConnected = await testConnection();
   if (!isConnected) {
-    console.error('Failed to connect to database.');
+    console.error('Failed to connect to database. Please check your MySQL connection.');
     process.exit(1);
   }
 
-  // Verify SES SMTP on startup
+  // ── Verify SES SMTP connection ──────────────────────────
   const emailReady = await verifyConnection();
   if (!emailReady) {
-    // Warn but don't crash — app still works without email
-    console.warn('[Warning] Email service unavailable. Check SES credentials in .env');
+    console.warn('[Warning] Email service unavailable — check SES credentials in .env');
   }
 
-  server.listen(5001, () => {
-    console.log('Server running on http://localhost:5001');
+  const port = process.env.PORT || 5001;
+  server.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+    console.log('Server started successfully with MySQL connection and Socket.IO');
   });
 };
 

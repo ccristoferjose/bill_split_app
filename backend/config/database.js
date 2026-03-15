@@ -1,11 +1,12 @@
 const mysql = require('mysql2/promise');
+require('dotenv').config();
 
 // Database configuration
 const dbConfig = {
-  host: 'localhost',
-  user: 'root', // Change this to your MySQL username
-  password: 'dotqoP-qincas-qujho9', // Change this to your MySQL password
-  database: 'work_db',
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER, // Change this to your MySQL username
+  password: process.env.DB_PASSWORD, // Change this to your MySQL password
+  database: process.env.DB_NAME, // Change this to your MySQL database name
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

@@ -1,5 +1,130 @@
+'use strict';
+
 const { findOne, executeQuery } = require('../config/database');
 const { sendNotificationToUser } = require('../utils/notifications');
+const { sendEmail } = require('../services/email.service');
+const { billInvitationTemplate } = require('../templates/emails/bill-invitation.template');
+const { billStatusTemplate } = require('../templates/emails/bill-status.template');
+
+// ─────────────────────────────────────────────────────────────
+// Helper — fetch user with email for notifications
+// ─────────────────────────────────────────────────────────────
+const getUserContact = async (userId) => {
+  const user = await findOne(
+    'SELECT id, username, email FROM users WHERE id = ?',
+    [userId]
+  );
+  console.log(`[getUserContact] userId=${userId} →`, JSON.stringify(user));
+  return user;
+};
+
+// ─────────────────────────────────────────────────────────────
+// Helper — send invitation email to a participant
+// ─────────────────────────────────────────────────────────────
+const sendInvitationEmail = async ({ owner, participant, transaction }) => {
+  if (!participant?.email) {
+    console.warn(
+      `[sendInvitationEmail] ⚠️ No email for user ${participant?.id} (${participant?.username}) — skipping`
+    );
+    return;
+  }
+
+  // Find this participant's amount
+  const pRecord = await findOne(
+    'SELECT amount_owed FROM transaction_participants WHERE transaction_id = ? AND user_id = ?',
+    [transaction.id, participant.id]
+  );
+
+  // Count total participants
+  const countResult = await findOne(
+    'SELECT COUNT(*) AS count FROM transaction_participants WHERE transaction_id = ?',
+    [transaction.id]
+  );
+
+  const proposedAmount = pRecord?.amount_owed ?? 0;
+  const participantCount = (countResult?.count ?? 1) + 1; // +1 for owner
+
+  console.log(`[sendInvitationEmail] 📧 Sending to ${participant.email}`);
+  console.log(`[sendInvitationEmail] → transaction: "${transaction.title}" | amount: $${proposedAmount}`);
+
+  const html = billInvitationTemplate({
+    recipientName:    participant.username,
+    inviterName:      owner.username,
+    billTitle:        transaction.title,
+    billDescription:  transaction.notes || null,
+    totalAmount:      transaction.amount,
+    proposedAmount:   proposedAmount,
+    participantCount: participantCount,
+    billId:           transaction.id,
+    dueDate:          transaction.due_date
+      ? new Date(transaction.due_date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : null,
+  });
+
+  const result = await sendEmail({
+    to:      participant.email,
+    subject: `💰 ${owner.username} invited you to split "${transaction.title}"`,
+    html,
+  });
+
+  console.log(
+    `[sendInvitationEmail] Result for ${participant.email}:`,
+    JSON.stringify(result)
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// Helper — send response email to the transaction owner
+// ─────────────────────────────────────────────────────────────
+const sendResponseEmail = async ({ responder, owner, transaction, action }) => {
+  if (!owner?.email) {
+    console.warn(
+      `[sendResponseEmail] ⚠️ No email for owner ${owner?.id} (${owner?.username}) — skipping`
+    );
+    return;
+  }
+
+  const pRecord = await findOne(
+    'SELECT amount_owed FROM transaction_participants WHERE transaction_id = ? AND user_id = ?',
+    [transaction.id, responder.id]
+  );
+
+  console.log(`[sendResponseEmail] 📧 Sending ${action} notification to ${owner.email}`);
+
+  const html = billStatusTemplate({
+    recipientName:   owner.username,
+    billTitle:       transaction.title,
+    billId:          transaction.id,
+    status:          'response_received',
+    totalAmount:     transaction.amount,
+    responderName:   responder.username,
+    action:          action === 'accept' ? 'accepted' : 'rejected',
+    respondedAmount: pRecord?.amount_owed ?? 0,
+  });
+
+  const emoji   = action === 'accept' ? '✅' : '❌';
+  const verb    = action === 'accept' ? 'accepted' : 'declined';
+
+  const result = await sendEmail({
+    to:      owner.email,
+    subject: `${emoji} ${responder.username} ${verb} "${transaction.title}"`,
+    html,
+  });
+
+  console.log(
+    `[sendResponseEmail] Result for ${owner.email}:`,
+    JSON.stringify(result)
+  );
+};
+
+// ═════════════════════════════════════════════════════════════
+//  CONTROLLERS — only the 3 modified functions shown in full,
+//  everything else stays exactly as-is
+// ═════════════════════════════════════════════════════════════
 
 const createTransaction = async (req, res) => {
   try {
@@ -30,13 +155,34 @@ const createTransaction = async (req, res) => {
 
     const transactionId = result.insertId;
 
+    // ── If participants included at creation, insert + email them ──
     if (Array.isArray(participants) && participants.length > 0) {
+      const owner = await getUserContact(user_id);
+      const transaction = await findOne(
+        'SELECT * FROM transactions WHERE id = ?',
+        [transactionId]
+      );
+
       for (const p of participants) {
-        if (p.user_id) {
-          await executeQuery(
-            'INSERT INTO transaction_participants (transaction_id, user_id, amount_owed) VALUES (?, ?, ?)',
-            [transactionId, p.user_id, parseFloat(p.amount_owed) || 0]
-          );
+        if (!p.user_id) continue;
+
+        await executeQuery(
+          'INSERT INTO transaction_participants (transaction_id, user_id, amount_owed) VALUES (?, ?, ?)',
+          [transactionId, p.user_id, parseFloat(p.amount_owed) || 0]
+        );
+
+        // ── Socket notification (existing behavior) ──────────
+        sendNotificationToUser(Number(p.user_id), {
+          type: 'transaction_split_invitation',
+          title: 'Bill Split Invitation',
+          message: `${owner?.username || 'Someone'} invited you to split "${title}" — Your share: $${p.amount_owed}`,
+          data: { transactionId, ownerId: Number(user_id) },
+        });
+
+        // ── NEW: Email notification ──────────────────────────
+        const participant = await getUserContact(p.user_id);
+        if (transaction && owner && participant) {
+          await sendInvitationEmail({ owner, participant, transaction });
         }
       }
     }
@@ -47,6 +193,204 @@ const createTransaction = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+const updateTransactionParticipants = async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+    const { user_id, participants } = req.body;
+
+    const transaction = await findOne(
+      'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
+      [transactionId, user_id]
+    );
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found or not authorized' });
+    }
+
+    const existing = await executeQuery(
+      'SELECT * FROM transaction_participants WHERE transaction_id = ?',
+      [transactionId]
+    );
+    const existingMap = new Map(existing.map(p => [Number(p.user_id), p]));
+
+    await executeQuery(
+      'DELETE FROM transaction_participants WHERE transaction_id = ?',
+      [transactionId]
+    );
+
+    const newlyInvited = [];
+
+    if (Array.isArray(participants) && participants.length > 0) {
+      for (const p of participants) {
+        if (!p.user_id) continue;
+        const prev = existingMap.get(Number(p.user_id));
+
+        let invitationStatus = 'pending';
+        let paymentStatus = 'pending';
+
+        if (prev) {
+          paymentStatus = prev.status;
+          if (prev.invitation_status === 'accepted') {
+            invitationStatus = 'accepted';
+          } else if (prev.invitation_status === 'rejected') {
+            invitationStatus = 'pending';
+            newlyInvited.push(p.user_id);
+          }
+        } else {
+          newlyInvited.push(p.user_id);
+        }
+
+        await executeQuery(
+          'INSERT INTO transaction_participants (transaction_id, user_id, amount_owed, status, invitation_status) VALUES (?, ?, ?, ?, ?)',
+          [transactionId, p.user_id, parseFloat(p.amount_owed) || 0, paymentStatus, invitationStatus]
+        );
+      }
+    }
+
+    // ── Notify newly invited participants ─────────────────────
+    if (newlyInvited.length > 0) {
+      const owner = await getUserContact(user_id);
+
+      console.log(`[updateParticipants] Newly invited users: ${JSON.stringify(newlyInvited)}`);
+
+      for (const participantId of newlyInvited) {
+        // Socket notification (existing)
+        sendNotificationToUser(Number(participantId), {
+          type: 'transaction_split_invitation',
+          title: 'Bill Split Invitation',
+          message: `${owner?.username || 'Someone'} split "${transaction.title}" with you`,
+          data: { transactionId: transaction.id, ownerId: Number(user_id) },
+        });
+
+        // ── NEW: Email notification ──────────────────────────
+        const participant = await getUserContact(participantId);
+        if (owner && participant) {
+          await sendInvitationEmail({ owner, participant, transaction });
+        }
+      }
+    }
+
+    const isShared = Array.isArray(participants) && participants.length > 0;
+    await executeQuery(
+      'UPDATE transactions SET is_shared = ? WHERE id = ?',
+      [isShared ? 1 : 0, transactionId]
+    );
+
+    res.json({ message: 'Participants updated successfully' });
+  } catch (error) {
+    console.error('Error updating transaction participants:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const respondToTransactionSplit = async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+    const { user_id, action } = req.body;
+
+    if (!['accept', 'reject'].includes(action)) {
+      return res.status(400).json({ message: 'action must be accept or reject' });
+    }
+
+    const participant = await findOne(
+      'SELECT * FROM transaction_participants WHERE transaction_id = ? AND user_id = ?',
+      [transactionId, user_id]
+    );
+    if (!participant) return res.status(404).json({ message: 'Invitation not found' });
+
+    const invStatus = action === 'accept' ? 'accepted' : 'rejected';
+    await executeQuery(
+      'UPDATE transaction_participants SET invitation_status = ? WHERE transaction_id = ? AND user_id = ?',
+      [invStatus, transactionId, user_id]
+    );
+
+    const transaction = await findOne(
+      'SELECT * FROM transactions WHERE id = ?',
+      [transactionId]
+    );
+    const responder = await getUserContact(user_id);
+    const owner     = await getUserContact(transaction.user_id);
+
+    // Socket notification to owner (existing)
+    sendNotificationToUser(Number(transaction.user_id), {
+      type: 'transaction_split_response',
+      title: `Split ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
+      message: `${responder?.username} ${action}ed the split for "${transaction.title}"`,
+      data: { transactionId: transaction.id, responderId: Number(user_id), action },
+    });
+
+    // ── NEW: Email notification to owner ─────────────────────
+    if (responder && owner && transaction) {
+      await sendResponseEmail({ responder, owner, transaction, action });
+    }
+
+    // ── NEW: If accepted, send confirmation email to responder ─
+    if (action === 'accept' && responder?.email) {
+      const confirmHtml = billStatusTemplate({
+        recipientName: responder.username,
+        billTitle:     transaction.title,
+        billId:        transaction.id,
+        status:        'finalized',
+        totalAmount:   transaction.amount,
+        yourAmount:    participant.amount_owed,
+      });
+
+      await sendEmail({
+        to:      responder.email,
+        subject: `✅ You accepted "${transaction.title}" — $${participant.amount_owed} is your share`,
+        html:    confirmHtml,
+      });
+    }
+
+    res.json({ message: `Invitation ${action}ed`, invitation_status: invStatus });
+  } catch (error) {
+    console.error('Error responding to split:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const resendTransactionInvitation = async (req, res) => {
+  try {
+    const { transactionId, participantUserId } = req.params;
+    const { user_id } = req.body;
+
+    const transaction = await findOne(
+      'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
+      [transactionId, user_id]
+    );
+    if (!transaction) return res.status(404).json({ message: 'Not authorized' });
+
+    await executeQuery(
+      'UPDATE transaction_participants SET invitation_status = ? WHERE transaction_id = ? AND user_id = ?',
+      ['pending', transactionId, participantUserId]
+    );
+
+    const owner = await getUserContact(user_id);
+
+    // Socket notification (existing)
+    sendNotificationToUser(Number(participantUserId), {
+      type: 'transaction_split_invitation',
+      title: 'Bill Split Invitation',
+      message: `${owner?.username} re-sent a split invitation for "${transaction.title}"`,
+      data: { transactionId: transaction.id, ownerId: Number(user_id) },
+    });
+
+    // ── NEW: Email notification ──────────────────────────────
+    const participant = await getUserContact(participantUserId);
+    if (owner && participant) {
+      await sendInvitationEmail({ owner, participant, transaction });
+    }
+
+    res.json({ message: 'Invitation resent' });
+  } catch (error) {
+    console.error('Error resending invitation:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// ═════════════════════════════════════════════════════════════
+//  UNCHANGED FUNCTIONS — kept exactly as your original
+// ═════════════════════════════════════════════════════════════
 
 const getUserTransactions = async (req, res) => {
   try {
@@ -186,150 +530,6 @@ const getTransactionDetails = async (req, res) => {
   }
 };
 
-const updateTransactionParticipants = async (req, res) => {
-  try {
-    const { transactionId } = req.params;
-    const { user_id, participants } = req.body;
-
-    const transaction = await findOne(
-      'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
-      [transactionId, user_id]
-    );
-    if (!transaction) {
-      return res.status(404).json({ message: 'Transaction not found or not authorized' });
-    }
-
-    // Preserve existing participant statuses
-    const existing = await executeQuery(
-      'SELECT * FROM transaction_participants WHERE transaction_id = ?',
-      [transactionId]
-    );
-    const existingMap = new Map(existing.map(p => [Number(p.user_id), p]));
-
-    await executeQuery('DELETE FROM transaction_participants WHERE transaction_id = ?', [transactionId]);
-
-    const newlyInvited = [];
-
-    if (Array.isArray(participants) && participants.length > 0) {
-      for (const p of participants) {
-        if (!p.user_id) continue;
-        const prev = existingMap.get(Number(p.user_id));
-
-        let invitationStatus = 'pending';
-        let paymentStatus = 'pending';
-
-        if (prev) {
-          paymentStatus = prev.status;
-          if (prev.invitation_status === 'accepted') {
-            invitationStatus = 'accepted';
-          } else if (prev.invitation_status === 'rejected') {
-            // Reset rejected → re-invite
-            invitationStatus = 'pending';
-            newlyInvited.push(p.user_id);
-          }
-          // pending stays pending, no re-notification
-        } else {
-          newlyInvited.push(p.user_id);
-        }
-
-        await executeQuery(
-          'INSERT INTO transaction_participants (transaction_id, user_id, amount_owed, status, invitation_status) VALUES (?, ?, ?, ?, ?)',
-          [transactionId, p.user_id, parseFloat(p.amount_owed) || 0, paymentStatus, invitationStatus]
-        );
-      }
-    }
-
-    if (newlyInvited.length > 0) {
-      const owner = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
-      for (const participantId of newlyInvited) {
-        sendNotificationToUser(Number(participantId), {
-          type: 'transaction_split_invitation',
-          title: 'Bill Split Invitation',
-          message: `${owner?.username || 'Someone'} split "${transaction.title}" with you`,
-          data: { transactionId: transaction.id, ownerId: Number(user_id) },
-        });
-      }
-    }
-
-    const isShared = Array.isArray(participants) && participants.length > 0;
-    await executeQuery('UPDATE transactions SET is_shared = ? WHERE id = ?', [isShared ? 1 : 0, transactionId]);
-
-    res.json({ message: 'Participants updated successfully' });
-  } catch (error) {
-    console.error('Error updating transaction participants:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-const respondToTransactionSplit = async (req, res) => {
-  try {
-    const { transactionId } = req.params;
-    const { user_id, action } = req.body;
-
-    if (!['accept', 'reject'].includes(action)) {
-      return res.status(400).json({ message: 'action must be accept or reject' });
-    }
-
-    const participant = await findOne(
-      'SELECT * FROM transaction_participants WHERE transaction_id = ? AND user_id = ?',
-      [transactionId, user_id]
-    );
-    if (!participant) return res.status(404).json({ message: 'Invitation not found' });
-
-    const invStatus = action === 'accept' ? 'accepted' : 'rejected';
-    await executeQuery(
-      'UPDATE transaction_participants SET invitation_status = ? WHERE transaction_id = ? AND user_id = ?',
-      [invStatus, transactionId, user_id]
-    );
-
-    const transaction = await findOne('SELECT * FROM transactions WHERE id = ?', [transactionId]);
-    const responder = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
-
-    sendNotificationToUser(Number(transaction.user_id), {
-      type: 'transaction_split_response',
-      title: `Split ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
-      message: `${responder?.username} ${action}ed the split for "${transaction.title}"`,
-      data: { transactionId: transaction.id, responderId: Number(user_id), action },
-    });
-
-    res.json({ message: `Invitation ${action}ed`, invitation_status: invStatus });
-  } catch (error) {
-    console.error('Error responding to split:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-const resendTransactionInvitation = async (req, res) => {
-  try {
-    const { transactionId, participantUserId } = req.params;
-    const { user_id } = req.body;
-
-    const transaction = await findOne(
-      'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
-      [transactionId, user_id]
-    );
-    if (!transaction) return res.status(404).json({ message: 'Not authorized' });
-
-    await executeQuery(
-      'UPDATE transaction_participants SET invitation_status = ? WHERE transaction_id = ? AND user_id = ?',
-      ['pending', transactionId, participantUserId]
-    );
-
-    const owner = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
-    sendNotificationToUser(Number(participantUserId), {
-      type: 'transaction_split_invitation',
-      title: 'Bill Split Invitation',
-      message: `${owner?.username} re-sent a split invitation for "${transaction.title}"`,
-      data: { transactionId: transaction.id, ownerId: Number(user_id) },
-    });
-
-    res.json({ message: 'Invitation resent' });
-  } catch (error) {
-    console.error('Error resending invitation:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
 const markTransactionPaid = async (req, res) => {
   try {
     const { transactionId } = req.params;
@@ -344,7 +544,6 @@ const markTransactionPaid = async (req, res) => {
     const newStatus = transaction.status === 'paid' ? 'pending' : 'paid';
     await executeQuery('UPDATE transactions SET status = ? WHERE id = ?', [newStatus, transactionId]);
 
-    // Notify accepted participants
     const owner = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
     const participants = await executeQuery(
       `SELECT user_id FROM transaction_participants
@@ -374,7 +573,6 @@ const markParticipantPaid = async (req, res) => {
     const { transactionId, participantUserId } = req.params;
     const { user_id } = req.body;
 
-    // Only the participant themselves can mark their own share as paid
     if (String(participantUserId) !== String(user_id)) {
       return res.status(403).json({ message: 'You can only mark your own share as paid' });
     }
@@ -385,7 +583,6 @@ const markParticipantPaid = async (req, res) => {
     );
     if (!participant) return res.status(404).json({ message: 'Participant not found' });
 
-    // Must have accepted the invitation before paying
     if (participant.invitation_status !== 'accepted') {
       return res.status(400).json({ message: 'You must accept the invitation before marking as paid' });
     }
@@ -396,7 +593,6 @@ const markParticipantPaid = async (req, res) => {
       [newStatus, transactionId, participantUserId]
     );
 
-    // Check if all accepted participants have paid AND no invitations are still pending
     const transaction = await findOne('SELECT * FROM transactions WHERE id = ?', [transactionId]);
     const [unpaidRow, pendingInviteRow] = await Promise.all([
       findOne(
@@ -415,11 +611,9 @@ const markParticipantPaid = async (req, res) => {
     if (allPaid && newStatus === 'paid') {
       await executeQuery('UPDATE transactions SET status = ? WHERE id = ?', ['paid', transactionId]);
     } else if (!allPaid && transaction.status === 'paid') {
-      // Someone undid their payment — reopen the transaction
       await executeQuery('UPDATE transactions SET status = ? WHERE id = ?', ['pending', transactionId]);
     }
 
-    // Notify the transaction owner and other participants
     const payer = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
     const otherParticipants = await executeQuery(
       `SELECT user_id FROM transaction_participants
@@ -478,7 +672,6 @@ const markTransactionCyclePaid = async (req, res) => {
       if (!participant) return res.status(403).json({ message: 'Not authorized' });
     }
 
-    // Toggle: if already paid for this cycle, remove it
     const existing = await findOne(
       'SELECT id FROM transaction_cycle_payments WHERE transaction_id = ? AND user_id = ? AND cycle_year = ? AND cycle_month = ?',
       [transactionId, user_id, year, month]
@@ -497,8 +690,6 @@ const markTransactionCyclePaid = async (req, res) => {
       [transactionId, user_id, year, month]
     );
 
-    // Check if all associated users (owner + accepted participants) have paid this cycle
-    // and no invitations are still pending
     const [acceptedParticipants, pendingInviteRow, paidUsers] = await Promise.all([
       executeQuery(
         `SELECT user_id FROM transaction_participants WHERE transaction_id = ? AND invitation_status = 'accepted'`,
@@ -518,7 +709,6 @@ const markTransactionCyclePaid = async (req, res) => {
     const paidUserIds = new Set(paidUsers.map(p => Number(p.user_id)));
     const allPaid = pendingInviteRow.count === 0 && allUserIds.every(uid => paidUserIds.has(uid));
 
-    // Notify others
     const payer = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
     const otherUserIds = allUserIds.filter(uid => uid !== Number(user_id));
     const cycleLabel = `${year}-${String(month).padStart(2, '0')}`;
