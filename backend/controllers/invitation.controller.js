@@ -1,5 +1,10 @@
 const { findOne, executeQuery } = require('../config/database');
-const { sendNotificationToUser } = require('../utils/notifications');
+const {
+  sendNotificationToUser,
+  sendBillInvitationEmail,
+  sendInvitationResponseEmail,
+  sendBillFinalizedEmail,
+} = require('../utils/notifications');
 
 const inviteUsers = async (req, res) => {
   try {
@@ -20,7 +25,7 @@ const inviteUsers = async (req, res) => {
       'SELECT user_id FROM service_bill_participants WHERE service_bill_id = ? AND payment_status = ? AND is_creator = FALSE',
       [billId, 'paid']
     );
-    const paidUserIds = paidParticipants.map(p => p.user_id);
+    const paidUserIds = paidParticipants.map((p) => p.user_id);
 
     // Remove unpaid invitations and participants (keep paid ones)
     if (paidUserIds.length > 0) {
@@ -48,6 +53,7 @@ const inviteUsers = async (req, res) => {
         [billId, user.user_id, invited_by, user.proposed_amount, 'pending']
       );
 
+      // Real-time socket notification
       const notification = {
         type: 'bill_invitation',
         title: 'New Bill Invitation',
@@ -57,13 +63,28 @@ const inviteUsers = async (req, res) => {
           billTitle: bill.title,
           inviterName: inviter.username,
           proposedAmount: user.proposed_amount,
-          totalAmount: bill.total_amount
+          totalAmount: bill.total_amount,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       const notificationSent = sendNotificationToUser(user.user_id, notification);
-      console.log(`Notification ${notificationSent ? 'sent' : 'failed'} to user ${user.user_id}`);
+      console.log(`Socket notification ${notificationSent ? 'sent' : 'queued'} for user ${user.user_id}`);
+
+      // Email notification (fire-and-forget, don't block response)
+      sendBillInvitationEmail({
+        recipientUserId: user.user_id,
+        inviterName: inviter.username,
+        billId,
+        billTitle: bill.title,
+        billDescription: bill.description,
+        proposedAmount: user.proposed_amount,
+        totalAmount: bill.total_amount,
+        dueDate: bill.due_date,
+        participantCount: users.length + 1, // +1 for creator
+      }).then((result) => {
+        console.log(`Email ${result.success ? 'sent' : 'failed'} for user ${user.user_id}`, result.success ? '' : result.error);
+      });
     }
 
     await executeQuery(
@@ -130,8 +151,8 @@ const respondToInvitation = async (req, res) => {
       [billId]
     );
 
-    const shouldAutoFinalize = allInvitations.total > 0 &&
-                                allInvitations.total === allInvitations.responded;
+    const shouldAutoFinalize =
+      allInvitations.total > 0 && allInvitations.total === allInvitations.responded;
 
     let billStatus = null;
 
@@ -145,7 +166,6 @@ const respondToInvitation = async (req, res) => {
         await executeQuery('UPDATE service_bills SET status = "finalized" WHERE id = ?', [billId]);
         billStatus = 'finalized';
 
-        // Add creator as participant if not already present
         const creatorExists = await findOne(
           'SELECT id FROM service_bill_participants WHERE service_bill_id = ? AND user_id = ?',
           [billId, bill.created_by]
@@ -179,40 +199,69 @@ const respondToInvitation = async (req, res) => {
       }
     }
 
-    // Send notifications
+    // ── Send notifications ──
     const respondingUser = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
 
     if (bill && respondingUser) {
+      // Socket: user confirmation
       const userNotification = {
         type: 'bill_status_update',
         title: 'Response Recorded',
         message: `Your response to "${bill.title}" has been recorded${billStatus ? ` and bill is now ${billStatus}` : ''}`,
         data: {
-          billId, billTitle: bill.title, action, status: billStatus || 'pending_responses', autoFinalized: shouldAutoFinalize
+          billId,
+          billTitle: bill.title,
+          action,
+          status: billStatus || 'pending_responses',
+          autoFinalized: shouldAutoFinalize,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
+      sendNotificationToUser(user_id, userNotification);
 
+      // Socket: creator
       const creatorNotification = {
         type: billStatus ? 'bill_finalized' : 'bill_response',
-        title: billStatus ? `Bill ${billStatus.charAt(0).toUpperCase() + billStatus.slice(1)}` : `Bill Response: ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
+        title: billStatus
+          ? `Bill ${billStatus.charAt(0).toUpperCase() + billStatus.slice(1)}`
+          : `Bill Response: ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
         message: billStatus
           ? `"${bill.title}" has been automatically ${billStatus} - all responses received`
           : `${respondingUser.username} ${action === 'accept' ? 'accepted' : 'rejected'} the invitation for "${bill.title}" ($${invitation.proposed_amount})`,
         data: {
-          billId, billTitle: bill.title, respondingUser: respondingUser.username,
-          action, amount: invitation.proposed_amount, status: billStatus || 'pending_responses', autoFinalized: shouldAutoFinalize
+          billId,
+          billTitle: bill.title,
+          respondingUser: respondingUser.username,
+          action,
+          amount: invitation.proposed_amount,
+          status: billStatus || 'pending_responses',
+          autoFinalized: shouldAutoFinalize,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-
-      sendNotificationToUser(user_id, userNotification);
       sendNotificationToUser(bill.created_by, creatorNotification);
 
+      // Email: notify creator of the response
+      sendInvitationResponseEmail({
+        creatorUserId: bill.created_by,
+        responderName: respondingUser.username,
+        billId,
+        billTitle: bill.title,
+        action,
+        proposedAmount: invitation.proposed_amount,
+        totalAmount: bill.total_amount,
+        respondedCount: allInvitations.responded,
+        totalInvitations: allInvitations.total,
+        billStatus: billStatus || 'pending_responses',
+      }).then((result) => {
+        console.log(`Response email to creator ${result.success ? 'sent' : 'failed'}`);
+      });
+
+      // If auto-finalized → notify all participants
       if (shouldAutoFinalize && billStatus === 'finalized') {
         const allParticipants = await executeQuery(
-          'SELECT DISTINCT user_id FROM service_bill_participants WHERE service_bill_id = ? AND user_id != ?',
-          [billId, bill.created_by]
+          'SELECT DISTINCT sbp.user_id, sbp.amount_owed FROM service_bill_participants sbp WHERE sbp.service_bill_id = ?',
+          [billId]
         );
 
         const finalizationNotification = {
@@ -220,25 +269,52 @@ const respondToInvitation = async (req, res) => {
           title: 'Bill Finalized',
           message: `"${bill.title}" has been finalized and is ready for payment`,
           data: { billId, billTitle: bill.title, status: 'finalized', autoFinalized: true },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         };
 
         for (const participant of allParticipants) {
+          // Socket (skip the user who just responded – they already got theirs)
           if (participant.user_id !== user_id) {
             sendNotificationToUser(participant.user_id, finalizationNotification);
           }
+
+          // Email every participant about finalization
+          sendBillFinalizedEmail({
+            recipientUserId: participant.user_id,
+            billId,
+            billTitle: bill.title,
+            billDescription: bill.description,
+            totalAmount: bill.total_amount,
+            userAmount: participant.amount_owed,
+            dueDate: bill.due_date,
+            participantCount: allParticipants.length,
+          }).then((result) => {
+            console.log(
+              `Finalization email to user ${participant.user_id} ${result.success ? 'sent' : 'failed'}`
+            );
+          });
         }
       }
     }
 
     await executeQuery(
       'INSERT INTO bill_activity_log (bill_id, user_id, action, details) VALUES (?, ?, ?, ?)',
-      [billId, user_id, action === 'accept' ? 'accepted' : 'rejected', `${action === 'accept' ? 'Accepted' : 'Rejected'} invitation for $${invitation.proposed_amount}`]
+      [
+        billId,
+        user_id,
+        action === 'accept' ? 'accepted' : 'rejected',
+        `${action === 'accept' ? 'Accepted' : 'Rejected'} invitation for $${invitation.proposed_amount}`,
+      ]
     );
 
     res.json({
       message: `Invitation ${action}ed successfully`,
-      data: { billId, status: billStatus || 'pending_responses', action, autoFinalized: shouldAutoFinalize }
+      data: {
+        billId,
+        status: billStatus || 'pending_responses',
+        action,
+        autoFinalized: shouldAutoFinalize,
+      },
     });
   } catch (error) {
     console.error('Error responding to invitation:', error);
@@ -270,7 +346,7 @@ const getInvitationStatus = async (req, res) => {
     res.json({
       bill,
       userInvitation: invitation,
-      allInvitations: bill.created_by == user_id ? allInvitations : null
+      allInvitations: bill.created_by == user_id ? allInvitations : null,
     });
   } catch (error) {
     console.error('Error fetching bill status:', error);
@@ -296,7 +372,6 @@ const reopenBill = async (req, res) => {
       return res.status(400).json({ message: 'Bill cannot be reopened in its current state' });
     }
 
-    // Get existing invitations before resetting
     const existingInvitations = await executeQuery(
       'SELECT invited_user_id, proposed_amount FROM bill_invitations WHERE bill_id = ?',
       [billId]
@@ -306,22 +381,19 @@ const reopenBill = async (req, res) => {
       return res.status(400).json({ message: 'No previous invitations to resend' });
     }
 
-    // Reset invitations to pending
     await executeQuery(
       'UPDATE bill_invitations SET status = ?, response_date = NULL WHERE bill_id = ?',
       ['pending', billId]
     );
 
-    // Clear participants
     await executeQuery('DELETE FROM service_bill_participants WHERE service_bill_id = ?', [billId]);
 
-    // Set bill back to pending_responses
     await executeQuery('UPDATE service_bills SET status = ? WHERE id = ?', ['pending_responses', billId]);
 
-    // Send notifications to all invited users
     const inviter = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
 
     for (const inv of existingInvitations) {
+      // Socket notification
       const notification = {
         type: 'bill_invitation',
         title: 'Bill Invitation Resent',
@@ -331,11 +403,28 @@ const reopenBill = async (req, res) => {
           billTitle: bill.title,
           inviterName: inviter.username,
           proposedAmount: inv.proposed_amount,
-          totalAmount: bill.total_amount
+          totalAmount: bill.total_amount,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
       sendNotificationToUser(inv.invited_user_id, notification);
+
+      // Email notification
+      sendBillInvitationEmail({
+        recipientUserId: inv.invited_user_id,
+        inviterName: inviter.username,
+        billId: parseInt(billId),
+        billTitle: bill.title,
+        billDescription: bill.description,
+        proposedAmount: inv.proposed_amount,
+        totalAmount: bill.total_amount,
+        dueDate: bill.due_date,
+        participantCount: existingInvitations.length + 1,
+      }).then((result) => {
+        console.log(
+          `Reopen email to user ${inv.invited_user_id} ${result.success ? 'sent' : 'failed'}`
+        );
+      });
     }
 
     await executeQuery(
