@@ -6,6 +6,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const { testConnection } = require('./config/database');
 const { connectedUsers, setIo } = require('./utils/notifications');
+const { verifyConnection } = require('./services/email.service');
 
 // Route imports
 const authRoutes = require('./routes/auth.routes');
@@ -71,13 +72,19 @@ app.use('/transactions', transactionRoutes);
 const startServer = async () => {
   const isConnected = await testConnection();
   if (!isConnected) {
-    console.error('Failed to connect to database. Please check your MySQL connection.');
+    console.error('Failed to connect to database.');
     process.exit(1);
+  }
+
+  // Verify SES SMTP on startup
+  const emailReady = await verifyConnection();
+  if (!emailReady) {
+    // Warn but don't crash — app still works without email
+    console.warn('[Warning] Email service unavailable. Check SES credentials in .env');
   }
 
   server.listen(5001, () => {
     console.log('Server running on http://localhost:5001');
-    console.log('Server started successfully with MySQL connection and Socket.IO');
   });
 };
 
