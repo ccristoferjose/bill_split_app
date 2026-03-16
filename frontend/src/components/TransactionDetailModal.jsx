@@ -47,7 +47,7 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
 
   // For shared transactions, find my participant record
   const myRecord = (transaction.participants || []).find(
-    p => Number(p.user_id) === Number(userId)
+    p => String(p.user_id) === String(userId)
   );
   const isShared = transaction.is_shared && (transaction.participants || []).length > 0;
 
@@ -57,7 +57,7 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
   const ownerShare = Math.max(0, amount - participantsTotal);
 
   // Am I the owner?
-  const isOwner = Number(transaction.user_id) === Number(userId);
+  const isOwner = String(transaction.user_id) === String(userId);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -131,7 +131,7 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
                 )}
                 {/* Split-ees */}
                 {transaction.participants.map(p => {
-                  const isMe = Number(p.user_id) === Number(userId);
+                  const isMe = String(p.user_id) === String(userId);
                   return (
                     <div
                       key={p.user_id}

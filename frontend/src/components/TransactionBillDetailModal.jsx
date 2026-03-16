@@ -53,14 +53,14 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
   const hasCyclePaid = (uid) =>
     (transaction.cycle_payments || []).some(
       cp =>
-        Number(cp.user_id) === Number(uid) &&
+        String(cp.user_id) === String(uid) &&
         Number(cp.cycle_year) === cycleYear &&
         Number(cp.cycle_month) === cycleMonth
     );
 
-  const isOwner = transaction._role === 'owner' || Number(transaction.user_id) === Number(userId);
+  const isOwner = transaction._role === 'owner' || String(transaction.user_id) === String(userId);
   const myRecord = !isOwner
-    ? transaction.participants?.find(p => Number(p.user_id) === Number(userId))
+    ? transaction.participants?.find(p => String(p.user_id) === String(userId))
     : null;
 
   // Effective paid status — cycle-aware for monthly bills
@@ -208,7 +208,7 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
               </p>
               <div className="space-y-2">
                 {transaction.participants.map(p => {
-                  const isMe = Number(p.user_id) === Number(userId);
+                  const isMe = String(p.user_id) === String(userId);
                   const canResend = isOwner && p.invitation_status === 'rejected';
                   const participantPaid = isMonthly ? hasCyclePaid(p.user_id) : p.status === 'paid';
 

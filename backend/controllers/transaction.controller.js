@@ -172,11 +172,11 @@ const createTransaction = async (req, res) => {
         );
 
         // ── Socket notification (existing behavior) ──────────
-        sendNotificationToUser(Number(p.user_id), {
+        sendNotificationToUser(String(p.user_id), {
           type: 'transaction_split_invitation',
           title: 'Bill Split Invitation',
           message: `${owner?.username || 'Someone'} invited you to split "${title}" — Your share: $${p.amount_owed}`,
-          data: { transactionId, ownerId: Number(user_id) },
+          data: { transactionId, ownerId: user_id },
         });
 
         // ── NEW: Email notification ──────────────────────────
@@ -211,7 +211,7 @@ const updateTransactionParticipants = async (req, res) => {
       'SELECT * FROM transaction_participants WHERE transaction_id = ?',
       [transactionId]
     );
-    const existingMap = new Map(existing.map(p => [Number(p.user_id), p]));
+    const existingMap = new Map(existing.map(p => [String(p.user_id), p]));
 
     await executeQuery(
       'DELETE FROM transaction_participants WHERE transaction_id = ?',
@@ -223,7 +223,7 @@ const updateTransactionParticipants = async (req, res) => {
     if (Array.isArray(participants) && participants.length > 0) {
       for (const p of participants) {
         if (!p.user_id) continue;
-        const prev = existingMap.get(Number(p.user_id));
+        const prev = existingMap.get(String(p.user_id));
 
         let invitationStatus = 'pending';
         let paymentStatus = 'pending';
@@ -255,11 +255,11 @@ const updateTransactionParticipants = async (req, res) => {
 
       for (const participantId of newlyInvited) {
         // Socket notification (existing)
-        sendNotificationToUser(Number(participantId), {
+        sendNotificationToUser(String(participantId), {
           type: 'transaction_split_invitation',
           title: 'Bill Split Invitation',
           message: `${owner?.username || 'Someone'} split "${transaction.title}" with you`,
-          data: { transactionId: transaction.id, ownerId: Number(user_id) },
+          data: { transactionId: transaction.id, ownerId: user_id },
         });
 
         // ── NEW: Email notification ──────────────────────────
@@ -312,11 +312,11 @@ const respondToTransactionSplit = async (req, res) => {
     const owner     = await getUserContact(transaction.user_id);
 
     // Socket notification to owner (existing)
-    sendNotificationToUser(Number(transaction.user_id), {
+    sendNotificationToUser(String(transaction.user_id), {
       type: 'transaction_split_response',
       title: `Split ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
       message: `${responder?.username} ${action}ed the split for "${transaction.title}"`,
-      data: { transactionId: transaction.id, responderId: Number(user_id), action },
+      data: { transactionId: transaction.id, responderId: user_id, action },
     });
 
     // ── NEW: Email notification to owner ─────────────────────
@@ -368,11 +368,11 @@ const resendTransactionInvitation = async (req, res) => {
     const owner = await getUserContact(user_id);
 
     // Socket notification (existing)
-    sendNotificationToUser(Number(participantUserId), {
+    sendNotificationToUser(String(participantUserId), {
       type: 'transaction_split_invitation',
       title: 'Bill Split Invitation',
       message: `${owner?.username} re-sent a split invitation for "${transaction.title}"`,
-      data: { transactionId: transaction.id, ownerId: Number(user_id) },
+      data: { transactionId: transaction.id, ownerId: user_id },
     });
 
     // ── NEW: Email notification ──────────────────────────────
@@ -551,13 +551,13 @@ const markTransactionPaid = async (req, res) => {
       [transactionId, user_id]
     );
     for (const p of participants) {
-      sendNotificationToUser(Number(p.user_id), {
+      sendNotificationToUser(String(p.user_id), {
         type: 'transaction_payment',
         title: newStatus === 'paid' ? 'Bill Marked Paid' : 'Bill Reopened',
         message: newStatus === 'paid'
           ? `${owner.username} marked "${transaction.title}" as fully paid`
           : `${owner.username} reopened "${transaction.title}"`,
-        data: { transactionId: Number(transactionId), allPaid: newStatus === 'paid' },
+        data: { transactionId, allPaid: newStatus === 'paid' },
       });
     }
 
@@ -633,11 +633,11 @@ const markParticipantPaid = async (req, res) => {
         : `${payer.username} undid their payment for "${transaction.title}"`;
 
     for (const uid of recipients) {
-      sendNotificationToUser(Number(uid), {
+      sendNotificationToUser(String(uid), {
         type: 'transaction_payment',
         title: allPaid && newStatus === 'paid' ? 'Bill Fully Paid' : 'Payment Update',
         message: notificationMessage,
-        data: { transactionId: Number(transactionId), allPaid: allPaid && newStatus === 'paid' },
+        data: { transactionId, allPaid: allPaid && newStatus === 'paid' },
       });
     }
 
@@ -705,12 +705,12 @@ const markTransactionCyclePaid = async (req, res) => {
       ),
     ]);
 
-    const allUserIds = [Number(transaction.user_id), ...acceptedParticipants.map(p => Number(p.user_id))];
-    const paidUserIds = new Set(paidUsers.map(p => Number(p.user_id)));
+    const allUserIds = [String(transaction.user_id), ...acceptedParticipants.map(p => String(p.user_id))];
+    const paidUserIds = new Set(paidUsers.map(p => String(p.user_id)));
     const allPaid = pendingInviteRow.count === 0 && allUserIds.every(uid => paidUserIds.has(uid));
 
     const payer = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
-    const otherUserIds = allUserIds.filter(uid => uid !== Number(user_id));
+    const otherUserIds = allUserIds.filter(uid => uid !== String(user_id));
     const cycleLabel = `${year}-${String(month).padStart(2, '0')}`;
 
     for (const uid of otherUserIds) {
@@ -720,7 +720,7 @@ const markTransactionCyclePaid = async (req, res) => {
         message: allPaid
           ? `All participants paid for "${transaction.title}" (${cycleLabel})`
           : `${payer.username} paid their share of "${transaction.title}" for ${cycleLabel}`,
-        data: { transactionId: Number(transactionId), allPaid, cycleYear: Number(year), cycleMonth: Number(month) },
+        data: { transactionId, allPaid, cycleYear: Number(year), cycleMonth: Number(month) },
       });
     }
 

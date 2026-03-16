@@ -96,7 +96,7 @@ const TransactionInvitationsList = ({ userId }) => {
                           <span
                             key={p.user_id}
                             className={`text-xs rounded-full px-2 py-0.5 border ${
-                              Number(p.user_id) === Number(userId)
+                              String(p.user_id) === String(userId)
                                 ? 'bg-blue-100 border-blue-200 text-blue-700 font-medium'
                                 : 'bg-gray-100 border-gray-200 text-gray-600'
                             }`}

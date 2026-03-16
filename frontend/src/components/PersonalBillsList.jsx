@@ -86,7 +86,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
   const hasCyclePaid = (bill, uid) =>
     (bill.cycle_payments || []).some(
       cp =>
-        Number(cp.user_id) === Number(uid) &&
+        String(cp.user_id) === String(uid) &&
         Number(cp.cycle_year) === cycleYear &&
         Number(cp.cycle_month) === cycleMonth
     );

@@ -511,7 +511,7 @@ const getInvitationStatus = async (req, res) => {
     res.json({
       bill,
       userInvitation: invitation,
-      allInvitations: bill.created_by == user_id ? allInvitations : null,
+      allInvitations: String(bill.created_by) === String(user_id) ? allInvitations : null,
     });
   } catch (error) {
     console.error('Error fetching bill status:', error);
