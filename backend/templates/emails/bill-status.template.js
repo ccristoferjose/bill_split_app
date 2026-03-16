@@ -63,6 +63,20 @@ const billStatusTemplate = ({
       intro: `<strong>${responderName}</strong> has responded to the bill <strong>"${billTitle}"</strong>.`,
       ctaLabel: 'View Bill',
     },
+    invitation_accepted: {
+      emoji: '✅',
+      heading: 'Invitation Accepted',
+      badge: '<span class="badge badge-accepted">Accepted</span>',
+      intro: `You have successfully accepted the invitation for <strong>"${billTitle}"</strong>. Your share has been recorded.`,
+      ctaLabel: 'View Bill',
+    },
+    invitation_rejected: {
+      emoji: '❌',
+      heading: 'Invitation Declined',
+      badge: '<span class="badge badge-rejected">Declined</span>',
+      intro: `You have declined the invitation for <strong>"${billTitle}"</strong>.`,
+      ctaLabel: 'View Bills',
+    },
   };
 
   const cfg = statusConfig[status] || statusConfig['finalized'];

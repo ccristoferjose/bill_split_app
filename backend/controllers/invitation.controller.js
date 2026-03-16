@@ -315,6 +315,27 @@ const respondToInvitation = async (req, res) => {
         });
       }
 
+      // ── Email → Responder (acceptance/rejection confirmation) ─
+      if (respondingUser?.email) {
+        const responderStatus = action === 'accept' ? 'invitation_accepted' : 'invitation_rejected';
+        const responderEmailHtml = billStatusTemplate({
+          recipientName: respondingUser.username,
+          billTitle:     bill.title,
+          billId,
+          status:        responderStatus,
+          totalAmount:   bill.total_amount,
+          yourAmount:    action === 'accept' ? invitation.proposed_amount : null,
+        });
+        console.log(`Sending confirmation email to responder (${respondingUser.email})...`);
+        await sendEmail({
+          to:      respondingUser.email,
+          subject: action === 'accept'
+            ? `✅ You accepted the invitation for "${bill.title}"`
+            : `❌ You declined the invitation for "${bill.title}"`,
+          html:    responderEmailHtml,
+        });
+      }
+
       // ── Finalization: notify all participants via email ──────
       if (shouldAutoFinalize && billStatus === 'finalized') {
         const allParticipants = await executeQuery(

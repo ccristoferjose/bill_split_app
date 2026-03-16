@@ -1,30 +1,49 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useLoginMutation } from '../services/api';
-import { setCredentials } from '../feature/auth/authSlice';
 import { useNavigate } from 'react-router-dom';
+import { signIn, fetchAuthSession } from 'aws-amplify/auth';
+import { setCredentials } from '../feature/auth/authSlice';
+import { useSyncUserMutation } from '../services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
-  const [login, { isLoading }] = useLoginMutation();
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const [error, setError]       = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const dispatch   = useDispatch();
+  const navigate   = useNavigate();
+  const [syncUser] = useSyncUserMutation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
+
     try {
-      const userData = await login({ username, password }).unwrap();
-      dispatch(setCredentials(userData));
+      // 1. Sign in with Cognito
+      await signIn({ username: email, password });
+
+      // 2. Get the access token and ID token claims
+      const session  = await fetchAuthSession();
+      const idClaims = session.tokens?.idToken?.payload;
+
+      const username = idClaims?.name || idClaims?.['cognito:username'] || email;
+      const userEmail = idClaims?.email || email;
+
+      // 3. Sync user with backend (creates/updates the MySQL row)
+      const { user } = await syncUser({ username, email: userEmail }).unwrap();
+
+      // 4. Store user in Redux
+      dispatch(setCredentials({ user }));
       navigate('/dashboard');
     } catch (err) {
-      setError('Invalid username or password');
-      console.error('Failed to login: ', err);
+      console.error('Login failed:', err);
+      setError(err.message || 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -36,11 +55,11 @@ const Login = () => {
           {error && <p className="text-red-500 text-center mb-3">{error}</p>}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Username</label>
+              <label className="block text-sm font-medium mb-1">Email</label>
               <Input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -57,7 +76,8 @@ const Login = () => {
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>
             <p className="text-sm text-center mt-3">
-              Need an account? <a href="/register" className="text-blue-600 hover:underline">Register</a>
+              Need an account?{' '}
+              <a href="/register" className="text-blue-600 hover:underline">Register</a>
             </p>
           </form>
         </CardContent>

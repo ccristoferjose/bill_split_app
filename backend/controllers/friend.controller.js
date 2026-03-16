@@ -1,5 +1,7 @@
 const { findOne, executeQuery } = require('../config/database');
 const { sendNotificationToUser } = require('../utils/notifications');
+const { sendEmail } = require('../services/email.service');
+const { friendInvitationTemplate } = require('../templates/emails/friend-invitation.template');
 
 const sendFriendRequest = async (req, res) => {
   try {
@@ -9,7 +11,7 @@ const sendFriendRequest = async (req, res) => {
       return res.status(400).json({ message: 'You cannot send a friend request to yourself' });
     }
 
-    const addressee = await findOne('SELECT id, username FROM users WHERE id = ?', [addressee_id]);
+    const addressee = await findOne('SELECT id, username, email FROM users WHERE id = ?', [addressee_id]);
     if (!addressee) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -34,10 +36,11 @@ const sendFriendRequest = async (req, res) => {
 
     const requester = await findOne('SELECT username FROM users WHERE id = ?', [requester_id]);
 
-    await executeQuery(
+    const result = await executeQuery(
       'INSERT INTO friendships (requester_id, addressee_id, status) VALUES (?, ?, ?)',
       [requester_id, addressee_id, 'pending']
     );
+    const friendshipId = result.insertId;
 
     sendNotificationToUser(addressee_id, {
       type: 'friend_request',
@@ -45,6 +48,20 @@ const sendFriendRequest = async (req, res) => {
       message: `${requester.username} sent you a friend request`,
       data: { requesterId: requester_id, requesterName: requester.username }
     });
+
+    if (addressee.email) {
+      const html = friendInvitationTemplate({
+        recipientName:  addressee.username,
+        senderName:     requester.username,
+        senderUsername: requester.username,
+        invitationId:   friendshipId,
+      });
+      await sendEmail({
+        to:      addressee.email,
+        subject: `🤝 ${requester.username} sent you a friend request on BillSplit`,
+        html,
+      });
+    }
 
     res.status(201).json({ message: 'Friend request sent successfully' });
   } catch (error) {
