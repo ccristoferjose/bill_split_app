@@ -293,7 +293,7 @@ const deleteBill = async (req, res) => {
       return res.status(404).json({ message: 'Bill not found' });
     }
 
-    const isOwner = bill.created_by === parseInt(user_id);
+    const isOwner = String(bill.created_by) === String(user_id);
 
     // One-time fully paid bills — per-user dismiss (any participant can hide it)
     if (bill.bill_type === 'one_time' && bill.status === 'paid') {

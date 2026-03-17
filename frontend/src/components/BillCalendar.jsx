@@ -128,7 +128,7 @@ const isTransactionOnDate = (tx, date) => {
 const getEffectiveTxAmount = (tx, userId) => {
   const full = parseFloat(tx.amount || 0);
   if (tx._role === 'participant') {
-    const myRecord = (tx.participants || []).find(p => Number(p.user_id) === Number(userId));
+    const myRecord = (tx.participants || []).find(p => String(p.user_id) === String(userId));
     return myRecord ? parseFloat(myRecord.amount_owed) : full;
   }
   // Owner: subtract accepted participants' shares

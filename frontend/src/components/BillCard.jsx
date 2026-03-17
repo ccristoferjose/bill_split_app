@@ -21,7 +21,7 @@ import {
   usePayBillInFullMutation,
   usePayMonthlyCycleMutation,
 } from '../services/api';
-import { useSelector } from 'react-redux';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,7 +69,6 @@ const getCalendarStatus = (bill, date, paidCycles) => {
 // ─── component ──────────────────────────────────────────────────────────────
 
 const BillCard = ({ bill, userId, onSelectBill, onRefresh, calendarDate, paidCycles }) => {
-  const { token } = useSelector((state) => state.auth);
   const [confirmModal, setConfirmModal] = useState(null);
   const [splitBill, setSplitBill] = useState(false);
 
@@ -157,6 +156,8 @@ const BillCard = ({ bill, userId, onSelectBill, onRefresh, calendarDate, paidCyc
 
   const handleStatusCheck = async () => {
     try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString();
       const res = await fetch(`http://localhost:5001/bills/${bill.id}/check-status`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
