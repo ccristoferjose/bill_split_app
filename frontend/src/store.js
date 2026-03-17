@@ -18,7 +18,7 @@ import authReducer from './feature/auth/authSlice';
 const persistConfig = {
   key: 'auth',
   storage,
-  whitelist: ['token', 'user'], // only persist these fields
+  whitelist: ['user'], // only persist user — Amplify manages tokens internally
 };
 
 const persistedAuthReducer = persistReducer(persistConfig, authReducer);

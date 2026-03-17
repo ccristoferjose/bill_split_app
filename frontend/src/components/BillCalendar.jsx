@@ -20,6 +20,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import BillCard from './BillCard';
 import TransactionBillDetailModal from './TransactionBillDetailModal';
+import TransactionDetailModal from './TransactionDetailModal';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,25 @@ const parseLocalDate = (raw) => {
 const effectiveBillingDay = (anchorDay, date) =>
   Math.min(anchorDay, endOfMonth(date).getDate());
 
+/**
+ * Returns how many times a weekly bill occurs within the given month.
+ * Used for stats (multiplier) and expansion in the timeline.
+ */
+const getWeeklyOccurrencesInMonth = (startDate, monthDate) => {
+  const monthStart = startOfMonth(monthDate);
+  const monthEnd   = endOfMonth(monthDate);
+  if (startDate > monthEnd) return 0;
+  let d = new Date(startDate.getTime());
+  // Advance to first occurrence on or after monthStart
+  while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
+  let count = 0;
+  while (d <= monthEnd) {
+    count++;
+    d = new Date(d.getTime() + 7 * 86400000);
+  }
+  return count;
+};
+
 const isBillActiveOnDate = (bill, date) => {
   if (!bill.bill_date) return false;
   const billDate = parseISO(bill.bill_date);
@@ -91,6 +111,12 @@ const isTransactionOnDate = (tx, date) => {
     // Show on the anchor day, clamped to last day of each month
     return date.getDate() === Math.min(startDate.getDate(), endOfMonth(date).getDate());
   }
+  if (tx.type === 'bill' && tx.recurrence === 'weekly') {
+    const startDate = parseLocalDate(tx.due_date);
+    if (!startDate || date < startDate) return false;
+    const dayDiff = Math.round((date.getTime() - startDate.getTime()) / 86400000);
+    return dayDiff % 7 === 0;
+  }
   const txDate = parseLocalDate(tx.type === 'bill' ? tx.due_date : tx.date);
   return txDate ? isSameDay(txDate, date) : false;
 };
@@ -102,7 +128,7 @@ const isTransactionOnDate = (tx, date) => {
 const getEffectiveTxAmount = (tx, userId) => {
   const full = parseFloat(tx.amount || 0);
   if (tx._role === 'participant') {
-    const myRecord = (tx.participants || []).find(p => Number(p.user_id) === Number(userId));
+    const myRecord = (tx.participants || []).find(p => String(p.user_id) === String(userId));
     return myRecord ? parseFloat(myRecord.amount_owed) : full;
   }
   // Owner: subtract accepted participants' shares
@@ -262,9 +288,28 @@ const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }
     const year  = currentMonth.getFullYear();
     const month = currentMonth.getMonth() + 1;
     const monthStart = startOfMonth(currentMonth);
+    const monthEnd   = endOfMonth(currentMonth);
+
+    // Expand weekly bills into one virtual entry per occurrence in this month
+    const expanded = [];
+    transactions.forEach(tx => {
+      if (tx.type === 'bill' && tx.recurrence === 'weekly') {
+        const startDate = parseLocalDate(tx.due_date);
+        if (!startDate || startDate > monthEnd) return;
+        let d = new Date(startDate.getTime());
+        while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
+        while (d <= monthEnd) {
+          expanded.push({ ...tx, _weeklyDate: format(d, 'yyyy-MM-dd') });
+          d = new Date(d.getTime() + 7 * 86400000);
+        }
+      } else {
+        expanded.push(tx);
+      }
+    });
 
     // Compute the display date key for a tx in the context of currentMonth
     const getDateKey = (tx) => {
+      if (tx._weeklyDate) return tx._weeklyDate;
       if (tx.type === 'bill' && tx.recurrence === 'monthly') {
         const startDate = parseLocalDate(tx.due_date);
         if (!startDate) return null;
@@ -274,7 +319,8 @@ const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }
       return (tx.type === 'bill' ? tx.due_date : tx.date || '').split('T')[0];
     };
 
-    const monthTxs = transactions.filter(tx => {
+    const monthTxs = expanded.filter(tx => {
+      if (tx._weeklyDate) return true; // already scoped to this month during expansion
       if (tx.type === 'bill' && tx.recurrence === 'monthly') {
         const startDate = parseLocalDate(tx.due_date);
         return startDate ? startOfMonth(startDate) <= monthStart : false;
@@ -326,7 +372,7 @@ const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }
                 <TransactionRow
                   key={tx.id}
                   transaction={tx}
-                  onClick={tx.type === 'bill' && onSelectTransaction ? () => onSelectTransaction(tx) : undefined}
+                  onClick={onSelectTransaction ? () => onSelectTransaction(tx) : undefined}
                 />
               ))}
             </div>
@@ -393,8 +439,15 @@ const BillCalendar = ({ userId, onSelectBill }) => {
       return startDate ? startOfMonth(startDate) <= monthStart : false;
     };
 
+    // Weekly bills are active in any month that has at least one occurrence
+    const isWeeklyActive = (tx) => {
+      if (tx.type !== 'bill' || tx.recurrence !== 'weekly') return false;
+      const startDate = parseLocalDate(tx.due_date);
+      return startDate ? startDate <= endOfMonth(currentMonth) : false;
+    };
+
     const billFilter = (t) =>
-      t.type === 'bill' && (isMonthlyActive(t) || (!t.recurrence && inMonth(t, 'due_date')));
+      t.type === 'bill' && (isMonthlyActive(t) || isWeeklyActive(t) || (!t.recurrence && inMonth(t, 'due_date')));
 
     return {
       income:   allTransactions
@@ -405,7 +458,14 @@ const BillCalendar = ({ userId, onSelectBill }) => {
         .reduce((s, t) => s + getEffectiveTxAmount(t, userId), 0),
       bills: allTransactions
         .filter(billFilter)
-        .reduce((s, t) => s + getEffectiveTxAmount(t, userId), 0),
+        .reduce((s, t) => {
+          const amt = getEffectiveTxAmount(t, userId);
+          if (t.recurrence === 'weekly') {
+            const startDate = parseLocalDate(t.due_date);
+            return s + amt * getWeeklyOccurrencesInMonth(startDate, currentMonth);
+          }
+          return s + amt;
+        }, 0),
     };
   }, [currentMonth, allTransactions, userId]);
 
@@ -586,7 +646,7 @@ const BillCalendar = ({ userId, onSelectBill }) => {
                         <TransactionRow
                           key={`tx-${tx.id}`}
                           transaction={tx}
-                          onClick={tx.type === 'bill' ? () => setSelectedTransaction(tx) : undefined}
+                          onClick={() => setSelectedTransaction(tx)}
                         />
                       ))}
                     </CardContent>
@@ -618,8 +678,16 @@ const BillCalendar = ({ userId, onSelectBill }) => {
 
       </div>
 
-      {selectedTransaction && (
+      {selectedTransaction && selectedTransaction.type === 'bill' && (
         <TransactionBillDetailModal
+          transaction={selectedTransaction}
+          userId={userId}
+          viewMonth={currentMonth}
+          onClose={() => setSelectedTransaction(null)}
+        />
+      )}
+      {selectedTransaction && selectedTransaction.type !== 'bill' && (
+        <TransactionDetailModal
           transaction={selectedTransaction}
           userId={userId}
           onClose={() => setSelectedTransaction(null)}

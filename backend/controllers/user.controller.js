@@ -1,6 +1,4 @@
-const jwt = require('jsonwebtoken');
 const { findOne, executeQuery } = require('../config/database');
-const { accessSecret } = require('../middleware/auth');
 
 const getUserServices = async (req, res) => {
   try {
@@ -212,12 +210,9 @@ const updateProfile = async (req, res) => {
       [userId]
     );
 
-    const accessToken = jwt.sign({ userId }, accessSecret, { expiresIn: '15m' });
-
     res.json({
       message: 'Profile updated successfully',
       user: updatedUser,
-      access_token: accessToken
     });
   } catch (error) {
     console.error('Error updating user profile:', error);

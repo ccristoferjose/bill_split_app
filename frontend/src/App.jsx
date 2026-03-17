@@ -11,23 +11,23 @@ import { SocketProvider } from './contexts/SocketContext'
 import { Toaster } from 'sonner'
 
 function App() {
-  const { token } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
 
   return (
     <SocketProvider>
       <Router>
         <Routes>
-          <Route 
-            path="/" 
-            element={token ? <Navigate to="/dashboard" replace /> : <Login />} 
+          <Route
+            path="/"
+            element={user ? <Navigate to="/dashboard" replace /> : <Login />}
           />
-          <Route 
-            path="/login" 
-            element={token ? <Navigate to="/dashboard" replace /> : <Login />} 
+          <Route
+            path="/login"
+            element={user ? <Navigate to="/dashboard" replace /> : <Login />}
           />
-          <Route 
-            path="/register" 
-            element={token ? <Navigate to="/dashboard" replace /> : <Register />} 
+          <Route
+            path="/register"
+            element={user ? <Navigate to="/dashboard" replace /> : <Register />}
           />
           <Route
             path="/dashboard"

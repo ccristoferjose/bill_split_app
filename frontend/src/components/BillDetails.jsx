@@ -77,9 +77,8 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
   const [reopenBill, { isLoading: isReopening }] = useReopenBillMutation();
   const [deleteBill, { isLoading: isDeleting }] = useDeleteBillMutation();
 
-  // Use Number() to avoid int/string type mismatch from MySQL
   const cyclePayerIds = new Set(
-    (cycleData?.payments || []).map((p) => Number(p.user_id))
+    (cycleData?.payments || []).map((p) => String(p.user_id))
   );
 
   // ── loading / error states ──────────────────────────────────────────────────
@@ -279,7 +278,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
                 <div className="space-y-3">
                   {data.participants.map((participant, i) => {
                     const isPaidThisCycle = isCalendarMonthly
-                      ? cyclePayerIds.has(Number(participant.user_id))
+                      ? cyclePayerIds.has(String(participant.user_id))
                       : participant.payment_status === 'paid';
 
                     return (

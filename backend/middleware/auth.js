@@ -1,23 +1,29 @@
-const jwt = require('jsonwebtoken');
+'use strict';
 
-const accessSecret = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
-const refreshSecret = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+const { CognitoJwtVerifier } = require('aws-jwt-verify');
 
-const verifyToken = (req, res, next) => {
+const verifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.COGNITO_USER_POOL_ID,
+  clientId:   process.env.COGNITO_CLIENT_ID,
+  tokenUse:   'access',
+});
+
+const verifyToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    return res.sendStatus(401);
+    return res.status(401).json({ message: 'Authentication required' });
   }
 
-  jwt.verify(token, accessSecret, (err, user) => {
-    if (err) {
-      return res.sendStatus(403);
-    }
-    req.user = { userId: user.userId };
+  try {
+    const payload = await verifier.verify(token);
+    req.user = { userId: payload.sub };
     next();
-  });
+  } catch (err) {
+    console.error('[Auth] Token verification failed:', err.message);
+    res.status(403).json({ message: 'Invalid or expired token' });
+  }
 };
 
-module.exports = { verifyToken, accessSecret, refreshSecret };
+module.exports = { verifyToken };

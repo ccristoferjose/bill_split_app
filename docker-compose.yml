@@ -1,0 +1,100 @@
+# ─────────────────────────────────────────────────────────────
+#  BillSplit — production docker-compose
+#  Runs on a single Lightsail instance alongside host Nginx
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  # ── MySQL 8 ───────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: billsplit_mysql
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE:      ${DB_NAME}
+
+    volumes:
+      # Persistent data — survives container rebuilds
+      - mysql_data:/var/lib/mysql
+      # Auto-import schema on first boot (idempotent CREATE IF NOT EXISTS)
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./backend/database/add_transactions.sql:/docker-entrypoint-initdb.d/02_add_transactions.sql:ro
+      - ./backend/database/add_invitation_status.sql:/docker-entrypoint-initdb.d/03_add_invitation_status.sql:ro
+      - ./backend/database/add_transaction_status.sql:/docker-entrypoint-initdb.d/04_add_transaction_status.sql:ro
+      - ./backend/database/add_transaction_cycles.sql:/docker-entrypoint-initdb.d/05_add_transaction_cycles.sql:ro
+
+    networks:
+      - backend_net
+
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -u root -p$$MYSQL_ROOT_PASSWORD -e 'SELECT 1' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # ── Node.js / Express + Socket.IO ─────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: billsplit_backend
+    restart: unless-stopped
+
+    # Bind only to localhost — Nginx on the host proxies inbound traffic
+    ports:
+      - "127.0.0.1:5001:5001"
+
+    environment:
+      NODE_ENV:              production
+      PORT:                  5001
+
+      # Database — use Docker service name as host
+      DB_HOST:               mysql
+      DB_PORT:               3306
+      DB_USER:               ${DB_USER}
+      DB_PASSWORD:           ${DB_PASSWORD}
+      DB_NAME:               ${DB_NAME}
+
+      # Cognito
+      COGNITO_USER_POOL_ID:  ${COGNITO_USER_POOL_ID}
+      COGNITO_CLIENT_ID:     ${COGNITO_CLIENT_ID}
+      COGNITO_REGION:        ${COGNITO_REGION}
+
+      # SES
+      SES_SMTP_HOST:         ${SES_SMTP_HOST}
+      SES_SMTP_PORT:         ${SES_SMTP_PORT}
+      SES_SMTP_USER:         ${SES_SMTP_USER}
+      SES_SMTP_PASSWORD:     ${SES_SMTP_PASSWORD}
+      SES_FROM_EMAIL:        ${SES_FROM_EMAIL}
+      SES_FROM_NAME:         ${SES_FROM_NAME}
+
+      # App
+      FRONTEND_URL:          ${FRONTEND_URL}
+      APP_NAME:              ${APP_NAME}
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    networks:
+      - backend_net
+
+    # Write logs to stdout — pick them up with: docker logs -f billsplit_backend
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+# ─── Volumes ──────────────────────────────────────────────────
+volumes:
+  mysql_data:
+    driver: local
+
+# ─── Networks ─────────────────────────────────────────────────
+networks:
+  backend_net:
+    driver: bridge

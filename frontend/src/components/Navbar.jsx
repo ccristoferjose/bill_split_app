@@ -13,20 +13,20 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, Receipt, User, LogOut, Settings } from 'lucide-react';
 import { logout } from '../feature/auth/authSlice';
-import { useLogoutMutation } from '../services/api';
+import { signOut } from 'aws-amplify/auth';
 import { persistor } from '../store';
 
 const Navbar = ({ onCreateBill, onNavigateToProfile }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const [logoutMutation, { isLoading }] = useLogoutMutation();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
     try {
-      await logoutMutation().unwrap();
+      await signOut();
     } catch (error) {
-      console.error('Logout API error:', error);
+      console.error('Cognito sign out error:', error);
     } finally {
       dispatch(logout());
       await persistor.purge();
@@ -41,7 +41,7 @@ const Navbar = ({ onCreateBill, onNavigateToProfile }) => {
           {/* Logo */}
           <div className="flex items-center cursor-pointer" onClick={() => navigate('/dashboard')}>
             <Receipt className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-semibold text-gray-900">BillSplit</h1>
+            <h1 className="text-xl font-semibold text-gray-900">SpendSync</h1>
           </div>
 
           {/* Actions */}

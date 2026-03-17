@@ -1,3 +1,9 @@
 frontend/node_modules
 frontend/build
+frontend/dist
 backend/node_modules
+backend/dist
+backend/.env
+frontend/.env
+.env
+.DS_Store

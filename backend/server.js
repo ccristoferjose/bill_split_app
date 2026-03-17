@@ -1,38 +1,41 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
+require('dotenv').config();
+
+const express   = require('express');
+const http      = require('http');
+const socketIo  = require('socket.io');
 const cookieParser = require('cookie-parser');
-const cors = require('cors');
-const morgan = require('morgan');
-const { testConnection } = require('./config/database');
+const cors      = require('cors');
+const morgan    = require('morgan');
+const { testConnection }      = require('./config/database');
 const { connectedUsers, setIo } = require('./utils/notifications');
+const { verifyConnection }    = require('./services/email.service');
+const { verifyToken }         = require('./middleware/auth');
 
 // Route imports
-const authRoutes = require('./routes/auth.routes');
-const billRoutes = require('./routes/bill.routes');
-const invitationRoutes = require('./routes/invitation.routes');
-const paymentRoutes = require('./routes/payment.routes');
-const userRoutes = require('./routes/user.routes');
-const friendRoutes = require('./routes/friend.routes');
+const authRoutes        = require('./routes/auth.routes');
+const billRoutes        = require('./routes/bill.routes');
+const invitationRoutes  = require('./routes/invitation.routes');
+const paymentRoutes     = require('./routes/payment.routes');
+const userRoutes        = require('./routes/user.routes');
+const friendRoutes      = require('./routes/friend.routes');
 const transactionRoutes = require('./routes/transaction.routes');
 
-const app = express();
+const app    = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
+const io     = socketIo(server, {
   cors: {
-    origin: ['http://localhost:5173'],
+    origin: [process.env.FRONTEND_URL || 'http://localhost:5173'],
     credentials: true
   }
 });
 
-// Pass io instance to notification utils
 setIo(io);
 
-// Middleware
+// Global middleware
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-  origin: ['http://localhost:5173'],
+  origin: [process.env.FRONTEND_URL || 'http://localhost:5173'],
   credentials: true
 }));
 app.use(morgan('dev'));
@@ -57,26 +60,41 @@ io.on('connection', (socket) => {
   });
 });
 
+// Healthcheck endpoint (used by Docker HEALTHCHECK and load balancers)
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 // Mount routes
-app.use('/auth', authRoutes);
-app.use('/bills', billRoutes);
-app.use('/bills', invitationRoutes);
-app.use('/bills', paymentRoutes);
-app.use('/user', userRoutes);
-app.use('/users', userRoutes);
-app.use('/friends', friendRoutes);
-app.use('/transactions', transactionRoutes);
+// /auth/sync applies verifyToken internally — all other routes protected here
+app.use('/auth',         authRoutes);
+app.use('/bills',        verifyToken, billRoutes);
+app.use('/bills',        verifyToken, invitationRoutes);
+app.use('/bills',        verifyToken, paymentRoutes);
+app.use('/user',         verifyToken, userRoutes);
+app.use('/users',        verifyToken, userRoutes);
+app.use('/friends',      verifyToken, friendRoutes);
+app.use('/transactions', verifyToken, transactionRoutes);
 
 // Initialize database and start server
 const startServer = async () => {
+  console.log('[Config] NODE_ENV:',      process.env.NODE_ENV);
+  console.log('[Config] SES_SMTP_HOST:', process.env.SES_SMTP_HOST   || '❌ NOT SET');
+  console.log('[Config] SES_FROM_EMAIL:', process.env.SES_FROM_EMAIL  || '❌ NOT SET');
+  console.log('[Config] COGNITO_USER_POOL_ID:', process.env.COGNITO_USER_POOL_ID || '❌ NOT SET');
+
   const isConnected = await testConnection();
   if (!isConnected) {
     console.error('Failed to connect to database. Please check your MySQL connection.');
     process.exit(1);
   }
 
-  server.listen(5001, () => {
-    console.log('Server running on http://localhost:5001');
+  const emailReady = await verifyConnection();
+  if (!emailReady) {
+    console.warn('[Warning] Email service unavailable — check SES credentials in .env');
+  }
+
+  const port = process.env.PORT || 5001;
+  server.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
     console.log('Server started successfully with MySQL connection and Socket.IO');
   });
 };

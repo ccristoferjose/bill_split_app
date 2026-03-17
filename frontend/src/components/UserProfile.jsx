@@ -61,10 +61,7 @@ const UserProfile = ({ userId }) => {
       }).unwrap();
 
       // Update Redux state with new user data
-      dispatch(setCredentials({
-        access_token: result.access_token || localStorage.getItem('token'),
-        user: result.user,
-      }));
+      dispatch(setCredentials({ user: result.user }));
 
       setUpdateSuccess(true);
       setIsEditing(false);

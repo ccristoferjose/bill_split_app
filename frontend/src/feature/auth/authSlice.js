@@ -3,19 +3,14 @@ import { createSlice } from '@reduxjs/toolkit';
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
-    token: null,        
-    user: null,         
-    refreshToken: null,
+    user: null,   // { id, username, email, ... } from /auth/sync
   },
   reducers: {
     setCredentials: (state, action) => {
-      state.token = action.payload.access_token;    
-      state.user = action.payload.user;          
+      state.user = action.payload.user;
     },
     logout: (state) => {
-      state.token = null;
       state.user = null;
-      state.refreshToken = null;
     },
   },
 });
