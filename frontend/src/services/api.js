@@ -6,7 +6,7 @@ import { logout } from '../feature/auth/authSlice';
 // prepareHeaders calls fetchAuthSession() before every request so we always
 // send a fresh token without any manual refresh logic.
 const baseQuery = fetchBaseQuery({
-  baseUrl: 'http://localhost:5001',
+  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:5001',
   credentials: 'include',
   prepareHeaders: async (headers, { getState }) => {
     try {

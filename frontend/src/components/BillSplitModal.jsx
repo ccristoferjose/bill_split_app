@@ -13,6 +13,8 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
   const { user } = useSelector((state) => state.auth);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [amountInputValues, setAmountInputValues] = useState({});
+  const [percentInputValues, setPercentInputValues] = useState({});
 
   const { data: billData } = useGetBillDetailsQuery(billId);
   const { data: friendsData, isLoading: friendsLoading } = useGetFriendsQuery(user.id);
@@ -61,21 +63,52 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
     }
   };
 
+  const getMaxPercentageForUser = (userId) => {
+    const othersTotal = selectedUsers
+      .filter(u => u.id !== userId)
+      .reduce((sum, u) => sum + u.percentage, 0);
+    return parseFloat(Math.max(0, 100 - othersTotal).toFixed(1));
+  };
+
   const updatePercentage = (userId, value) => {
-    const num = Math.max(0, Math.min(100, parseFloat(value) || 0));
+    const max = getMaxPercentageForUser(userId);
+    const num = Math.max(0, Math.min(max, parseFloat(value) || 0));
     setSelectedUsers(selectedUsers.map(u =>
       u.id === userId ? { ...u, percentage: num } : u
     ));
   };
 
   const updateAmount = (userId, value) => {
-    const num = parseFloat(value) || 0;
+    const num = Math.max(0, Math.min(splittableAmount, parseFloat(value) || 0));
+    const max = getMaxPercentageForUser(userId);
     const percentage = splittableAmount > 0
-      ? parseFloat(((num / splittableAmount) * 100).toFixed(1))
+      ? parseFloat(Math.min(max, (num / splittableAmount) * 100).toFixed(1))
       : 0;
     setSelectedUsers(selectedUsers.map(u =>
-      u.id === userId ? { ...u, percentage: Math.max(0, Math.min(100, percentage)) } : u
+      u.id === userId ? { ...u, percentage } : u
     ));
+  };
+
+  const handleAmountChange = (userId, value) => {
+    setAmountInputValues(prev => ({ ...prev, [userId]: value }));
+    if (value !== '' && !isNaN(parseFloat(value))) {
+      updateAmount(userId, value);
+    }
+  };
+
+  const handleAmountBlur = (userId) => {
+    setAmountInputValues(prev => { const n = { ...prev }; delete n[userId]; return n; });
+  };
+
+  const handlePercentChange = (userId, value) => {
+    setPercentInputValues(prev => ({ ...prev, [userId]: value }));
+    if (value !== '' && !isNaN(parseFloat(value))) {
+      updatePercentage(userId, value);
+    }
+  };
+
+  const handlePercentBlur = (userId) => {
+    setPercentInputValues(prev => { const n = { ...prev }; delete n[userId]; return n; });
   };
 
   const getTotalPercentage = () =>
@@ -86,6 +119,21 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
 
   const getCalculatedAmount = (percentage) =>
     ((percentage / 100) * splittableAmount).toFixed(2);
+
+  const getAmountError = (userId, amount) => {
+    const num = parseFloat(amountInputValues[userId] ?? amount);
+    if (num > splittableAmount) return `Exceeds available $${splittableAmount.toFixed(2)}`;
+    if (num <= 0) return 'Amount must be greater than $0';
+    return null;
+  };
+
+  const isSplitValid = () => {
+    const total = getTotalPercentage();
+    if (total > 100) return false;
+    if (selectedUsers.some(u => parseFloat(getCalculatedAmount(u.percentage)) <= 0)) return false;
+    if (getCreatorPercentage() === 0 && total === 100) return true; // creator can have 0 if exactly 100
+    return true;
+  };
 
   const handleSubmit = async () => {
     if (selectedUsers.length === 0) {
@@ -104,11 +152,6 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
     const totalPercentage = getTotalPercentage();
     if (totalPercentage > 100) {
       toast.error(`Total exceeds 100% (currently ${totalPercentage}%)`);
-      return;
-    }
-
-    if (parseFloat(getCalculatedAmount(getCreatorPercentage())) <= 0 && getCreatorPercentage() > 0) {
-      toast.error('Your share amount cannot be $0. Adjust the split.');
       return;
     }
 
@@ -249,9 +292,13 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
               <CardContent className="space-y-5">
                 {selectedUsers.map(u => {
                   const amount = getCalculatedAmount(u.percentage);
-                  const isZero = parseFloat(amount) <= 0;
+                  const maxPct = getMaxPercentageForUser(u.id);
+                  const displayAmount = amountInputValues[u.id] !== undefined ? amountInputValues[u.id] : amount;
+                  const displayPct = percentInputValues[u.id] !== undefined ? percentInputValues[u.id] : u.percentage;
+                  const amountError = getAmountError(u.id, amount);
+
                   return (
-                    <div key={u.id} className={`p-3 border rounded space-y-3 ${isZero ? 'border-red-300 bg-red-50' : ''}`}>
+                    <div key={u.id} className={`p-3 border rounded space-y-3 ${amountError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{u.username}</p>
@@ -267,12 +314,12 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                         <div className="flex justify-between text-xs text-gray-500">
                           <span>0%</span>
                           <span className="font-medium text-gray-700">{u.percentage}%</span>
-                          <span>100%</span>
+                          <span className={maxPct < 100 ? 'text-blue-600 font-medium' : ''}>{maxPct}% max</span>
                         </div>
                         <input
                           type="range"
                           min="0"
-                          max="100"
+                          max={maxPct}
                           step="0.1"
                           value={u.percentage}
                           onChange={(e) => updatePercentage(u.id, e.target.value)}
@@ -282,14 +329,16 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
 
                       {/* Amount + Percentage inputs */}
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center flex-1 border rounded overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
+                        <div className={`flex items-center flex-1 border rounded overflow-hidden focus-within:ring-1 ${amountError ? 'border-red-400 focus-within:ring-red-400' : 'focus-within:ring-blue-500'}`}>
                           <span className="px-2 text-gray-500 text-sm bg-gray-50 border-r">$</span>
                           <input
                             type="number"
                             min="0"
+                            max={splittableAmount}
                             step="0.01"
-                            value={amount}
-                            onChange={(e) => updateAmount(u.id, e.target.value)}
+                            value={displayAmount}
+                            onChange={(e) => handleAmountChange(u.id, e.target.value)}
+                            onBlur={() => handleAmountBlur(u.id)}
                             className="flex-1 px-2 py-1.5 text-sm outline-none bg-white"
                           />
                         </div>
@@ -297,18 +346,19 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                           <input
                             type="number"
                             min="0"
-                            max="100"
+                            max={maxPct}
                             step="0.1"
-                            value={u.percentage}
-                            onChange={(e) => updatePercentage(u.id, e.target.value)}
+                            value={displayPct}
+                            onChange={(e) => handlePercentChange(u.id, e.target.value)}
+                            onBlur={() => handlePercentBlur(u.id)}
                             className="flex-1 px-2 py-1.5 text-sm outline-none bg-white w-0"
                           />
                           <span className="px-2 text-gray-500 text-sm bg-gray-50 border-l">%</span>
                         </div>
                       </div>
 
-                      {isZero && (
-                        <p className="text-xs text-red-600">Amount cannot be $0</p>
+                      {amountError && (
+                        <p className="text-xs text-red-600">{amountError}</p>
                       )}
                     </div>
                   );
@@ -316,15 +366,31 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
 
                 {/* Total Summary */}
                 <div className="border-t pt-3 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Total assigned:</span>
-                    <Badge variant={getTotalPercentage() <= 100 ? 'default' : 'destructive'}>
-                      {getTotalPercentage()}%
-                    </Badge>
+                  {/* Progress bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Split progress</span>
+                      <span className={getTotalPercentage() > 100 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                        {getTotalPercentage()}% assigned
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${getTotalPercentage() > 100 ? 'bg-red-500' : 'bg-blue-500'}`}
+                        style={{ width: `${Math.min(100, getTotalPercentage())}%` }}
+                      />
+                    </div>
                   </div>
+
+                  {getTotalPercentage() > 100 && (
+                    <p className="text-xs text-red-600 font-medium">
+                      Total exceeds 100% by {(getTotalPercentage() - 100).toFixed(1)}%. Reduce one or more shares.
+                    </p>
+                  )}
+
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Your share:</span>
-                    <Badge variant="outline">
+                    <Badge variant={getCreatorPercentage() < 0 ? 'destructive' : 'outline'}>
                       {getCreatorPercentage()}% (${getCalculatedAmount(getCreatorPercentage())})
                     </Badge>
                   </div>
@@ -343,7 +409,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || selectedUsers.length === 0}
+            disabled={isSubmitting || selectedUsers.length === 0 || !isSplitValid()}
           >
             {isSubmitting ? 'Sending...' : `Send ${selectedUsers.length} Invitation(s)`}
           </Button>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, endOfMonth } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,14 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
   const cycleYear = (viewMonth || new Date()).getFullYear();
   const cycleMonth = (viewMonth || new Date()).getMonth() + 1; // 1-12
 
+  // Optimistic local paid state — null means "use prop value"
+  const [localPaid, setLocalPaid] = useState(null);
+
+  // Reset local state when a different transaction is opened
+  useEffect(() => {
+    setLocalPaid(null);
+  }, [transaction.id]);
+
   // Returns true if a given user has a cycle payment record for the viewed month
   const hasCyclePaid = (uid) =>
     (transaction.cycle_payments || []).some(
@@ -63,9 +71,13 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
     ? transaction.participants?.find(p => String(p.user_id) === String(userId))
     : null;
 
-  // Effective paid status — cycle-aware for monthly bills
-  const myIsPaid = isMonthly ? hasCyclePaid(userId) : transaction.status === 'paid';
-  const myParticipantPaid = isMonthly ? hasCyclePaid(userId) : myRecord?.status === 'paid';
+  // Prop-derived paid status — cycle-aware for monthly bills
+  const myIsPaidFromProp = isMonthly ? hasCyclePaid(userId) : transaction.status === 'paid';
+  const myParticipantPaidFromProp = isMonthly ? hasCyclePaid(userId) : myRecord?.status === 'paid';
+
+  // Effective paid status — use local optimistic value while cache is refreshing
+  const myIsPaid = localPaid !== null ? localPaid : myIsPaidFromProp;
+  const myParticipantPaid = localPaid !== null ? localPaid : myParticipantPaidFromProp;
 
   // Effective due date adjusted to the viewed month for recurring bills
   const getEffectiveDueDate = () => {
@@ -92,6 +104,8 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
   };
 
   const handleMyPay = async () => {
+    const newPaid = !myParticipantPaid;
+    setLocalPaid(newPaid); // optimistic update
     try {
       if (isMonthly) {
         const result = await markCyclePaid({
@@ -107,14 +121,17 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
           participantUserId: userId,
           user_id: userId,
         }).unwrap();
-        toast.success('Marked as paid');
+        toast.success(newPaid ? 'Marked as paid' : 'Payment undone');
       }
     } catch (err) {
+      setLocalPaid(null); // revert on error
       toast.error(err?.data?.message || 'Failed to mark as paid');
     }
   };
 
   const handleToggleBillPaid = async () => {
+    const newPaid = !myIsPaid;
+    setLocalPaid(newPaid); // optimistic update
     try {
       if (isMonthly) {
         const result = await markCyclePaid({
@@ -129,6 +146,7 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
         toast.success(result.message);
       }
     } catch (err) {
+      setLocalPaid(null); // revert on error
       toast.error(err?.data?.message || 'Failed to update status');
     }
   };
@@ -293,7 +311,13 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
                   </Button>
                 </div>
               )}
-              {myRecord.invitation_status === 'accepted' && !myParticipantPaid && (
+              {myRecord.invitation_status === 'accepted' && transaction.type === 'expense' && (
+                <div className="flex items-center justify-center gap-2 py-2 text-blue-600 bg-blue-50 rounded-lg">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="text-sm font-medium">Expense accepted — your share (${Number(myRecord.amount_owed).toFixed(2)}) is tracked</span>
+                </div>
+              )}
+              {myRecord.invitation_status === 'accepted' && transaction.type !== 'expense' && !myParticipantPaid && (
                 <Button
                   className="w-full bg-green-600 hover:bg-green-700"
                   disabled={isActioning}
@@ -303,7 +327,7 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
                   Pay My Share (${Number(myRecord.amount_owed).toFixed(2)})
                 </Button>
               )}
-              {myRecord.invitation_status === 'accepted' && myParticipantPaid && (
+              {myRecord.invitation_status === 'accepted' && transaction.type !== 'expense' && myParticipantPaid && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-center gap-2 py-2 text-green-600 bg-green-50 rounded-lg">
                     <CheckCircle className="h-4 w-4" />

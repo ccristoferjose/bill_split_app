@@ -3,7 +3,7 @@
 const { findOne, executeQuery } = require('../config/database');
 const { sendNotificationToUser } = require('../utils/notifications');
 const { sendEmail } = require('../services/email.service');
-const { billInvitationTemplate } = require('../templates/emails/bill-invitation.template');
+const { transactionInvitationTemplate } = require('../templates/emails/transaction-invitation.template');
 const { billStatusTemplate } = require('../templates/emails/bill-status.template');
 
 // ─────────────────────────────────────────────────────────────
@@ -47,15 +47,17 @@ const sendInvitationEmail = async ({ owner, participant, transaction }) => {
   console.log(`[sendInvitationEmail] 📧 Sending to ${participant.email}`);
   console.log(`[sendInvitationEmail] → transaction: "${transaction.title}" | amount: $${proposedAmount}`);
 
-  const html = billInvitationTemplate({
+  const isExpense = transaction.type === 'expense';
+
+  const html = transactionInvitationTemplate({
     recipientName:    participant.username,
     inviterName:      owner.username,
-    billTitle:        transaction.title,
-    billDescription:  transaction.notes || null,
+    transactionTitle: transaction.title,
+    transactionType:  transaction.type,
+    notes:            transaction.notes || null,
     totalAmount:      transaction.amount,
-    proposedAmount:   proposedAmount,
+    amountOwed:       proposedAmount,
     participantCount: participantCount,
-    billId:           transaction.id,
     dueDate:          transaction.due_date
       ? new Date(transaction.due_date).toLocaleDateString('en-US', {
           year: 'numeric',
@@ -65,9 +67,12 @@ const sendInvitationEmail = async ({ owner, participant, transaction }) => {
       : null,
   });
 
+  const subjectPrefix = isExpense ? '📊' : '💰';
+  const subjectVerb   = isExpense ? 'included you in' : 'invited you to split';
+
   const result = await sendEmail({
     to:      participant.email,
-    subject: `💰 ${owner.username} invited you to split "${transaction.title}"`,
+    subject: `${subjectPrefix} ${owner.username} ${subjectVerb} "${transaction.title}"`,
     html,
   });
 
@@ -167,8 +172,8 @@ const createTransaction = async (req, res) => {
         if (!p.user_id) continue;
 
         await executeQuery(
-          'INSERT INTO transaction_participants (transaction_id, user_id, amount_owed) VALUES (?, ?, ?)',
-          [transactionId, p.user_id, parseFloat(p.amount_owed) || 0]
+          'INSERT INTO transaction_participants (transaction_id, user_id, amount_owed, status, invitation_status) VALUES (?, ?, ?, ?, ?)',
+          [transactionId, p.user_id, parseFloat(p.amount_owed) || 0, 'pending', 'pending']
         );
 
         // ── Socket notification (existing behavior) ──────────
@@ -311,7 +316,7 @@ const respondToTransactionSplit = async (req, res) => {
     const responder = await getUserContact(user_id);
     const owner     = await getUserContact(transaction.user_id);
 
-    // Socket notification to owner (existing)
+    // Socket notification to owner
     sendNotificationToUser(String(transaction.user_id), {
       type: 'transaction_split_response',
       title: `Split ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
@@ -319,18 +324,18 @@ const respondToTransactionSplit = async (req, res) => {
       data: { transactionId: transaction.id, responderId: user_id, action },
     });
 
-    // ── NEW: Email notification to owner ─────────────────────
+    // ── Email notification to owner ───────────────────────────
     if (responder && owner && transaction) {
       await sendResponseEmail({ responder, owner, transaction, action });
     }
 
-    // ── NEW: If accepted, send confirmation email to responder ─
+    // ── If accepted, send confirmation email to responder ─────
     if (action === 'accept' && responder?.email) {
       const confirmHtml = billStatusTemplate({
         recipientName: responder.username,
         billTitle:     transaction.title,
         billId:        transaction.id,
-        status:        'finalized',
+        status:        'invitation_accepted',
         totalAmount:   transaction.amount,
         yourAmount:    participant.amount_owed,
       });
@@ -340,6 +345,41 @@ const respondToTransactionSplit = async (req, res) => {
         subject: `✅ You accepted "${transaction.title}" — $${participant.amount_owed} is your share`,
         html:    confirmHtml,
       });
+    }
+
+    // ── Check if all participants have now responded ───────────
+    const allParticipants = await executeQuery(
+      'SELECT user_id, invitation_status FROM transaction_participants WHERE transaction_id = ?',
+      [transactionId]
+    );
+    const allResponded = allParticipants.every(p => p.invitation_status !== 'pending');
+    const allAccepted  = allParticipants.every(p => p.invitation_status === 'accepted');
+
+    if (allResponded) {
+      const finalStatus = allAccepted ? 'all_accepted' : 'some_rejected';
+
+      // Notify owner
+      sendNotificationToUser(String(transaction.user_id), {
+        type: 'transaction_all_responded',
+        title: allAccepted ? 'All Splits Accepted' : 'All Splits Responded',
+        message: allAccepted
+          ? `Everyone accepted the split for "${transaction.title}"`
+          : `All participants have responded to "${transaction.title}"`,
+        data: { transactionId: transaction.id, status: finalStatus },
+      });
+
+      // Notify every other participant so their invitation card clears
+      for (const p of allParticipants) {
+        if (String(p.user_id) === String(user_id)) continue; // skip responder (already handled)
+        sendNotificationToUser(String(p.user_id), {
+          type: 'transaction_all_responded',
+          title: allAccepted ? 'Split Finalized' : 'Split Closed',
+          message: allAccepted
+            ? `All participants accepted the split for "${transaction.title}"`
+            : `All participants have responded to "${transaction.title}"`,
+          data: { transactionId: transaction.id, status: finalStatus },
+        });
+      }
     }
 
     res.json({ message: `Invitation ${action}ed`, invitation_status: invStatus });

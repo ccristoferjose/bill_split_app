@@ -24,7 +24,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       // Initialize socket connection
-      const newSocket = io('http://localhost:5001', {
+      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5001', {
         withCredentials: true,
       });
 
@@ -121,6 +121,17 @@ export const SocketProvider = ({ children }) => {
               description: notification.message,
               duration: 4000,
             });
+            break;
+
+          case 'transaction_all_responded':
+            // Clears invitation cards for all participants when everyone has responded
+            dispatch(api.util.invalidateTags(['Transaction']));
+            if (notification.data?.status === 'all_accepted') {
+              toast.success(notification.title, {
+                description: notification.message,
+                duration: 5000,
+              });
+            }
             break;
 
           case 'transaction_payment':

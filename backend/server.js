@@ -60,6 +60,9 @@ io.on('connection', (socket) => {
   });
 });
 
+// Healthcheck endpoint (used by Docker HEALTHCHECK and load balancers)
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 // Mount routes
 // /auth/sync applies verifyToken internally — all other routes protected here
 app.use('/auth',         authRoutes);
