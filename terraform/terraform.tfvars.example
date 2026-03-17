@@ -1,0 +1,6 @@
+# Copy this to terraform.tfvars and fill in secrets
+# NEVER commit terraform.tfvars to git
+
+db_password       = "your_mysql_password"
+ses_smtp_user     = "AKIAIOSFODNN7EXAMPLE"
+ses_smtp_password = "your_ses_smtp_password"
