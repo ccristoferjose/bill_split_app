@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Receipt, Users, Settings, UserPlus, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import Navbar from './Navbar';
 import BillsList from './BillsList';
 import BillCalendar from './BillCalendar';
@@ -18,6 +19,7 @@ import PersonalBillsList from './PersonalBillsList';
 import TransactionInvitationsList from './TransactionInvitationsList';
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const { user } = useSelector((state) => state.auth);
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'calendar');
@@ -30,7 +32,7 @@ const Dashboard = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -51,23 +53,23 @@ const Dashboard = () => {
             <TabsList className="flex w-max sm:w-full min-w-full h-10">
               <TabsTrigger value="calendar" className="flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
                 <CalendarDays className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Calendar</span>
+                <span className="hidden sm:inline">{t('tabs.calendar')}</span>
               </TabsTrigger>
               <TabsTrigger value="bills" className="flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
                 <Receipt className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Bills</span>
+                <span className="hidden sm:inline">{t('tabs.bills')}</span>
               </TabsTrigger>
               <TabsTrigger value="invitations" className="flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
                 <Users className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Invitations</span>
+                <span className="hidden sm:inline">{t('tabs.invitations')}</span>
               </TabsTrigger>
               <TabsTrigger value="friends" className="flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
                 <UserPlus className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Friends</span>
+                <span className="hidden sm:inline">{t('tabs.friends')}</span>
               </TabsTrigger>
               <TabsTrigger value="profile" className="flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
                 <Settings className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Profile</span>
+                <span className="hidden sm:inline">{t('tabs.profile')}</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -85,7 +87,7 @@ const Dashboard = () => {
             <Card>
               <CardHeader className="px-4 py-4 sm:px-6 sm:py-6">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base sm:text-lg">My Bills</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">{t('dashboard.myBills')}</CardTitle>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
@@ -128,7 +130,7 @@ const Dashboard = () => {
             <div className="space-y-4 sm:space-y-6">
               <Card>
                 <CardHeader className="px-4 py-4 sm:px-6 sm:py-6">
-                  <CardTitle className="text-base sm:text-lg">Bill Split Invitations</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">{t('dashboard.billSplitInvitations')}</CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
                   <TransactionInvitationsList userId={user.id} />
@@ -137,7 +139,7 @@ const Dashboard = () => {
 
               <Card>
                 <CardHeader className="px-4 py-4 sm:px-6 sm:py-6">
-                  <CardTitle className="text-base sm:text-lg">Shared Bill Invitations</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">{t('dashboard.sharedBillInvitations')}</CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
                   <BillsList

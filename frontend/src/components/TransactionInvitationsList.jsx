@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, DollarSign, Users, User } from 'lucide-react';
 import TransactionBillDetailModal from './TransactionBillDetailModal';
+import { useTranslation } from 'react-i18next';
 
 const parseLocalDate = (raw) => {
   if (!raw) return null;
@@ -14,6 +15,7 @@ const parseLocalDate = (raw) => {
 };
 
 const TransactionInvitationsList = ({ userId }) => {
+  const { t } = useTranslation();
   const [selectedInvitation, setSelectedInvitation] = useState(null);
   const { data, isLoading, error } = useGetTransactionInvitationsQuery(userId);
   const invitations = data?.invitations || [];
@@ -33,13 +35,13 @@ const TransactionInvitationsList = ({ userId }) => {
     );
   }
 
-  if (error) return <p className="text-sm text-red-500 text-center py-4">Failed to load invitations</p>;
+  if (error) return <p className="text-sm text-red-500 text-center py-4">{t('invitations.failedLoad')}</p>;
 
   if (invitations.length === 0) {
     return (
       <div className="text-center py-8 text-gray-400">
         <CalendarDays className="h-10 w-10 mx-auto mb-2 opacity-40" />
-        <p className="text-sm">No pending bill invitations</p>
+        <p className="text-sm">{t('invitations.noPending')}</p>
       </div>
     );
   }
@@ -60,7 +62,7 @@ const TransactionInvitationsList = ({ userId }) => {
                       <CalendarDays className="h-4 w-4 text-blue-500 shrink-0" />
                       <h3 className="font-semibold text-sm truncate">{inv.title}</h3>
                       <Badge className="bg-yellow-100 text-yellow-800 text-xs border border-yellow-200">
-                        Awaiting Response
+                        {t('invitations.awaitingResponse')}
                       </Badge>
                     </div>
 
@@ -68,14 +70,14 @@ const TransactionInvitationsList = ({ userId }) => {
                     <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-2">
                       <span className="flex items-center gap-0.5">
                         <DollarSign className="h-3.5 w-3.5" />
-                        Total: <span className="font-medium ml-0.5">${Number(inv.amount).toFixed(2)}</span>
+                        {t('common.total')}: <span className="font-medium ml-0.5">${Number(inv.amount).toFixed(2)}</span>
                       </span>
                       <span className="flex items-center gap-1 text-blue-700 font-medium">
-                        Your share: ${Number(inv.my_amount).toFixed(2)}
+                        {t('invitations.yourShare')}: ${Number(inv.my_amount).toFixed(2)}
                       </span>
                       {dueDate && (
                         <span className="flex items-center gap-1 text-gray-500">
-                          Due {format(dueDate, 'MMM dd, yyyy')}
+                          {t('common.due')} {format(dueDate, 'MMM dd, yyyy')}
                         </span>
                       )}
                     </div>
@@ -83,14 +85,14 @@ const TransactionInvitationsList = ({ userId }) => {
                     {/* Owner */}
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       <User className="h-3 w-3" />
-                      From <span className="font-medium">{inv.owner_username}</span>
+                      {t('invitations.from')} <span className="font-medium">{inv.owner_username}</span>
                     </p>
 
                     {/* All participants preview */}
                     {inv.participants?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         <span className="text-xs text-gray-400 flex items-center gap-1 mr-1">
-                          <Users className="h-3 w-3" />Split with:
+                          <Users className="h-3 w-3" />{t('invitations.splitWith')}
                         </span>
                         {inv.participants.map(p => (
                           <span
@@ -114,7 +116,7 @@ const TransactionInvitationsList = ({ userId }) => {
                     onClick={() => setSelectedInvitation(inv)}
                     className="bg-blue-600 hover:bg-blue-700 shrink-0"
                   >
-                    Respond
+                    {t('common.respond')}
                   </Button>
                 </div>
               </CardContent>

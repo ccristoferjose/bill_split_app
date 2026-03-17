@@ -8,8 +8,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Login = () => {
+  const { t } = useTranslation();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState(null);
@@ -47,7 +49,7 @@ const Login = () => {
         ({ user } = await syncUser({ username, email: userEmail }).unwrap());
       } catch (syncErr) {
         console.error('Backend sync failed:', syncErr);
-        throw new Error('Login succeeded but failed to sync account. Please try again.');
+        throw new Error(t('login.syncFailed'));
       }
 
       console.log('User synced with backend:', user);
@@ -56,7 +58,7 @@ const Login = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Login failed:', err);
-      setError(err.message || 'Login failed. Please try again.');
+      setError(err.message || t('login.failed'));
     } finally {
       setIsLoading(false);
     }
@@ -66,11 +68,11 @@ const Login = () => {
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <Card className="w-full max-w-md p-6">
         <CardContent>
-          <h2 className="text-2xl font-semibold text-center mb-4">Login</h2>
+          <h2 className="text-2xl font-semibold text-center mb-4">{t('login.title')}</h2>
           {error && <p className="text-red-500 text-center mb-3">{error}</p>}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <label className="block text-sm font-medium mb-1">{t('login.email')}</label>
               <Input
                 type="email"
                 value={email}
@@ -79,7 +81,7 @@ const Login = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Password</label>
+              <label className="block text-sm font-medium mb-1">{t('login.password')}</label>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
@@ -99,11 +101,11 @@ const Login = () => {
               </div>
             </div>
             <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? 'Logging in...' : 'Login'}
+              {isLoading ? t('login.submitting') : t('login.submit')}
             </Button>
             <p className="text-sm text-center mt-3">
-              Need an account?{' '}
-              <a href="/register" className="text-blue-600 hover:underline">Register</a>
+              {t('login.needAccount')}{' '}
+              <a href="/register" className="text-blue-600 hover:underline">{t('login.register')}</a>
             </p>
           </form>
         </CardContent>
