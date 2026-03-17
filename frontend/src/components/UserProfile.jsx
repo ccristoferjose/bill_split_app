@@ -8,9 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, User, Mail, Phone, MapPin, Calendar, Edit2, Save, X, CheckCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, User, Mail, Phone, MapPin, Calendar, Edit2, Save, X, CheckCircle, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const UserProfile = ({ userId }) => {
+  const { t, i18n } = useTranslation();
   const dispatch = useDispatch();
   const { data: profile, isLoading, error, refetch } = useGetUserProfileQuery(userId);
   const [updateProfile, { isLoading: isUpdating }] = useUpdateUserProfileMutation();
@@ -49,6 +52,10 @@ const UserProfile = ({ userId }) => {
     }));
   };
 
+  const handleLanguageChange = (lang) => {
+    i18n.changeLanguage(lang);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setUpdateSuccess(false);
@@ -70,7 +77,7 @@ const UserProfile = ({ userId }) => {
       // Clear success message after 3 seconds
       setTimeout(() => setUpdateSuccess(false), 3000);
     } catch (err) {
-      setUpdateError(err.data?.message || 'Failed to update profile');
+      setUpdateError(err.data?.message || t('profile.updateFailed'));
     }
   };
 
@@ -106,7 +113,7 @@ const UserProfile = ({ userId }) => {
         <CardContent className="py-12">
           <Alert variant="destructive">
             <AlertDescription>
-              Failed to load profile: {error.data?.message || 'Unknown error'}
+              {t('profile.loadFailed')}: {error.data?.message || t('profile.unknownError')}
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -121,7 +128,7 @@ const UserProfile = ({ userId }) => {
         <Alert className="bg-green-50 border-green-200">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            Profile updated successfully!
+            {t('profile.updateSuccess')}
           </AlertDescription>
         </Alert>
       )}
@@ -138,9 +145,9 @@ const UserProfile = ({ userId }) => {
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-2xl">Profile Information</CardTitle>
+              <CardTitle className="text-2xl">{t('profile.title')}</CardTitle>
               <CardDescription>
-                {isEditing ? 'Update your personal information' : 'View and manage your account details'}
+                {isEditing ? t('profile.editDescription') : t('profile.viewDescription')}
               </CardDescription>
             </div>
             {!isEditing && (
@@ -150,7 +157,7 @@ const UserProfile = ({ userId }) => {
                 size="sm"
               >
                 <Edit2 className="h-4 w-4 mr-2" />
-                Edit Profile
+                {t('profile.editProfile')}
               </Button>
             )}
           </div>
@@ -162,12 +169,12 @@ const UserProfile = ({ userId }) => {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                 <User className="h-5 w-5 mr-2 text-blue-600" />
-                Basic Information
+                {t('profile.basicInfo')}
               </h3>
 
               {/* Username */}
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">{t('profile.username')}</Label>
                 <Input
                   id="username"
                   name="username"
@@ -183,7 +190,7 @@ const UserProfile = ({ userId }) => {
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center">
                   <Mail className="h-4 w-4 mr-1" />
-                  Email Address
+                  {t('profile.emailAddress')}
                 </Label>
                 <Input
                   id="email"
@@ -201,7 +208,7 @@ const UserProfile = ({ userId }) => {
               <div className="space-y-2">
                 <Label htmlFor="phone" className="flex items-center">
                   <Phone className="h-4 w-4 mr-1" />
-                  Phone Number
+                  {t('profile.phoneNumber')}
                 </Label>
                 <Input
                   id="phone"
@@ -210,7 +217,7 @@ const UserProfile = ({ userId }) => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  placeholder="+1 (555) 000-0000"
+                  placeholder={t('profile.phonePlaceholder')}
                   className={!isEditing ? 'bg-gray-50' : ''}
                 />
               </div>
@@ -220,19 +227,19 @@ const UserProfile = ({ userId }) => {
             <div className="space-y-4 pt-6 border-t">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                 <MapPin className="h-5 w-5 mr-2 text-blue-600" />
-                Address Information
+                {t('profile.addressInfo')}
               </h3>
 
               {/* Address */}
               <div className="space-y-2">
-                <Label htmlFor="address">Street Address</Label>
+                <Label htmlFor="address">{t('profile.streetAddress')}</Label>
                 <Input
                   id="address"
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  placeholder="123 Main Street"
+                  placeholder={t('profile.addressPlaceholder')}
                   className={!isEditing ? 'bg-gray-50' : ''}
                 />
               </div>
@@ -240,27 +247,27 @@ const UserProfile = ({ userId }) => {
               {/* City and Country */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="city">City</Label>
+                  <Label htmlFor="city">{t('profile.city')}</Label>
                   <Input
                     id="city"
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
                     disabled={!isEditing}
-                    placeholder="New York"
+                    placeholder={t('profile.cityPlaceholder')}
                     className={!isEditing ? 'bg-gray-50' : ''}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="country">Country</Label>
+                  <Label htmlFor="country">{t('profile.country')}</Label>
                   <Input
                     id="country"
                     name="country"
                     value={formData.country}
                     onChange={handleInputChange}
                     disabled={!isEditing}
-                    placeholder="United States"
+                    placeholder={t('profile.countryPlaceholder')}
                     className={!isEditing ? 'bg-gray-50' : ''}
                   />
                 </div>
@@ -271,12 +278,12 @@ const UserProfile = ({ userId }) => {
             <div className="space-y-4 pt-6 border-t">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                 <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-                Account Details
+                {t('profile.accountDetails')}
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-gray-500">User ID</Label>
+                  <Label className="text-gray-500">{t('profile.userId')}</Label>
                   <Input
                     value={profile?.id || 'N/A'}
                     disabled
@@ -285,9 +292,9 @@ const UserProfile = ({ userId }) => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-gray-500">Member Since</Label>
+                  <Label className="text-gray-500">{t('profile.memberSince')}</Label>
                   <Input
-                    value={profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', {
+                    value={profile?.created_at ? new Date(profile.created_at).toLocaleDateString(i18n.language === 'es' ? 'es-ES' : 'en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
@@ -296,6 +303,27 @@ const UserProfile = ({ userId }) => {
                     className="bg-gray-50"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Preferences Section */}
+            <div className="space-y-4 pt-6 border-t">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Globe className="h-5 w-5 mr-2 text-blue-600" />
+                {t('profile.preferences')}
+              </h3>
+
+              <div className="space-y-2">
+                <Label>{t('profile.language')}</Label>
+                <Select value={i18n.language.split('-')[0]} onValueChange={handleLanguageChange}>
+                  <SelectTrigger className="w-full md:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">{t('languages.en')}</SelectItem>
+                    <SelectItem value="es">{t('languages.es')}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -309,7 +337,7 @@ const UserProfile = ({ userId }) => {
                   disabled={isUpdating}
                 >
                   <X className="h-4 w-4 mr-2" />
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   type="submit"
@@ -319,12 +347,12 @@ const UserProfile = ({ userId }) => {
                   {isUpdating ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
+                      {t('common.saving')}
                     </>
                   ) : (
                     <>
                       <Save className="h-4 w-4 mr-2" />
-                      Save Changes
+                      {t('common.save')}
                     </>
                   )}
                 </Button>
@@ -334,10 +362,10 @@ const UserProfile = ({ userId }) => {
         </CardContent>
       </Card>
 
-      {/* Statistics Card (Optional) */}
+      {/* Statistics Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Activity Statistics</CardTitle>
+          <CardTitle>{t('profile.activityStats')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -345,19 +373,19 @@ const UserProfile = ({ userId }) => {
               <div className="text-3xl font-bold text-blue-600">
                 {profile?.bills_created || 0}
               </div>
-              <div className="text-sm text-gray-600 mt-1">Bills Created</div>
+              <div className="text-sm text-gray-600 mt-1">{t('profile.billsCreated')}</div>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-3xl font-bold text-green-600">
                 {profile?.bills_participated || 0}
               </div>
-              <div className="text-sm text-gray-600 mt-1">Bills Participated</div>
+              <div className="text-sm text-gray-600 mt-1">{t('profile.billsParticipated')}</div>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg">
               <div className="text-3xl font-bold text-purple-600">
                 {profile?.total_paid || 0}
               </div>
-              <div className="text-sm text-gray-600 mt-1">Total Paid</div>
+              <div className="text-sm text-gray-600 mt-1">{t('profile.totalPaid')}</div>
             </div>
           </div>
         </CardContent>

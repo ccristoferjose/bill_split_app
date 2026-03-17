@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, DollarSign, User, X, RefreshCw, Trash2, Clock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,6 @@ const getDaySuffix = (d) => {
   }
 };
 
-/** For monthly bills, the effective billing day in a given month respects end-of-month. */
 const effectiveBillingDay = (anchorDay, date) =>
   Math.min(anchorDay, endOfMonth(date).getDate());
 
@@ -43,24 +43,26 @@ const STATUS_COLORS = {
   paid: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
 };
-const STATUS_LABELS = {
-  draft: 'Draft',
-  pending_responses: 'Pending Responses',
-  finalized: 'Awaiting Payment',
-  paid: 'Paid',
-  cancelled: 'Cancelled',
-};
+
 const getStatusColor = (s) => STATUS_COLORS[s] || 'bg-gray-100 text-gray-800';
-const getStatusLabel = (s) => STATUS_LABELS[s] || s.replace(/_/g, ' ');
 
 // ─── component ────────────────────────────────────────────────────────────────
 
 const BillDetails = ({ billId, calendarDate, onClose }) => {
+  const { t } = useTranslation();
   const { user } = useSelector((state) => state.auth);
+
+  const STATUS_LABELS = {
+    draft: t('bills.statusDraft'),
+    pending_responses: t('bills.statusPendingResponses'),
+    finalized: t('bills.statusFinalized'),
+    paid: t('bills.statusPaid'),
+    cancelled: t('bills.statusCancelled'),
+  };
+  const getStatusLabel = (s) => STATUS_LABELS[s] || s.replace(/_/g, ' ');
 
   const { data, isLoading, error } = useGetBillDetailsQuery(billId);
 
-  // Per-cycle payment data — only for monthly bills opened from a calendar date
   const isCalendarMonthly = !!(calendarDate && data?.bill?.bill_type === 'monthly');
   const cycleYear  = calendarDate?.getFullYear();
   const cycleMonth = calendarDate ? calendarDate.getMonth() + 1 : undefined;
@@ -81,16 +83,14 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
     (cycleData?.payments || []).map((p) => String(p.user_id))
   );
 
-  // ── loading / error states ──────────────────────────────────────────────────
-
   if (isLoading) {
     return (
       <Dialog open onOpenChange={onClose}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Loading Bill Details</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('billDetails.loadingTitle')}</DialogTitle></DialogHeader>
           <div className="flex items-center justify-center p-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-            <span className="ml-2">Loading bill details...</span>
+            <span className="ml-2">{t('billDetails.loadingMessage')}</span>
           </div>
         </DialogContent>
       </Dialog>
@@ -102,11 +102,11 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
       <Dialog open onOpenChange={onClose}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{error ? 'Error Loading Bill' : 'Bill Not Found'}</DialogTitle>
+            <DialogTitle>{error ? t('billDetails.errorTitle') : t('billDetails.notFoundTitle')}</DialogTitle>
           </DialogHeader>
           <div className="text-center p-8">
-            <p className="text-red-600">{error ? `Error: ${error.message}` : 'Bill not found'}</p>
-            <Button onClick={onClose} className="mt-4">Close</Button>
+            <p className="text-red-600">{error ? `Error: ${error.message}` : t('billDetails.notFound')}</p>
+            <Button onClick={onClose} className="mt-4">{t('common.close')}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -119,18 +119,16 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
   const allRejected = bill.status === 'cancelled' && data.invitations?.every(inv => inv.status === 'rejected');
   const showOwnerActions = isOwner && (allRejected || (hasRejections && ['pending_responses', 'finalized', 'cancelled'].includes(bill.status)));
 
-  // For calendar monthly mode: derive a cycle-specific status for the badge
   const cyclePaidCount = cyclePayerIds.size;
   const totalParticipants = data.participants?.length || 0;
   const allCyclePaid = isCalendarMonthly && cyclePaidCount > 0 && cyclePaidCount >= totalParticipants;
   const cycleStatusLabel = isCalendarMonthly
-    ? (allCyclePaid ? 'Paid' : `${cyclePaidCount}/${totalParticipants} Paid`)
+    ? (allCyclePaid ? t('common.paid') : t('billDetails.paidCount', { paid: cyclePaidCount, total: totalParticipants }))
     : null;
   const cycleStatusColor = isCalendarMonthly
     ? (allCyclePaid ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800')
     : null;
 
-  // Effective billing date for the calendar month (handles end-of-month adjustment)
   const anchorDay = bill.bill_type === 'monthly' && bill.bill_date
     ? new Date(bill.bill_date).getDate()
     : null;
@@ -143,18 +141,18 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
       const result = await reopenBill({ billId, user_id: user.id }).unwrap();
       toast.success(result.message);
     } catch (err) {
-      toast.error(err?.data?.message || 'Failed to resend invitations');
+      toast.error(err?.data?.message || t('billDetails.failedResend'));
     }
   };
 
   const handleDeleteBill = async () => {
-    if (!window.confirm('Are you sure? This action cannot be undone.')) return;
+    if (!window.confirm(t('bills.deleteConfirm'))) return;
     try {
       const result = await deleteBill({ billId, user_id: user.id }).unwrap();
       toast.success(result.message);
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || 'Failed to delete bill');
+      toast.error(err?.data?.message || t('bills.failedDeleteBill'));
     }
   };
 
@@ -183,8 +181,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                Bill Information
-                {/* In calendar monthly mode show cycle status; otherwise show global status */}
+                {t('billDetails.billInfo')}
                 {isCalendarMonthly ? (
                   <Badge className={cycleStatusColor}>
                     {cycleStatusLabel}
@@ -199,21 +196,20 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
             <CardContent className="space-y-3">
               <div className="flex items-center">
                 <DollarSign className="h-4 w-4 mr-2" />
-                <span className="font-semibold">Total: ${bill.total_amount}</span>
+                <span className="font-semibold">{t('common.total')}: ${bill.total_amount}</span>
               </div>
               <div className="flex items-center">
                 <Calendar className="h-4 w-4 mr-2" />
                 <span>
                   {bill.bill_type === 'monthly' ? (
                     isCalendarMonthly ? (
-                      // Show effective date for the viewed month
-                      <>Billing date: {format(calendarDate, 'MMMM')} {effectiveDay}{getDaySuffix(effectiveDay)}, {format(calendarDate, 'yyyy')}
+                      <>{t('billDetails.billingDate')}: {format(calendarDate, 'MMMM')} {effectiveDay}{getDaySuffix(effectiveDay)}, {format(calendarDate, 'yyyy')}
                         {effectiveDay !== anchorDay && (
-                          <span className="text-gray-400 text-xs ml-1">(anchor: {anchorDay}{getDaySuffix(anchorDay)})</span>
+                          <span className="text-gray-400 text-xs ml-1">({t('billDetails.anchor')}: {anchorDay}{getDaySuffix(anchorDay)})</span>
                         )}
                       </>
                     ) : (
-                      <>Billing day: {anchorDay}{getDaySuffix(anchorDay)} of each month</>
+                      <>{t('billDetails.billingDay')}: {anchorDay}{getDaySuffix(anchorDay)} {t('billDetails.ofEachMonth')}</>
                     )
                   ) : (
                     new Date(bill.bill_date).toLocaleDateString()
@@ -223,16 +219,16 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
               {bill.due_date && (
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-2" />
-                  <span>Due: {new Date(bill.due_date).toLocaleDateString()}</span>
+                  <span>{t('common.due')}: {new Date(bill.due_date).toLocaleDateString()}</span>
                 </div>
               )}
               <div className="flex items-center">
                 <User className="h-4 w-4 mr-2" />
-                <span>Created by: {bill.creator_name}</span>
+                <span>{t('billDetails.createdBy')}: {bill.creator_name}</span>
               </div>
               {bill.notes && (
                 <div>
-                  <p className="font-medium">Notes:</p>
+                  <p className="font-medium">{t('common.notes')}:</p>
                   <p className="text-gray-600">{bill.notes}</p>
                 </div>
               )}
@@ -242,7 +238,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
           {/* Items */}
           {data.items?.length > 0 && (
             <Card>
-              <CardHeader><CardTitle>Items</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t('common.items')}</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   {data.items.map((item, i) => (
@@ -266,10 +262,10 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  Participants
+                  {t('billDetails.participants')}
                   {isCalendarMonthly && (
                     <span className="text-sm font-normal text-gray-500">
-                      Payment status for {format(calendarDate, 'MMMM yyyy')}
+                      {t('billDetails.paymentStatusFor', { month: format(calendarDate, 'MMMM yyyy') })}
                     </span>
                   )}
                 </CardTitle>
@@ -286,16 +282,16 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
                         <div className="flex items-center gap-2">
                           <span className="font-medium">
                             {participant.username}
-                            {participant.user_id === user?.id && ' (You)'}
+                            {participant.user_id === user?.id && ` (${t('common.you')})`}
                           </span>
                           {participant.is_creator === 1 && (
-                            <Badge variant="outline" className="text-xs">Creator</Badge>
+                            <Badge variant="outline" className="text-xs">{t('billDetails.creator')}</Badge>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">${participant.amount_owed}</span>
                           <Badge className={isPaidThisCycle ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
-                            {isPaidThisCycle ? 'Paid' : 'Pending'}
+                            {isPaidThisCycle ? t('common.paid') : t('common.pending')}
                           </Badge>
                         </div>
                       </div>
@@ -306,13 +302,13 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
             </Card>
           )}
 
-          {/* Payment History — only shown for monthly bills in calendar mode */}
+          {/* Payment History */}
           {isCalendarMonthly && historyData?.cycles?.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  Payment History
+                  {t('billDetails.paymentHistory')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -336,16 +332,16 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
                           <span className="font-medium">
                             {MONTH_NAMES[cycle.cycle_month]} {cycle.cycle_year}
                             {isCurrentCycle && (
-                              <span className="text-blue-600 text-xs ml-1">(current)</span>
+                              <span className="text-blue-600 text-xs ml-1">({t('billDetails.current')})</span>
                             )}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-gray-600">
-                            {cycle.paid_count}/{cycle.total_participants} paid
+                            {t('billDetails.paidCount', { paid: cycle.paid_count, total: cycle.total_participants })}
                           </span>
                           <Badge className={allPaid ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
-                            {allPaid ? 'Complete' : 'Partial'}
+                            {allPaid ? t('billDetails.complete') : t('billDetails.partial')}
                           </Badge>
                         </div>
                       </div>
@@ -361,20 +357,20 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
             <Card className="border-red-200 bg-red-50">
               <CardContent className="p-4 space-y-3">
                 <p className="font-semibold text-red-800">
-                  {allRejected ? 'All invitations were rejected' : 'Some invitations were rejected'}
+                  {allRejected ? t('billDetails.allRejected') : t('billDetails.someRejected')}
                 </p>
                 <p className="text-sm text-gray-600">
-                  You can resend invitations or delete this bill from the bills list.
+                  {t('billDetails.resendOrDelete')}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={handleReopenBill} disabled={isReopening} variant="outline">
                     <RefreshCw className="h-4 w-4 mr-1" />
-                    {isReopening ? 'Resending...' : 'Resend Invitations'}
+                    {isReopening ? t('billDetails.resending') : t('billDetails.resendInvitations')}
                   </Button>
                   <Button onClick={handleDeleteBill} disabled={isDeleting} variant="outline"
                     className="text-red-600 hover:bg-red-100 hover:text-red-700">
                     <Trash2 className="h-4 w-4 mr-1" />
-                    {isDeleting ? 'Deleting...' : 'Delete Bill'}
+                    {isDeleting ? t('common.processing') : t('common.delete')}
                   </Button>
                 </div>
               </CardContent>
@@ -383,7 +379,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
         </div>
 
         <div className="flex justify-end">
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={onClose}>{t('common.close')}</Button>
         </div>
       </DialogContent>
     </Dialog>

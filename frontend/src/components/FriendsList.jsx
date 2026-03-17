@@ -10,8 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, UserPlus, UserMinus, Check, X, Clock, Send, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 const FriendsList = ({ userId }) => {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -35,28 +37,28 @@ const FriendsList = ({ userId }) => {
   const handleSendRequest = async (addresseeId) => {
     try {
       await sendRequest({ requester_id: userId, addressee_id: addresseeId }).unwrap();
-      toast.success('Friend request sent');
+      toast.success(t('friends.requestSent'));
       setSearchTerm('');
     } catch (error) {
-      toast.error(error?.data?.message || 'Failed to send friend request');
+      toast.error(error?.data?.message || t('friends.failedSendRequest'));
     }
   };
 
   const handleRespond = async (friendshipId, action) => {
     try {
       await respondToRequest({ friendship_id: friendshipId, user_id: userId, action }).unwrap();
-      toast.success(action === 'accepted' ? 'Friend request accepted' : 'Friend request declined');
+      toast.success(action === 'accepted' ? t('friends.requestAccepted') : t('friends.requestDeclined'));
     } catch (error) {
-      toast.error(error?.data?.message || 'Failed to respond to request');
+      toast.error(error?.data?.message || t('friends.failedRespond'));
     }
   };
 
   const handleRemove = async (friendshipId) => {
     try {
       await removeFriend(friendshipId).unwrap();
-      toast.success('Friend removed');
+      toast.success(t('friends.friendRemoved'));
     } catch (error) {
-      toast.error(error?.data?.message || 'Failed to remove friend');
+      toast.error(error?.data?.message || t('friends.failedRemove'));
     }
   };
 
@@ -72,21 +74,21 @@ const FriendsList = ({ userId }) => {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Search className="h-4 w-4 mr-2" />
-            Add Friends
+            {t('friends.addFriends')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search users by username or email..."
+              placeholder={t('friends.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
 
-          {isSearching && <p className="text-sm text-gray-500">Searching...</p>}
+          {isSearching && <p className="text-sm text-gray-500">{t('friends.searching')}</p>}
 
           {searchResults.length > 0 && (
             <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -98,7 +100,7 @@ const FriendsList = ({ userId }) => {
                   </div>
                   <Button size="sm" onClick={() => handleSendRequest(u.id)}>
                     <UserPlus className="h-4 w-4 mr-1" />
-                    Add Friend
+                    {t('friends.addFriend')}
                   </Button>
                 </div>
               ))}
@@ -106,7 +108,7 @@ const FriendsList = ({ userId }) => {
           )}
 
           {debouncedSearch.length >= 2 && !isSearching && searchResults.length === 0 && (
-            <p className="text-sm text-gray-500">No users found</p>
+            <p className="text-sm text-gray-500">{t('friends.noUsersFound')}</p>
           )}
         </CardContent>
       </Card>
@@ -117,14 +119,14 @@ const FriendsList = ({ userId }) => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Clock className="h-4 w-4 mr-2" />
-              Pending Requests
+              {t('friends.pendingRequests')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Incoming */}
             {pendingRequests.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-600">Incoming</p>
+                <p className="text-sm font-medium text-gray-600">{t('friends.incoming')}</p>
                 {pendingRequests.map(r => (
                   <div key={r.friendship_id} className="flex items-center justify-between p-3 border rounded">
                     <div>
@@ -134,11 +136,11 @@ const FriendsList = ({ userId }) => {
                     <div className="flex space-x-2">
                       <Button size="sm" onClick={() => handleRespond(r.friendship_id, 'accepted')}>
                         <Check className="h-4 w-4 mr-1" />
-                        Accept
+                        {t('common.accept')}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => handleRespond(r.friendship_id, 'blocked')}>
                         <X className="h-4 w-4 mr-1" />
-                        Decline
+                        {t('common.decline')}
                       </Button>
                     </div>
                   </div>
@@ -149,7 +151,7 @@ const FriendsList = ({ userId }) => {
             {/* Outgoing */}
             {sentRequests.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-600">Sent</p>
+                <p className="text-sm font-medium text-gray-600">{t('friends.sent')}</p>
                 {sentRequests.map(r => (
                   <div key={r.friendship_id} className="flex items-center justify-between p-3 border rounded">
                     <div>
@@ -159,7 +161,7 @@ const FriendsList = ({ userId }) => {
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline">
                         <Send className="h-3 w-3 mr-1" />
-                        Pending
+                        {t('common.pending')}
                       </Badge>
                       <Button size="sm" variant="ghost" onClick={() => handleRemove(r.friendship_id)}>
                         <X className="h-4 w-4" />
@@ -178,14 +180,14 @@ const FriendsList = ({ userId }) => {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Users className="h-4 w-4 mr-2" />
-            Friends ({friends.length})
+            {t('friends.friendsList')} ({friends.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {friendsLoading ? (
-            <p className="text-sm text-gray-500">Loading friends...</p>
+            <p className="text-sm text-gray-500">{t('friends.loadingFriends')}</p>
           ) : friends.length === 0 ? (
-            <p className="text-sm text-gray-500">No friends yet. Search for users above to add friends.</p>
+            <p className="text-sm text-gray-500">{t('friends.noFriendsYet')}</p>
           ) : (
             <div className="space-y-2">
               {friends.map(f => (
@@ -196,7 +198,7 @@ const FriendsList = ({ userId }) => {
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => handleRemove(f.friendship_id)}>
                     <UserMinus className="h-4 w-4 mr-1" />
-                    Remove
+                    {t('common.remove')}
                   </Button>
                 </div>
               ))}

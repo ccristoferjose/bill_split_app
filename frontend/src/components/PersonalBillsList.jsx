@@ -20,13 +20,7 @@ import { toast } from 'sonner';
 import TransactionSplitModal from './TransactionSplitModal';
 import TransactionBillDetailModal from './TransactionBillDetailModal';
 import { useResendTransactionInvitationMutation } from '../services/api';
-
-const RECURRENCE_LABELS = {
-  monthly: 'Monthly',
-  weekly: 'Weekly',
-  yearly: 'Yearly',
-  custom: 'Custom',
-};
+import { useTranslation } from 'react-i18next';
 
 const parseLocalDate = (raw) => {
   if (!raw) return null;
@@ -62,10 +56,18 @@ const isBillInMonth = (bill, monthDate) => {
 };
 
 const PersonalBillsList = ({ userId, viewMonth }) => {
+  const { t } = useTranslation();
   const { user } = useSelector((state) => state.auth);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [splitBill, setSplitBill] = useState(null);
   const [detailBill, setDetailBill] = useState(null);
+
+  const RECURRENCE_LABELS = {
+    monthly: t('personalBills.recurrenceMonthly'),
+    weekly: t('personalBills.recurrenceWeekly'),
+    yearly: t('personalBills.recurrenceYearly'),
+    custom: t('personalBills.recurrenceCustom'),
+  };
 
   const { data, isLoading, error, refetch } = useGetUserTransactionsQuery(userId);
   const [deleteTransaction, { isLoading: isDeleting }] = useDeleteTransactionMutation();
@@ -131,7 +133,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
         toast.success(result.message);
       }
     } catch (err) {
-      toast.error(err?.data?.message || 'Failed to update payment status');
+      toast.error(err?.data?.message || t('personalBills.failedPaymentStatus'));
     }
   };
 
@@ -149,7 +151,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
         toast.success(result.message);
       }
     } catch (err) {
-      toast.error(err?.data?.message || 'Failed to update participant status');
+      toast.error(err?.data?.message || t('personalBills.failedParticipantStatus'));
     }
   };
 
@@ -159,9 +161,9 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
       onConfirm: async () => {
         try {
           await deleteTransaction({ transactionId: bill.id, user_id: userId }).unwrap();
-          toast.success('Bill deleted');
+          toast.success(t('personalBills.billDeleted'));
         } catch (err) {
-          toast.error(err?.data?.message || 'Failed to delete bill');
+          toast.error(err?.data?.message || t('personalBills.failedDelete'));
         }
         setConfirmDelete(null);
       },
@@ -186,8 +188,8 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
   if (error) {
     return (
       <div className="text-center py-6">
-        <p className="text-red-600 text-sm">Error loading bills</p>
-        <Button onClick={refetch} className="mt-2" variant="outline" size="sm">Try Again</Button>
+        <p className="text-red-600 text-sm">{t('personalBills.errorLoading')}</p>
+        <Button onClick={refetch} className="mt-2" variant="outline" size="sm">{t('common.tryAgain')}</Button>
       </div>
     );
   }
@@ -198,10 +200,10 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
         <CalendarDays className="h-10 w-10 mx-auto mb-2 opacity-40" />
         <p className="text-sm">
           {viewMonth
-            ? `No bills for ${format(viewMonth, 'MMMM yyyy')}`
-            : 'No personal bills yet'}
+            ? t('personalBills.noBillsForMonth', { month: format(viewMonth, 'MMMM yyyy') })
+            : t('personalBills.noPersonalBills')}
         </p>
-        {!viewMonth && <p className="text-xs mt-1">Create a bill using the "New Transaction" button</p>}
+        {!viewMonth && <p className="text-xs mt-1">{t('personalBills.createHint')}</p>}
       </div>
     );
   }
@@ -252,11 +254,11 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                       {/* Paid status for this cycle/month */}
                       {myIsPaid ? (
                         <Badge className="bg-green-100 text-green-800 text-xs flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3" />Paid
+                          <CheckCircle className="h-3 w-3" />{t('common.paid')}
                         </Badge>
                       ) : (
                         <Badge className="bg-orange-100 text-orange-800 text-xs flex items-center gap-1">
-                          <Clock className="h-3 w-3" />Unpaid
+                          <Clock className="h-3 w-3" />{t('common.unpaid')}
                         </Badge>
                       )}
 
@@ -266,7 +268,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                         </Badge>
                       )}
                       {!isOwner && (
-                        <Badge className="bg-purple-100 text-purple-800 text-xs">Shared with me</Badge>
+                        <Badge className="bg-purple-100 text-purple-800 text-xs">{t('personalBills.sharedWithMe')}</Badge>
                       )}
                     </div>
 
@@ -279,7 +281,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                       {effectiveDueDate && (
                         <span className="flex items-center gap-1">
                           <CalendarDays className="h-3.5 w-3.5" />
-                          Due {format(effectiveDueDate, 'MMM dd, yyyy')}
+                          {t('common.due')} {format(effectiveDueDate, 'MMM dd, yyyy')}
                         </span>
                       )}
                     </div>
@@ -288,12 +290,11 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                     {bill.participants?.length > 0 && (
                       <div className="mt-2 space-y-1">
                         <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />Split with:
+                          <Users className="h-3.5 w-3.5" />{t('personalBills.splitWith')}
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {bill.participants.map((p) => {
                             const invStatus = p.invitation_status || 'accepted';
-                            // For monthly bills: check cycle payment; for others: use participant status
                             const pPaid = isMonthly ? hasCyclePaid(bill, p.user_id) : p.status === 'paid';
                             const isAccepted = invStatus === 'accepted';
                             const isRejected = invStatus === 'rejected';
@@ -307,7 +308,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                                   type="button"
                                   disabled={!canTogglePay}
                                   onClick={canTogglePay ? () => handleToggleParticipantPaid(bill, p) : undefined}
-                                  title={canTogglePay ? (pPaid ? 'Mark as unpaid' : 'Mark as paid') : undefined}
+                                  title={canTogglePay ? (pPaid ? t('common.unpaid') : t('common.paid')) : undefined}
                                   className={[
                                     'flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 border transition-colors',
                                     isRejected
@@ -333,8 +334,8 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                                 {canResend && (
                                   <button
                                     type="button"
-                                    title="Resend invitation"
-                                    onClick={() => resendInvitation({ transactionId: bill.id, participantUserId: p.user_id, user_id: userId }).unwrap().then(() => toast.success('Invitation resent')).catch(() => toast.error('Failed'))}
+                                    title={t('billDetails.resendInvitations')}
+                                    onClick={() => resendInvitation({ transactionId: bill.id, participantUserId: p.user_id, user_id: userId }).unwrap().then(() => toast.success(t('friends.requestSent'))).catch(() => toast.error(t('billDetails.failedResend')))}
                                     className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
                                   >
                                     <RefreshCw className="h-3 w-3" />
@@ -350,11 +351,11 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                     {/* Participant view: my own share status */}
                     {!isOwner && myParticipantRecord && (
                       <div className="mt-2 text-xs text-gray-500">
-                        Your share: <span className="font-medium">${Number(myParticipantRecord.amount_owed).toFixed(2)}</span>
+                        {t('bills.yourShare')}: <span className="font-medium">${Number(myParticipantRecord.amount_owed).toFixed(2)}</span>
                         {' · '}
                         {myParticipantIsPaid
-                          ? <span className="text-green-600 font-medium">You paid</span>
-                          : <span className="text-orange-600 font-medium">You haven't paid</span>}
+                          ? <span className="text-green-600 font-medium">{t('personalBills.youPaid')}</span>
+                          : <span className="text-orange-600 font-medium">{t('personalBills.youHaventPaid')}</span>}
                       </div>
                     )}
 
@@ -376,8 +377,8 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                         onClick={() => handleTogglePaid(bill)}
                       >
                         {myIsPaid
-                          ? <><RotateCcw className="h-3.5 w-3.5 mr-1" />Undo</>
-                          : <><CheckCircle className="h-3.5 w-3.5 mr-1" />Pay</>}
+                          ? <><RotateCcw className="h-3.5 w-3.5 mr-1" />{t('common.undo')}</>
+                          : <><CheckCircle className="h-3.5 w-3.5 mr-1" />{t('common.pay')}</>}
                       </Button>
                     )}
 
@@ -388,7 +389,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                         variant="outline"
                         onClick={() => setSplitBill(bill)}
                       >
-                        <Users className="h-3.5 w-3.5 mr-1" />Split
+                        <Users className="h-3.5 w-3.5 mr-1" />{t('common.split')}
                       </Button>
                     )}
 
@@ -403,8 +404,8 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                         onClick={() => handleToggleParticipantPaid(bill, myParticipantRecord)}
                       >
                         {myParticipantIsPaid
-                          ? <><RotateCcw className="h-3.5 w-3.5 mr-1" />Undo</>
-                          : <><CheckCircle className="h-3.5 w-3.5 mr-1" />Pay</>}
+                          ? <><RotateCcw className="h-3.5 w-3.5 mr-1" />{t('common.undo')}</>
+                          : <><CheckCircle className="h-3.5 w-3.5 mr-1" />{t('common.pay')}</>}
                       </Button>
                     )}
 
@@ -452,16 +453,16 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                Delete Bill
+                {t('personalBills.deleteBillTitle')}
               </DialogTitle>
             </DialogHeader>
             <p className="text-sm text-gray-600">
-              Delete "{confirmDelete.bill.title}"? This cannot be undone.
+              {t('personalBills.deleteConfirm', { title: confirmDelete.bill.title })}
             </p>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setConfirmDelete(null)}>{t('common.cancel')}</Button>
               <Button className="bg-red-600 hover:bg-red-700" onClick={confirmDelete.onConfirm}>
-                Delete
+                {t('common.delete')}
               </Button>
             </div>
           </DialogContent>

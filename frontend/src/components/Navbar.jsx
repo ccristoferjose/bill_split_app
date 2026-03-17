@@ -15,8 +15,10 @@ import { Plus, Receipt, User, LogOut, Settings } from 'lucide-react';
 import { logout } from '../feature/auth/authSlice';
 import { signOut } from 'aws-amplify/auth';
 import { persistor } from '../store';
+import { useTranslation } from 'react-i18next';
 
 const Navbar = ({ onCreateBill, onNavigateToProfile }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
@@ -41,7 +43,7 @@ const Navbar = ({ onCreateBill, onNavigateToProfile }) => {
           {/* Logo */}
           <div className="flex items-center cursor-pointer" onClick={() => navigate('/dashboard')}>
             <Receipt className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-semibold text-gray-900">SpendSync</h1>
+            <h1 className="text-xl font-semibold text-gray-900">{t('nav.appName')}</h1>
           </div>
 
           {/* Actions */}
@@ -53,7 +55,7 @@ const Navbar = ({ onCreateBill, onNavigateToProfile }) => {
               size="sm"
             >
               <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">New Transaction</span>
+              <span className="hidden sm:inline">{t('nav.newTransaction')}</span>
             </Button>
 
             {/* User Menu */}
@@ -74,16 +76,16 @@ const Navbar = ({ onCreateBill, onNavigateToProfile }) => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onNavigateToProfile}>
                   <Settings className="mr-2 h-4 w-4" />
-                  <span>Profile Settings</span>
+                  <span>{t('nav.profileSettings')}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={handleLogout}
                   disabled={isLoading}
                   className="text-red-600 focus:text-red-600"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>{isLoading ? 'Logging out...' : 'Logout'}</span>
+                  <span>{isLoading ? t('nav.loggingOut') : t('nav.logout')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

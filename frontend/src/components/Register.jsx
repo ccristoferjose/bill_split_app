@@ -5,8 +5,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Register = () => {
+  const { t } = useTranslation();
   const [step, setStep]               = useState('register'); // 'register' | 'confirm'
   const [username, setUsername]       = useState('');
   const [email, setEmail]             = useState('');
@@ -43,7 +45,7 @@ const Register = () => {
       setStep('confirm');
     } catch (err) {
       console.error('Registration failed:', err);
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(err.message || t('register.failed'));
     } finally {
       setIsLoading(false);
     }
@@ -79,33 +81,33 @@ const Register = () => {
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
         <Card className="w-full max-w-md p-6">
           <CardContent>
-            <h2 className="text-2xl font-semibold text-center mb-2">Check your email</h2>
+            <h2 className="text-2xl font-semibold text-center mb-2">{t('register.checkEmail')}</h2>
             <p className="text-sm text-gray-500 text-center mb-4">
-              We sent a confirmation code to <strong>{email}</strong>
+              {t('register.confirmationSent')} <strong>{email}</strong>
             </p>
             {error && <p className="text-red-500 text-center mb-3">{error}</p>}
             <form onSubmit={handleConfirm} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Confirmation code</label>
+                <label className="block text-sm font-medium mb-1">{t('register.confirmationCode')}</label>
                 <Input
                   type="text"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="Enter 6-digit code"
+                  placeholder={t('register.confirmPlaceholder')}
                   required
                 />
               </div>
               <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? 'Verifying...' : 'Confirm account'}
+                {isLoading ? t('register.confirming') : t('register.confirm')}
               </Button>
               <p className="text-sm text-center mt-3">
-                Didn't receive it?{' '}
+                {t('register.didntReceive')}{' '}
                 <button
                   type="button"
                   onClick={handleResendCode}
                   className="text-blue-600 hover:underline"
                 >
-                  Resend code
+                  {t('register.resendCode')}
                 </button>
               </p>
             </form>
@@ -119,11 +121,11 @@ const Register = () => {
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <Card className="w-full max-w-md p-6">
         <CardContent>
-          <h2 className="text-2xl font-semibold text-center mb-4">Register</h2>
+          <h2 className="text-2xl font-semibold text-center mb-4">{t('register.title')}</h2>
           {error && <p className="text-red-500 text-center mb-3">{error}</p>}
           <form onSubmit={handleRegister} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Username</label>
+              <label className="block text-sm font-medium mb-1">{t('register.username')}</label>
               <Input
                 type="text"
                 value={username}
@@ -132,7 +134,7 @@ const Register = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <label className="block text-sm font-medium mb-1">{t('register.email')}</label>
               <Input
                 type="email"
                 value={email}
@@ -141,7 +143,7 @@ const Register = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Password</label>
+              <label className="block text-sm font-medium mb-1">{t('register.password')}</label>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
@@ -161,11 +163,11 @@ const Register = () => {
               </div>
             </div>
             <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? 'Creating account...' : 'Register'}
+              {isLoading ? t('register.submitting') : t('register.submit')}
             </Button>
             <p className="text-sm text-center mt-3">
-              Already have an account?{' '}
-              <a href="/" className="text-blue-600 hover:underline">Login</a>
+              {t('register.haveAccount')}{' '}
+              <a href="/" className="text-blue-600 hover:underline">{t('register.login')}</a>
             </p>
           </form>
         </CardContent>
