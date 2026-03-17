@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { signIn, fetchAuthSession } from 'aws-amplify/auth';
+import { signIn, signOut, fetchAuthSession } from 'aws-amplify/auth';
 import { setCredentials } from '../feature/auth/authSlice';
 import { useSyncUserMutation } from '../services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const dispatch   = useDispatch();
   const navigate   = useNavigate();
   const [syncUser] = useSyncUserMutation();
@@ -23,25 +25,38 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // 1. Sign in with Cognito
-      await signIn({ username: email, password });
+      // 1. Clear any stale Amplify session before signing in
+      await signOut({ global: false }).catch(() => {});
 
-      // 2. Get the access token and ID token claims
+      // 2. Sign in with Cognito
+      const { isSignedIn, nextStep } = await signIn({ username: email, password });
+      if (!isSignedIn) {
+        throw new Error(`Additional sign-in step required: ${nextStep.signInStep}`);
+      }
+
+      // 3. Get the access token and ID token claims
       const session  = await fetchAuthSession();
       const idClaims = session.tokens?.idToken?.payload;
 
       const username = idClaims?.name || idClaims?.['cognito:username'] || email;
       const userEmail = idClaims?.email || email;
 
-      // 3. Sync user with backend (creates/updates the MySQL row)
-      const { user } = await syncUser({ username, email: userEmail }).unwrap();
+      // 4. Sync user with backend (creates/updates the MySQL row)
+      let user;
+      try {
+        ({ user } = await syncUser({ username, email: userEmail }).unwrap());
+      } catch (syncErr) {
+        console.error('Backend sync failed:', syncErr);
+        throw new Error('Login succeeded but failed to sync account. Please try again.');
+      }
 
-      // 4. Store user in Redux
+      console.log('User synced with backend:', user);
+      // 5. Store user in Redux
       dispatch(setCredentials({ user }));
       navigate('/dashboard');
     } catch (err) {
       console.error('Login failed:', err);
-      setError(err.message || 'Invalid email or password');
+      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -65,12 +80,23 @@ const Login = () => {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Password</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading ? 'Logging in...' : 'Login'}

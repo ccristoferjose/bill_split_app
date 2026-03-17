@@ -30,7 +30,7 @@ const syncUser = async (req, res) => {
       'SELECT id, username, email, phone, address, city, country FROM users WHERE id = ?',
       [userId]
     );
-
+    console.log('[syncUser] User synced:', user);
     res.json({ user });
   } catch (error) {
     console.error('[syncUser] Error:', error);

@@ -15,7 +15,8 @@ import { Calendar, DollarSign, Users, Clock, Receipt, CheckCircle, XCircle, Refr
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { useSocket } from '../contexts/SocketContext';
-import { useDispatch, useSelector } from 'react-redux'; // Added useSelector
+import { useDispatch } from 'react-redux';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { api } from '../services/api';
 import InvitationResponseModal from './InvitationResponseModal';
 import BillSplitModal from './BillSplitModal';
@@ -47,7 +48,6 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
   const [confirmModal, setConfirmModal] = useState(null);
   const { socket, isConnected } = useSocket();
   const dispatch = useDispatch();
-  const { token } = useSelector((state) => state.auth);
   const [markBillAsPaid, { isLoading: isMarkingPaid }] = useMarkBillAsPaidMutation();
   const [deleteBill, { isLoading: isDeleting }] = useDeleteBillMutation();
   const [payBillInFull, { isLoading: isPayingFull }] = usePayBillInFullMutation();
@@ -149,7 +149,9 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
   // Status check function with proper error handling
   const handleStatusCheck = async (billId) => {
     try {
-      const response = await fetch(`http://localhost:5001/bills/${billId}/check-status`, { // Added full URL
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString();
+      const response = await fetch(`http://localhost:5001/bills/${billId}/check-status`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

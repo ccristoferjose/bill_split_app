@@ -4,6 +4,7 @@ import { signUp, confirmSignUp, resendSignUpCode } from 'aws-amplify/auth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Eye, EyeOff } from 'lucide-react';
 
 const Register = () => {
   const [step, setStep]               = useState('register'); // 'register' | 'confirm'
@@ -14,6 +15,7 @@ const Register = () => {
   const [cognitoUsername, setCognitoUsername] = useState(''); // internal UUID — user never sees this
   const [error, setError]             = useState(null);
   const [isLoading, setIsLoading]     = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
@@ -140,12 +142,23 @@ const Register = () => {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Password</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading ? 'Creating account...' : 'Register'}

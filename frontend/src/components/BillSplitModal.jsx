@@ -33,19 +33,19 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
       return;
     }
 
-    const totalUsers = selectedUsers.length + 2; // +1 for new user, +1 for current user
+    const totalUsers = selectedUsers.length + 2; // +1 for new user, +1 for creator
     const defaultPercentage = parseFloat((100 / totalUsers).toFixed(1));
 
     const updatedUsers = selectedUsers.map(u => ({
       ...u,
-      percentage: defaultPercentage
+      percentage: defaultPercentage,
     }));
 
     setSelectedUsers([...updatedUsers, {
       id: searchUser.id,
       username: searchUser.username,
       email: searchUser.email,
-      percentage: defaultPercentage
+      percentage: defaultPercentage,
     }]);
   };
 
@@ -55,36 +55,37 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
     if (remainingUsers.length > 0) {
       const totalUsers = remainingUsers.length + 1;
       const defaultPercentage = parseFloat((100 / totalUsers).toFixed(1));
-
-      const updatedUsers = remainingUsers.map(u => ({
-        ...u,
-        percentage: defaultPercentage
-      }));
-
-      setSelectedUsers(updatedUsers);
+      setSelectedUsers(remainingUsers.map(u => ({ ...u, percentage: defaultPercentage })));
     } else {
       setSelectedUsers([]);
     }
   };
 
-  const updatePercentage = (userId, percentage) => {
-    const numValue = parseFloat(percentage) || 0;
+  const updatePercentage = (userId, value) => {
+    const num = Math.max(0, Math.min(100, parseFloat(value) || 0));
     setSelectedUsers(selectedUsers.map(u =>
-      u.id === userId ? { ...u, percentage: Math.max(0, Math.min(100, numValue)) } : u
+      u.id === userId ? { ...u, percentage: num } : u
     ));
   };
 
-  const getTotalPercentage = () => {
-    return selectedUsers.reduce((sum, u) => sum + u.percentage, 0);
+  const updateAmount = (userId, value) => {
+    const num = parseFloat(value) || 0;
+    const percentage = splittableAmount > 0
+      ? parseFloat(((num / splittableAmount) * 100).toFixed(1))
+      : 0;
+    setSelectedUsers(selectedUsers.map(u =>
+      u.id === userId ? { ...u, percentage: Math.max(0, Math.min(100, percentage)) } : u
+    ));
   };
 
-  const getCreatorPercentage = () => {
-    return Math.max(0, 100 - getTotalPercentage());
-  };
+  const getTotalPercentage = () =>
+    parseFloat(selectedUsers.reduce((sum, u) => sum + u.percentage, 0).toFixed(1));
 
-  const getCalculatedAmount = (percentage) => {
-    return ((percentage / 100) * splittableAmount).toFixed(2);
-  };
+  const getCreatorPercentage = () =>
+    parseFloat(Math.max(0, 100 - getTotalPercentage()).toFixed(1));
+
+  const getCalculatedAmount = (percentage) =>
+    ((percentage / 100) * splittableAmount).toFixed(2);
 
   const handleSubmit = async () => {
     if (selectedUsers.length === 0) {
@@ -92,38 +93,38 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
       return;
     }
 
-    const invalidUsers = selectedUsers.filter(u => u.percentage <= 0);
-    if (invalidUsers.length > 0) {
-      toast.error('All users must have a percentage greater than 0%');
+    const zeroAmountUsers = selectedUsers.filter(
+      u => parseFloat(getCalculatedAmount(u.percentage)) <= 0
+    );
+    if (zeroAmountUsers.length > 0) {
+      toast.error(`${zeroAmountUsers.map(u => u.username).join(', ')} would owe $0. Adjust the split.`);
       return;
     }
 
     const totalPercentage = getTotalPercentage();
     if (totalPercentage > 100) {
-      toast.error(`Total percentage cannot exceed 100%. Currently at ${totalPercentage}%`);
+      toast.error(`Total exceeds 100% (currently ${totalPercentage}%)`);
+      return;
+    }
+
+    if (parseFloat(getCalculatedAmount(getCreatorPercentage())) <= 0 && getCreatorPercentage() > 0) {
+      toast.error('Your share amount cannot be $0. Adjust the split.');
       return;
     }
 
     setIsSubmitting(true);
-
     try {
       const users = selectedUsers.map(u => ({
         user_id: u.id,
-        proposed_amount: parseFloat(getCalculatedAmount(u.percentage))
+        proposed_amount: parseFloat(getCalculatedAmount(u.percentage)),
       }));
 
-      await inviteUsers({
-        billId,
-        invited_by: user.id,
-        users
-      }).unwrap();
-
+      await inviteUsers({ billId, invited_by: user.id, users }).unwrap();
       toast.success(`Successfully sent ${selectedUsers.length} invitation(s)`);
       onClose();
     } catch (error) {
       console.error('Error sending invitations:', error);
-      const errorMessage = error?.data?.message || error?.message || 'Failed to send invitations';
-      toast.error(errorMessage);
+      toast.error(error?.data?.message || error?.message || 'Failed to send invitations');
     } finally {
       setIsSubmitting(false);
     }
@@ -167,8 +168,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                   <p className="text-2xl font-bold text-blue-600">
                     {selectedUsers.length > 0
                       ? `$${getCalculatedAmount(getCreatorPercentage())}`
-                      : `$${splittableAmount.toFixed(2)}`
-                    }
+                      : `$${splittableAmount.toFixed(2)}`}
                   </p>
                   {selectedUsers.length > 0 && (
                     <p className="text-sm text-gray-500">({getCreatorPercentage()}%)</p>
@@ -209,7 +209,11 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
               {friendsData?.friends && friendsData.friends.length > 0 ? (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {friendsData.friends
-                    .filter(f => f.id !== user.id && !paidUserIds.includes(f.id) && !selectedUsers.some(u => u.id === f.id))
+                    .filter(f =>
+                      f.id !== user.id &&
+                      !paidUserIds.includes(f.id) &&
+                      !selectedUsers.some(u => u.id === f.id)
+                    )
                     .map(friend => (
                       <div
                         key={friend.id}
@@ -219,10 +223,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                           <p className="font-medium">{friend.username}</p>
                           <p className="text-sm text-gray-500">{friend.email}</p>
                         </div>
-                        <Button
-                          size="sm"
-                          onClick={() => addUser(friend)}
-                        >
+                        <Button size="sm" onClick={() => addUser(friend)}>
                           <Plus className="h-4 w-4 mr-1" />
                           Add
                         </Button>
@@ -239,61 +240,97 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
             </CardContent>
           </Card>
 
-          {/* Selected Users */}
+          {/* Split Configuration */}
           {selectedUsers.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Split Configuration</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {selectedUsers.map(u => (
-                  <div key={u.id} className="flex items-center justify-between p-3 border rounded">
-                    <div className="flex-1">
-                      <p className="font-medium">{u.username}</p>
-                      <p className="text-sm text-gray-500">{u.email}</p>
+              <CardContent className="space-y-5">
+                {selectedUsers.map(u => {
+                  const amount = getCalculatedAmount(u.percentage);
+                  const isZero = parseFloat(amount) <= 0;
+                  return (
+                    <div key={u.id} className={`p-3 border rounded space-y-3 ${isZero ? 'border-red-300 bg-red-50' : ''}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{u.username}</p>
+                          <p className="text-sm text-gray-500">{u.email}</p>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => removeUser(u.id)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Slider */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>0%</span>
+                          <span className="font-medium text-gray-700">{u.percentage}%</span>
+                          <span>100%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={u.percentage}
+                          onChange={(e) => updatePercentage(u.id, e.target.value)}
+                          className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+
+                      {/* Amount + Percentage inputs */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center flex-1 border rounded overflow-hidden focus-within:ring-1 focus-within:ring-blue-500">
+                          <span className="px-2 text-gray-500 text-sm bg-gray-50 border-r">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={amount}
+                            onChange={(e) => updateAmount(u.id, e.target.value)}
+                            className="flex-1 px-2 py-1.5 text-sm outline-none bg-white"
+                          />
+                        </div>
+                        <div className="flex items-center border rounded overflow-hidden w-24 focus-within:ring-1 focus-within:ring-blue-500">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={u.percentage}
+                            onChange={(e) => updatePercentage(u.id, e.target.value)}
+                            className="flex-1 px-2 py-1.5 text-sm outline-none bg-white w-0"
+                          />
+                          <span className="px-2 text-gray-500 text-sm bg-gray-50 border-l">%</span>
+                        </div>
+                      </div>
+
+                      {isZero && (
+                        <p className="text-xs text-red-600">Amount cannot be $0</p>
+                      )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        type="number"
-                        value={u.percentage}
-                        onChange={(e) => updatePercentage(u.id, e.target.value)}
-                        className="w-20 text-center"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                      />
-                      <span className="text-sm">%</span>
-                      <Badge variant="outline">
-                        ${getCalculatedAmount(u.percentage)}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeUser(u.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Total Summary */}
-                <div className="border-t pt-3">
+                <div className="border-t pt-3 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">Total Percentage:</span>
-                    <Badge variant={getTotalPercentage() <= 100 ? "default" : "destructive"}>
+                    <span className="font-medium">Total assigned:</span>
+                    <Badge variant={getTotalPercentage() <= 100 ? 'default' : 'destructive'}>
                       {getTotalPercentage()}%
                     </Badge>
                   </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="font-medium">Remaining for You:</span>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Your share:</span>
                     <Badge variant="outline">
                       {getCreatorPercentage()}% (${getCalculatedAmount(getCreatorPercentage())})
                     </Badge>
                   </div>
                   {paidParticipants.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Percentages are calculated on the remaining ${splittableAmount.toFixed(2)} (after paid shares)
+                    <p className="text-xs text-gray-500">
+                      Percentages are calculated on the remaining ${splittableAmount.toFixed(2)}
                     </p>
                   )}
                 </div>
@@ -302,10 +339,8 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
           )}
         </div>
 
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
+        <div className="flex justify-end space-x-2 pt-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting || selectedUsers.length === 0}
