@@ -1,6 +1,6 @@
 'use strict';
 
-const { baseTemplate } = require('./base.template');
+const { baseTemplate, avatarHtml } = require('./base.template');
 
 /**
  * Template for a new bill-split invitation.
@@ -33,53 +33,56 @@ const billInvitationTemplate = ({
   const rejectUrl  = `${appUrl}/bills/${billId}?action=reject`;
   const viewUrl    = `${appUrl}/bills/${billId}`;
 
-  // Calculate percentage share
-  const sharePercent = totalAmount > 0
-    ? ((proposedAmount / totalAmount) * 100).toFixed(1)
+  const total = parseFloat(totalAmount);
+  const share = parseFloat(proposedAmount);
+  const sharePercent = total > 0
+    ? ((share / total) * 100).toFixed(1)
     : '0';
 
   const content = /* html */ `
-    <h2>You've been invited to split a bill! 🧾</h2>
+    <h2>You've been invited to split a bill!</h2>
 
-    <p>
-      Hi <strong>${recipientName}</strong>,<br/>
-      <strong>${inviterName}</strong> has invited you to split the following bill.
-      Review the details below and let them know if you're in.
-    </p>
+    <!-- Sender row with avatar -->
+    <div class="sender-row">
+      ${avatarHtml(inviterName)}
+      <div class="sender-info">
+        <span class="sender-name">${inviterName}</span> invited you to split a bill.
+        <br/>Review the details and let them know if you're in.
+      </div>
+    </div>
+
+    <!-- Your share — hero amount -->
+    <div class="amount-card">
+      <p class="amount-label">Your Share</p>
+      <p class="amount-value">$${share.toFixed(2)}</p>
+      <p class="amount-detail">${sharePercent}% of $${total.toFixed(2)} total</p>
+    </div>
 
     <!-- Bill details card -->
-    <div class="info-card">
+    <div class="info-card" role="table" aria-label="Bill details">
       <table>
         <tr>
-          <td class="label">📋 Bill name</td>
+          <td class="label">Bill name</td>
           <td class="value">${billTitle}</td>
         </tr>
         ${billDescription ? `
         <tr>
-          <td class="label">📝 Description</td>
+          <td class="label">Description</td>
           <td class="value" style="font-weight:400;color:#4b5563;">${billDescription}</td>
         </tr>` : ''}
         <tr>
-          <td class="label">👥 Participants</td>
+          <td class="label">Participants</td>
           <td class="value">${participantCount} people</td>
         </tr>
         <tr>
-          <td class="label">💳 Total bill</td>
-          <td class="value">$${parseFloat(totalAmount).toFixed(2)}</td>
+          <td class="label">Total bill</td>
+          <td class="value">$${total.toFixed(2)}</td>
         </tr>
         ${dueDate ? `
         <tr>
-          <td class="label">📅 Due date</td>
+          <td class="label">Due date</td>
           <td class="value">${dueDate}</td>
         </tr>` : ''}
-        <tr>
-          <td class="label">✅ Your share</td>
-          <td class="value amount">$${parseFloat(proposedAmount).toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td class="label" style="border-bottom:none;">📊 Your percentage</td>
-          <td class="value" style="border-bottom:none;">${sharePercent}% of total</td>
-        </tr>
       </table>
     </div>
 
@@ -89,21 +92,21 @@ const billInvitationTemplate = ({
 
     <!-- CTA buttons -->
     <div class="btn-wrapper">
-      <a href="${acceptUrl}" class="btn">✓ Accept ($${parseFloat(proposedAmount).toFixed(2)})</a>
-      <a href="${rejectUrl}" class="btn-secondary">✗ Decline</a>
+      <a href="${acceptUrl}" class="btn-success" role="button">Accept &mdash; $${share.toFixed(2)}</a>
+      <a href="${rejectUrl}" class="btn-secondary" role="button">Decline</a>
     </div>
 
     <hr class="divider" />
 
     <p style="font-size:13px;color:#9ca3af;text-align:center;">
       Prefer to decide later?
-      <a href="${viewUrl}" style="color:#4F46E5;font-weight:600;">View full bill details →</a>
+      <a href="${viewUrl}" style="font-weight:600;">View full bill details &rarr;</a>
     </p>
   `;
 
   return baseTemplate({
     title: `Bill Invitation: ${billTitle}`,
-    previewText: `${inviterName} invited you to split "${billTitle}" — your share is $${parseFloat(proposedAmount).toFixed(2)}`,
+    previewText: `${inviterName} invited you to split "${billTitle}" — your share is $${share.toFixed(2)}`,
     content,
   });
 };
