@@ -52,6 +52,36 @@
     "profile": "Perfil"
   },
 
+  "landing": {
+    "heroTitle": "Divide cuentas fácilmente con amigos",
+    "heroSubtitle": "Registra gastos compartidos, administra cuentas recurrentes y mantente sincronizado con tu grupo — todo en un solo lugar.",
+    "getStarted": "Comenzar",
+    "learnMore": "Saber más",
+    "navFeatures": "Características",
+    "navAbout": "Acerca de",
+    "navLogin": "Iniciar Sesión",
+    "backHome": "Volver al inicio",
+    "welcomeBack": "Bienvenido de vuelta",
+    "signInContinue": "Inicia sesión en tu cuenta para continuar",
+    "createAccount": "Crear cuenta gratis",
+    "createAccountDesc": "Crea tu cuenta para comenzar",
+    "realtime": "Sincronización en tiempo real",
+    "featuresTag": "Características",
+    "featuresTitle": "Todo lo que necesitas para dividir inteligentemente",
+    "featuresSubtitle": "SpendSync hace sencillo administrar gastos compartidos y mantener a todos en la misma página.",
+    "featureBills": "Seguimiento de Cuentas",
+    "featureBillsDesc": "Crea y administra cuentas de servicio recurrentes con ciclos mensuales automáticos.",
+    "featureSplit": "Divisiones Justas",
+    "featureSplitDesc": "Divide gastos con porcentajes personalizados e invita amigos en segundos.",
+    "featureCalendar": "Vista de Calendario",
+    "featureCalendarDesc": "Ve todas tus cuentas y transacciones en un calendario mensual visual.",
+    "featureNotify": "Alertas en Tiempo Real",
+    "featureNotifyDesc": "Recibe notificaciones instantáneas cuando tus amigos responden, pagan o te invitan.",
+    "ctaTitle": "¿Listo para simplificar tus gastos compartidos?",
+    "ctaSubtitle": "Únete a SpendSync y deja de preocuparte por quién debe qué. Es gratis para comenzar.",
+    "allRights": "Todos los derechos reservados."
+  },
+
   "login": {
     "title": "Iniciar Sesión",
     "email": "Correo Electrónico",

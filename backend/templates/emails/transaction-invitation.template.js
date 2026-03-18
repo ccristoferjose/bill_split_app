@@ -1,6 +1,6 @@
 'use strict';
 
-const { baseTemplate } = require('./base.template');
+const { baseTemplate, avatarHtml } = require('./base.template');
 
 /**
  * Template for a transaction split invitation (expense or bill type).
@@ -31,79 +31,86 @@ const transactionInvitationTemplate = ({
   const appUrl  = process.env.FRONTEND_URL || 'http://localhost:5173';
   const viewUrl = `${appUrl}/dashboard?tab=invitations`;
 
-  const sharePercent = totalAmount > 0
-    ? ((amountOwed / totalAmount) * 100).toFixed(1)
+  const total = parseFloat(totalAmount);
+  const share = parseFloat(amountOwed);
+  const sharePercent = total > 0
+    ? ((share / total) * 100).toFixed(1)
     : '0';
 
   const isExpense = transactionType === 'expense';
 
-  const headingLine = isExpense
-    ? `<h2>You've been included in a shared expense 📊</h2>`
-    : `<h2>You've been invited to split a bill! 🧾</h2>`;
-
-  const introParagraph = isExpense
-    ? `<p>
-        Hi <strong>${recipientName}</strong>,<br/>
-        <strong>${inviterName}</strong> has recorded a shared expense and included you as a participant.
-        This is for <em>expense tracking only</em> — no payment is required right now.
-        Open the app to review and accept or decline your inclusion.
-      </p>`
-    : `<p>
-        Hi <strong>${recipientName}</strong>,<br/>
-        <strong>${inviterName}</strong> has invited you to split the following bill.
-        Review the details below and let them know if you're in.
-      </p>`;
-
   const typeLabel = isExpense ? 'Shared Expense' : 'Bill Split';
-  const amountLabel = isExpense ? '📊 Your share (tracked)' : '✅ Your share';
+  const typeColor = isExpense ? '#2563EB' : '#4F46E5';
+  const accentColor = isExpense ? '#2563EB' : undefined;
+
+  const heading = isExpense
+    ? `You've been included in a shared expense`
+    : `You've been invited to split a bill!`;
+
+  const introText = isExpense
+    ? `<strong>${inviterName}</strong> has recorded a shared expense and included you as a participant.
+       This is for <em>expense tracking only</em> &mdash; no payment is required right now.`
+    : `<strong>${inviterName}</strong> has invited you to split the following bill.
+       Review the details below and let them know if you're in.`;
 
   const content = /* html */ `
-    ${headingLine}
+    <h2>${heading}</h2>
 
-    ${introParagraph}
+    <!-- Sender row -->
+    <div class="sender-row">
+      ${avatarHtml(inviterName)}
+      <div class="sender-info">
+        ${introText}
+      </div>
+    </div>
+
+    <!-- Type badge -->
+    <div style="margin:16px 0;">
+      <span class="badge ${isExpense ? 'badge-info' : 'badge-pending'}">${typeLabel}</span>
+    </div>
+
+    <!-- Amount hero -->
+    <div class="amount-card" ${isExpense ? `style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-color:#93C5FD;"` : ''}>
+      <p class="amount-label">Your Share</p>
+      <p class="amount-value" ${isExpense ? `style="color:${typeColor};"` : ''}>$${share.toFixed(2)}</p>
+      <p class="amount-detail">${sharePercent}% of $${total.toFixed(2)} total</p>
+    </div>
 
     <!-- Transaction details card -->
-    <div class="info-card">
+    <div class="info-card" role="table" aria-label="Transaction details">
       <table>
         <tr>
-          <td class="label">📋 ${typeLabel}</td>
+          <td class="label">${typeLabel}</td>
           <td class="value">${transactionTitle}</td>
         </tr>
         ${notes ? `
         <tr>
-          <td class="label">📝 Notes</td>
+          <td class="label">Notes</td>
           <td class="value" style="font-weight:400;color:#4b5563;">${notes}</td>
         </tr>` : ''}
         <tr>
-          <td class="label">👥 Participants</td>
+          <td class="label">Participants</td>
           <td class="value">${participantCount} people</td>
         </tr>
         <tr>
-          <td class="label">💳 Total amount</td>
-          <td class="value">$${parseFloat(totalAmount).toFixed(2)}</td>
+          <td class="label">Total amount</td>
+          <td class="value">$${total.toFixed(2)}</td>
         </tr>
         ${dueDate ? `
         <tr>
-          <td class="label">📅 Due date</td>
+          <td class="label">Due date</td>
           <td class="value">${dueDate}</td>
         </tr>` : ''}
-        <tr>
-          <td class="label">${amountLabel}</td>
-          <td class="value amount">$${parseFloat(amountOwed).toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td class="label" style="border-bottom:none;">📊 Your percentage</td>
-          <td class="value" style="border-bottom:none;">${sharePercent}% of total</td>
-        </tr>
       </table>
     </div>
 
     ${isExpense ? `
-    <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:16px 0;">
-      <p style="margin:0;font-size:13px;color:#1d4ed8;">
-        ℹ️ <strong>Expense tracking only</strong> — accepting this means you acknowledge the shared expense.
+    <!-- Expense tracking disclaimer -->
+    <div class="status-banner status-banner-info" role="note">
+      <span>
+        <strong>Expense tracking only</strong> &mdash; accepting this means you acknowledge the shared expense.
         No payment is collected through the app.
-      </p>
+      </span>
     </div>` : ''}
 
     <p style="text-align:center;color:#6b7280;font-size:13px;margin-bottom:8px;">
@@ -112,14 +119,14 @@ const transactionInvitationTemplate = ({
 
     <!-- CTA button -->
     <div class="btn-wrapper">
-      <a href="${viewUrl}" class="btn">View in App →</a>
+      <a href="${viewUrl}" class="btn" role="button">View in App &rarr;</a>
     </div>
 
     <hr class="divider" />
 
     <p style="font-size:13px;color:#9ca3af;text-align:center;">
       You can accept or decline this invitation from the
-      <a href="${viewUrl}" style="color:#4F46E5;font-weight:600;">Invitations tab</a> in your dashboard.
+      <a href="${viewUrl}" style="font-weight:600;">Invitations tab</a> in your dashboard.
     </p>
   `;
 
@@ -127,8 +134,9 @@ const transactionInvitationTemplate = ({
 
   return baseTemplate({
     title: `${subjectPrefix}: ${transactionTitle}`,
-    previewText: `${inviterName} ${isExpense ? 'included you in a shared expense' : 'invited you to split'} "${transactionTitle}" — your share is $${parseFloat(amountOwed).toFixed(2)}`,
+    previewText: `${inviterName} ${isExpense ? 'included you in a shared expense' : 'invited you to split'} "${transactionTitle}" — your share is $${share.toFixed(2)}`,
     content,
+    accentColor,
   });
 };
 

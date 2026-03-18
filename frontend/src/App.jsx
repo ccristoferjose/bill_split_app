@@ -3,6 +3,7 @@ import './App.css'
 import './index.css'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import LandingPage from './components/LandingPage'
 import Login from './components/Login'
 import Register from './components/Register'
 import Dashboard from './components/Dashboard'
@@ -19,7 +20,7 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={user ? <Navigate to="/dashboard" replace /> : <Login />}
+            element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />}
           />
           <Route
             path="/login"

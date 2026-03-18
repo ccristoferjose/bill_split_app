@@ -52,6 +52,36 @@
     "profile": "Profile"
   },
 
+  "landing": {
+    "heroTitle": "Split bills effortlessly with friends",
+    "heroSubtitle": "Track shared expenses, manage recurring bills, and stay in sync with your group — all in one place.",
+    "getStarted": "Get Started",
+    "learnMore": "Learn more",
+    "navFeatures": "Features",
+    "navAbout": "About",
+    "navLogin": "Login",
+    "backHome": "Back to home",
+    "welcomeBack": "Welcome back",
+    "signInContinue": "Sign in to your account to continue",
+    "createAccount": "Create free account",
+    "createAccountDesc": "Create your account to get started",
+    "realtime": "Real-time sync",
+    "featuresTag": "Features",
+    "featuresTitle": "Everything you need to split smart",
+    "featuresSubtitle": "SpendSync makes it simple to manage shared expenses and keep everyone on the same page.",
+    "featureBills": "Bill Tracking",
+    "featureBillsDesc": "Create and manage recurring service bills with automatic monthly cycles.",
+    "featureSplit": "Fair Splits",
+    "featureSplitDesc": "Split expenses with custom percentages and invite friends in seconds.",
+    "featureCalendar": "Calendar View",
+    "featureCalendarDesc": "See all your bills and transactions on a visual monthly calendar.",
+    "featureNotify": "Real-time Alerts",
+    "featureNotifyDesc": "Get instant notifications when friends respond, pay, or invite you.",
+    "ctaTitle": "Ready to simplify your shared expenses?",
+    "ctaSubtitle": "Join SpendSync and stop worrying about who owes what. It's free to get started.",
+    "allRights": "All rights reserved."
+  },
+
   "login": {
     "title": "Login",
     "email": "Email",
