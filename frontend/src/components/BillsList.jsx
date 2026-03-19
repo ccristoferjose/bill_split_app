@@ -20,6 +20,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { api } from '../services/api';
 import InvitationResponseModal from './InvitationResponseModal';
 import BillSplitModal from './BillSplitModal';
+import { useTranslation } from 'react-i18next';
 
 const parseServiceBillDate = (raw) => {
   if (!raw) return null;
@@ -43,6 +44,7 @@ const isServiceBillInMonth = (bill, monthDate) => {
 };
 
 const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
+  const { t } = useTranslation();
   const [selectedInvitation, setSelectedInvitation] = useState(null);
   const [splitBill, setSplitBill] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
@@ -51,7 +53,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
   const [markBillAsPaid, { isLoading: isMarkingPaid }] = useMarkBillAsPaidMutation();
   const [deleteBill, { isLoading: isDeleting }] = useDeleteBillMutation();
   const [payBillInFull, { isLoading: isPayingFull }] = usePayBillInFullMutation();
-  
+
   // Queries with shorter polling intervals for invited bills
   const {
     data: createdBills,
@@ -89,32 +91,28 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
 
     const handleBillNotification = (notification) => {
       console.log('BillsList received notification:', notification);
-      
+
       const { type: notificationType, data } = notification;
-      
+
       // Handle different notification types
       switch (notificationType) {
         case 'bill_invitation':
-          // New invitation received
           if (type === 'invited' || type === 'all') {
             dispatch(api.util.invalidateTags(['Bill']));
             if (type === 'invited') refetchInvited();
             if (type === 'all') { refetchCreated(); refetchParticipating(); }
           }
           break;
-          
+
         case 'bill_response':
         case 'bill_status_update':
-        case 'bill_finalized': // Added this case
-          // Bill response, status update, or finalization
+        case 'bill_finalized':
           if (data.billId) {
-            // Invalidate cache for the specific bill
             dispatch(api.util.invalidateTags([
               { type: 'Bill', id: data.billId },
-              'Bill' // Invalidate all bill queries to be safe
+              'Bill'
             ]));
-            
-            // Refetch the appropriate query based on current view
+
             switch (type) {
               case 'created':
                 refetchCreated();
@@ -132,13 +130,12 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
             }
           }
           break;
-          
+
         default:
           break;
       }
     };
 
-    // Listen for notifications
     socket.on('notification', handleBillNotification);
 
     return () => {
@@ -158,13 +155,12 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const result = await response.json();
-        toast.success('Bill status updated');
+        toast.success(t('bills.billStatusUpdated'));
         console.log('Status check result:', result);
-        
-        // Refresh the current view
+
         switch (type) {
           case 'created':
             await refetchCreated();
@@ -182,11 +178,11 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
         }
       } else {
         const errorData = await response.json();
-        toast.error(errorData.message || 'Failed to check bill status');
+        toast.error(errorData.message || t('bills.failedCheckStatus'));
       }
     } catch (error) {
       console.error('Error checking status:', error);
-      toast.error('Failed to check bill status');
+      toast.error(t('bills.failedCheckStatus'));
     }
   };
 
@@ -229,13 +225,13 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
 
   const getStatusLabel = (status) => {
     const labels = {
-      draft: 'Draft',
-      pending_responses: 'Pending Responses',
-      finalized: 'Awaiting Payment',
-      paid: 'Paid',
-      cancelled: 'Cancelled',
-      accepted: 'Accepted',
-      rejected: 'Rejected',
+      draft: t('bills.statusDraft'),
+      pending_responses: t('bills.statusPendingResponses'),
+      finalized: t('bills.statusFinalized'),
+      paid: t('bills.statusPaid'),
+      cancelled: t('bills.statusCancelled'),
+      accepted: t('bills.statusAccepted'),
+      rejected: t('bills.statusRejected'),
     };
     return labels[status] || status.replace('_', ' ');
   };
@@ -244,10 +240,8 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
     return billType === 'monthly' ? <Clock className="h-4 w-4" /> : <Calendar className="h-4 w-4" />;
   };
 
-  // Enhanced invitation response handler
   const handleInvitationResponse = async (action) => {
     try {
-      // Force refresh the current view
       switch (type) {
         case 'created':
           await refetchCreated();
@@ -263,20 +257,14 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
           await refetchParticipating();
           break;
       }
-      
-      // Also invalidate all bill-related cache
+
       dispatch(api.util.invalidateTags(['Bill']));
-      
-      //toast.success(`Invitation ${action}ed successfully!`);
-      
-      // Close the modal
       setSelectedInvitation(null);
     } catch (error) {
       console.error('Error refreshing after invitation response:', error);
     }
   };
 
-  // Manual refresh function
   const handleManualRefresh = async () => {
     try {
       switch (type) {
@@ -294,35 +282,35 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
           await refetchParticipating();
           break;
       }
-      toast.success('Bills refreshed!');
+      toast.success(t('bills.billsRefreshed'));
     } catch (error) {
-      toast.error('Failed to refresh bills');
+      toast.error(t('bills.failedRefresh'));
     }
   };
 
   const handleMarkAsPaid = async (billId) => {
     try {
       await markBillAsPaid({ billId, user_id: userId }).unwrap();
-      toast.success('Payment marked successfully!');
+      toast.success(t('bills.paymentMarked'));
     } catch (err) {
       console.error('Error marking as paid:', err);
-      toast.error(err?.data?.message || 'Failed to mark as paid');
+      toast.error(err?.data?.message || t('bills.failedMarkPaid'));
     }
   };
 
   const handleDeleteBill = (billId, e) => {
     e.stopPropagation();
     setConfirmModal({
-      title: 'Delete Bill',
-      message: 'Are you sure? This action cannot be undone.',
-      confirmLabel: 'Delete',
+      title: t('bills.deleteBill'),
+      message: t('bills.deleteConfirm'),
+      confirmLabel: t('common.delete'),
       confirmClass: 'bg-red-600 hover:bg-red-700',
       onConfirm: async () => {
         try {
           const result = await deleteBill({ billId, user_id: userId }).unwrap();
           toast.success(result.message);
         } catch (err) {
-          toast.error(err?.data?.message || 'Failed to delete bill');
+          toast.error(err?.data?.message || t('bills.failedDeleteBill'));
         }
         setConfirmModal(null);
       }
@@ -332,16 +320,16 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
   const handlePayInFull = (bill, e) => {
     e.stopPropagation();
     setConfirmModal({
-      title: 'Pay Bill in Full',
-      message: `You are about to pay the full amount of $${bill.total_amount} for "${bill.title}".`,
-      confirmLabel: `Pay $${bill.total_amount}`,
+      title: t('bills.payBillFull'),
+      message: t('bills.payFullConfirm', { amount: bill.total_amount, title: bill.title }),
+      confirmLabel: `${t('common.pay')} $${bill.total_amount}`,
       confirmClass: 'bg-green-600 hover:bg-green-700',
       onConfirm: async () => {
         try {
           await payBillInFull({ billId: bill.id, user_id: userId }).unwrap();
-          toast.success('Bill paid in full!');
+          toast.success(t('bills.billPaidFull'));
         } catch (err) {
-          toast.error(err?.data?.message || 'Failed to pay bill');
+          toast.error(err?.data?.message || t('bills.failedPayBill'));
         }
         setConfirmModal(null);
       }
@@ -366,9 +354,9 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600">Error loading bills: {error.message}</p>
+        <p className="text-red-600">{t('bills.errorLoading')}: {error.message}</p>
         <Button onClick={handleManualRefresh} className="mt-2" variant="outline">
-          Try Again
+          {t('common.tryAgain')}
         </Button>
       </div>
     );
@@ -378,9 +366,9 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
     return (
       <div className="text-center py-8">
         <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-500">No bills found</p>
+        <p className="text-gray-500">{t('bills.noBills')}</p>
         <Button onClick={handleManualRefresh} className="mt-2" variant="outline">
-          Refresh
+          {t('common.refresh')}
         </Button>
       </div>
     );
@@ -391,16 +379,16 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
       {/* Connection status indicator */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center space-x-2">
-          <div 
+          <div
             className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
           />
           <span className="text-xs text-gray-500">
-            {isConnected ? 'Live updates active' : 'Offline - using cached data'}
+            {isConnected ? t('bills.liveUpdates') : t('bills.offline')}
           </span>
         </div>
         <Button onClick={handleManualRefresh} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-1" />
-          Refresh
+          {t('common.refresh')}
         </Button>
       </div>
 
@@ -420,7 +408,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                       {getStatusLabel(bill.status)}
                     </Badge>
                     {bill.bill_type === 'monthly' && (
-                      <Badge variant="outline">Monthly</Badge>
+                      <Badge variant="outline">{t('bills.monthly')}</Badge>
                     )}
                     {bill.status === 'pending_responses' && (type === 'created' || (type === 'all' && bill._isCreator)) && (
                       <Button
@@ -430,11 +418,11 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                         className="ml-2"
                       >
                         <RefreshCw className="h-3 w-3 mr-1" />
-                        Check Status
+                        {t('common.checkStatus')}
                       </Button>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
                     <div className="flex items-center">
                       <DollarSign className="h-4 w-4 mr-1" />
@@ -448,16 +436,16 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                       <>
                         <div className="flex items-center">
                           <Users className="h-4 w-4 mr-1" />
-                          {bill.total_invitations || 0} invited
+                          {bill.total_invitations || 0} {t('bills.invited')}
                         </div>
                         {bill.creator_amount_owed && bill.status === 'finalized' && (
                           <>
                             <div className="flex items-center">
                               <DollarSign className="h-4 w-4 mr-1" />
-                              Your share: ${bill.creator_amount_owed}
+                              {t('bills.yourShare')}: ${bill.creator_amount_owed}
                             </div>
                             <Badge className={bill.creator_payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
-                              {bill.creator_payment_status === 'paid' ? 'You Paid' : 'Payment Pending'}
+                              {bill.creator_payment_status === 'paid' ? t('bills.youPaid') : t('bills.paymentPending')}
                             </Badge>
                           </>
                         )}
@@ -465,20 +453,20 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                     )}
                     {type === 'invited' && bill.creator_name && (
                       <div>
-                        Created by {bill.creator_name}
+                        {t('bills.createdBy')} {bill.creator_name}
                       </div>
                     )}
                     {(type === 'participating' || (type === 'all' && !bill._isCreator)) && (
                       <>
                         <div className="flex items-center">
                           <DollarSign className="h-4 w-4 mr-1" />
-                          You owe: ${bill.amount_owed}
+                          {t('bills.youOwe')}: ${bill.amount_owed}
                         </div>
                         {bill.creator_name && (
-                          <div>Created by {bill.creator_name}</div>
+                          <div>{t('bills.createdBy')} {bill.creator_name}</div>
                         )}
                         <Badge className={bill.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
-                          {bill.payment_status === 'paid' ? 'You Paid' : 'Payment Pending'}
+                          {bill.payment_status === 'paid' ? t('bills.youPaid') : t('bills.paymentPending')}
                         </Badge>
                       </>
                     )}
@@ -486,7 +474,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
 
                   {bill.due_date && (
                     <p className="text-sm text-gray-500">
-                      Due: {format(new Date(bill.due_date), 'MMM dd, yyyy')}
+                      {t('common.due')}: {format(new Date(bill.due_date), 'MMM dd, yyyy')}
                     </p>
                   )}
 
@@ -495,25 +483,25 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                     <div className="mt-3 flex space-x-2">
                       {bill.invitation_status === 'pending' && (
                         <Badge className="bg-orange-100 text-orange-800">
-                          Awaiting your response - ${bill.proposed_amount}
+                          {t('bills.awaitingResponse')} - ${bill.proposed_amount}
                         </Badge>
                       )}
                       {bill.invitation_status === 'accepted' && (
                         <Badge className="bg-green-100 text-green-800">
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          Accepted - ${bill.proposed_amount}
+                          {t('bills.accepted')} - ${bill.proposed_amount}
                         </Badge>
                       )}
                       {bill.invitation_status === 'rejected' && (
                         <Badge className="bg-red-100 text-red-800">
                           <XCircle className="h-3 w-3 mr-1" />
-                          Rejected
+                          {t('bills.rejected')}
                         </Badge>
                       )}
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex flex-wrap gap-2">
                   {type === 'invited' && bill.invitation_status === 'pending' && (
                     <Button
@@ -522,15 +510,14 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                       className="bg-green-600 hover:bg-green-700"
                     >
                       <CheckCircle className="h-4 w-4 mr-1" />
-                      Respond
+                      {t('common.respond')}
                     </Button>
                   )}
 
-                  {/* Mark as paid — for any participant (including creator) */}
+                  {/* Mark as paid */}
                   {(() => {
                     if (bill.status !== 'finalized') return null;
                     const isCreator = type === 'all' ? bill._isCreator : type === 'created';
-                    // Creator: use creator_payment_status from getCreatedBills
                     if (isCreator && bill.creator_payment_status === 'pending') {
                       return (
                         <Button
@@ -540,11 +527,10 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                           className="bg-green-600 hover:bg-green-700"
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
-                          {isMarkingPaid ? 'Processing...' : 'Pay'}
+                          {isMarkingPaid ? t('common.processing') : t('common.pay')}
                         </Button>
                       );
                     }
-                    // Participant: use payment_status from getParticipatingBills
                     if (!isCreator && bill.payment_status === 'pending') {
                       return (
                         <Button
@@ -554,7 +540,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                           className="bg-green-600 hover:bg-green-700"
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
-                          {isMarkingPaid ? 'Processing...' : 'Pay'}
+                          {isMarkingPaid ? t('common.processing') : t('common.pay')}
                         </Button>
                       );
                     }
@@ -579,7 +565,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                             className="bg-green-600 hover:bg-green-700"
                           >
                             <DollarSign className="h-4 w-4 mr-1" />
-                            {isPayingFull ? 'Processing...' : 'Pay'}
+                            {isPayingFull ? t('common.processing') : t('common.pay')}
                           </Button>
                         )}
                         {showSplit && (
@@ -589,7 +575,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                             onClick={(e) => { e.stopPropagation(); setSplitBill(bill); }}
                           >
                             <Users className="h-4 w-4 mr-1" />
-                            Split
+                            {t('common.split')}
                           </Button>
                         )}
                       </>
@@ -611,7 +597,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                           className="text-red-600 hover:bg-red-50 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
-                          Remove
+                          {t('common.remove')}
                         </Button>
                       );
                     }
@@ -625,7 +611,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
 
                     if (!canDelete) return null;
 
-                    const label = bill.bill_type === 'monthly' && !['draft', 'cancelled'].includes(bill.status) ? 'Cancel' : 'Delete';
+                    const label = bill.bill_type === 'monthly' && !['draft', 'cancelled'].includes(bill.status) ? t('common.cancel') : t('common.delete');
 
                     return (
                       <Button
@@ -646,7 +632,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                     size="sm"
                     onClick={() => onSelectBill(bill.id)}
                   >
-                    View Details
+                    {t('common.viewDetails')}
                   </Button>
                 </div>
               </div>
@@ -691,7 +677,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
             <p className="text-sm text-gray-600">{confirmModal.message}</p>
             <div className="flex justify-end gap-2 mt-4">
               <Button variant="outline" onClick={() => setConfirmModal(null)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button className={confirmModal.confirmClass} onClick={confirmModal.onConfirm}>
                 {confirmModal.confirmLabel}

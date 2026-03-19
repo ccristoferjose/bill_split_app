@@ -9,6 +9,7 @@ const morgan    = require('morgan');
 const { testConnection }      = require('./config/database');
 const { connectedUsers, setIo } = require('./utils/notifications');
 const { verifyConnection }    = require('./services/email.service');
+const { initScheduler }       = require('./services/notification-scheduler.service');
 const { verifyToken }         = require('./middleware/auth');
 
 // Route imports
@@ -18,7 +19,8 @@ const invitationRoutes  = require('./routes/invitation.routes');
 const paymentRoutes     = require('./routes/payment.routes');
 const userRoutes        = require('./routes/user.routes');
 const friendRoutes      = require('./routes/friend.routes');
-const transactionRoutes = require('./routes/transaction.routes');
+const transactionRoutes  = require('./routes/transaction.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 // Support multiple comma-separated origins: FRONTEND_URL=https://a.com,https://b.com
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
@@ -76,7 +78,8 @@ app.use('/bills',        verifyToken, paymentRoutes);
 app.use('/user',         verifyToken, userRoutes);
 app.use('/users',        verifyToken, userRoutes);
 app.use('/friends',      verifyToken, friendRoutes);
-app.use('/transactions', verifyToken, transactionRoutes);
+app.use('/transactions',  verifyToken, transactionRoutes);
+app.use('/notifications', verifyToken, notificationRoutes);
 
 // Initialize database and start server
 const startServer = async () => {
@@ -95,6 +98,9 @@ const startServer = async () => {
   if (!emailReady) {
     console.warn('[Warning] Email service unavailable — check SES credentials in .env');
   }
+
+  // Initialize scheduled notification jobs (payment reminders, weekly summaries)
+  initScheduler();
 
   const port = process.env.PORT || 5001;
   server.listen(port, () => {

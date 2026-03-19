@@ -1,4 +1,5 @@
 import './services/cognito'; // configure Amplify before anything else
+import './i18n'; // initialize i18n before rendering
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

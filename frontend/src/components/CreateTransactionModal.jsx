@@ -4,80 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import {
   Receipt, CalendarDays, ArrowDownCircle,
   UtensilsCrossed, Car, Popcorn, ShoppingBag, HeartPulse,
   Plane, RefreshCw, Zap, MoreHorizontal,
   Briefcase, Laptop, RotateCcw, Gift,
-  CalendarCheck2, CalendarClock, Settings2, X,
+  CalendarCheck2, CalendarClock, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreateTransactionMutation, useGetFriendsQuery } from '../services/api';
-
-// ─── constants ────────────────────────────────────────────────────────────────
-
-const TYPES = [
-  {
-    id: 'expense',
-    label: 'Expense',
-    icon: Receipt,
-    color: 'text-red-500',
-    description: 'Track a one-time purchase or spending event.',
-    titlePlaceholder: 'e.g., Starbucks Coffee',
-  },
-  {
-    id: 'bill',
-    label: 'Bill',
-    icon: CalendarDays,
-    color: 'text-blue-500',
-    description: 'Track a recurring payment like rent or subscriptions.',
-    titlePlaceholder: 'e.g., Netflix, Rent',
-  },
-  {
-    id: 'income',
-    label: 'Income',
-    icon: ArrowDownCircle,
-    color: 'text-green-500',
-    description: 'Track money received such as salary or freelance work.',
-    titlePlaceholder: 'e.g., Monthly Salary',
-  },
-];
-
-const MODAL_TITLE = { expense: 'Add Expense', bill: 'Add Recurring Bill', income: 'Add Income' };
-
-const EXPENSE_CATEGORIES = [
-  { value: 'food',          label: 'Food',          icon: UtensilsCrossed },
-  { value: 'transport',     label: 'Transport',     icon: Car             },
-  { value: 'entertainment', label: 'Fun',            icon: Popcorn         },
-  { value: 'shopping',      label: 'Shopping',      icon: ShoppingBag     },
-  { value: 'health',        label: 'Health',        icon: HeartPulse      },
-  { value: 'travel',        label: 'Travel',        icon: Plane           },
-  { value: 'subscriptions', label: 'Subs',          icon: RefreshCw       },
-  { value: 'utilities',     label: 'Utilities',     icon: Zap             },
-  { value: 'other',         label: 'Other',         icon: MoreHorizontal  },
-];
-
-const INCOME_CATEGORIES = [
-  { value: 'salary',    label: 'Salary',    icon: Briefcase      },
-  { value: 'freelance', label: 'Freelance', icon: Laptop         },
-  { value: 'refund',    label: 'Refund',    icon: RotateCcw      },
-  { value: 'bonus',     label: 'Bonus',     icon: Gift           },
-  { value: 'other',     label: 'Other',     icon: MoreHorizontal },
-];
-
-const RECURRENCE_OPTIONS = [
-  { value: 'monthly', label: 'Monthly', icon: CalendarDays   },
-  { value: 'weekly',  label: 'Weekly',  icon: CalendarCheck2 },
-  { value: 'yearly',  label: 'Yearly',  icon: CalendarClock  },
-];
-
-// Dropdown-compatible lists (kept for the hidden fallback selects)
-const EXPENSE_CATEGORIES_FLAT = EXPENSE_CATEGORIES.map(c => c.label);
-const INCOME_CATEGORIES_FLAT  = INCOME_CATEGORIES.map(c => c.label);
-
-const today = new Date().toISOString().split('T')[0];
+import { useTranslation } from 'react-i18next';
 
 // ─── ChipGroup ────────────────────────────────────────────────────────────────
 
@@ -108,6 +45,69 @@ const ChipGroup = ({ options, value, onChange, activeColor = 'bg-gray-900 text-w
 // ─── component ────────────────────────────────────────────────────────────────
 
 const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
+  const { t } = useTranslation();
+
+  const TYPES = [
+    {
+      id: 'expense',
+      label: t('createTransaction.expense'),
+      icon: Receipt,
+      color: 'text-red-500',
+      description: t('createTransaction.expenseDesc'),
+      titlePlaceholder: t('createTransaction.expensePlaceholder'),
+    },
+    {
+      id: 'bill',
+      label: t('createTransaction.bill'),
+      icon: CalendarDays,
+      color: 'text-blue-500',
+      description: t('createTransaction.billDesc'),
+      titlePlaceholder: t('createTransaction.billPlaceholder'),
+    },
+    {
+      id: 'income',
+      label: t('createTransaction.income'),
+      icon: ArrowDownCircle,
+      color: 'text-green-500',
+      description: t('createTransaction.incomeDesc'),
+      titlePlaceholder: t('createTransaction.incomePlaceholder'),
+    },
+  ];
+
+  const MODAL_TITLE = {
+    expense: t('createTransaction.addExpense'),
+    bill: t('createTransaction.addBill'),
+    income: t('createTransaction.addIncome'),
+  };
+
+  const EXPENSE_CATEGORIES = [
+    { value: 'food',          label: t('createTransaction.food'),      icon: UtensilsCrossed },
+    { value: 'transport',     label: t('createTransaction.transport'), icon: Car             },
+    { value: 'entertainment', label: t('createTransaction.fun'),       icon: Popcorn         },
+    { value: 'shopping',      label: t('createTransaction.shopping'),  icon: ShoppingBag     },
+    { value: 'health',        label: t('createTransaction.health'),    icon: HeartPulse      },
+    { value: 'travel',        label: t('createTransaction.travel'),    icon: Plane           },
+    { value: 'subscriptions', label: t('createTransaction.subs'),      icon: RefreshCw       },
+    { value: 'utilities',     label: t('createTransaction.utilities'), icon: Zap             },
+    { value: 'other',         label: t('createTransaction.other'),     icon: MoreHorizontal  },
+  ];
+
+  const INCOME_CATEGORIES = [
+    { value: 'salary',    label: t('createTransaction.salary'),    icon: Briefcase      },
+    { value: 'freelance', label: t('createTransaction.freelance'), icon: Laptop         },
+    { value: 'refund',    label: t('createTransaction.refund'),    icon: RotateCcw      },
+    { value: 'bonus',     label: t('createTransaction.bonus'),     icon: Gift           },
+    { value: 'other',     label: t('createTransaction.other'),     icon: MoreHorizontal },
+  ];
+
+  const RECURRENCE_OPTIONS = [
+    { value: 'monthly', label: t('createTransaction.monthly'), icon: CalendarDays   },
+    { value: 'weekly',  label: t('createTransaction.weekly'),  icon: CalendarCheck2 },
+    { value: 'yearly',  label: t('createTransaction.yearly'),  icon: CalendarClock  },
+  ];
+
+  const today = new Date().toISOString().split('T')[0];
+
   const [txType, setTxType] = useState('expense');
   const [formData, setFormData] = useState({
     title:        '',
@@ -126,8 +126,6 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
   const [createTransaction, { isLoading }] = useCreateTransactionMutation();
   const { data: friendsData } = useGetFriendsQuery(userId);
   const friends = friendsData?.friends || [];
-
-  // ── helpers ──────────────────────────────────────────────────────────────
 
   const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
 
@@ -148,10 +146,9 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
     setPercentInputValues({});
   };
 
-  // Redistribute percentages evenly across all participants (excluding creator)
   const redistributeEvenly = (participants) => {
     if (participants.length === 0) return [];
-    const totalPeople = participants.length + 1; // +1 for creator
+    const totalPeople = participants.length + 1;
     const pct = parseFloat((100 / totalPeople).toFixed(1));
     return participants.map(p => ({ ...p, percentage: pct }));
   };
@@ -170,8 +167,6 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
     setAmountInputValues({});
     setPercentInputValues({});
   };
-
-  // ── split helpers ─────────────────────────────────────────────────────────
 
   const getMaxPercentageForUser = (userId) => {
     const othersTotal = formData.participants
@@ -230,8 +225,8 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
   const getParticipantAmountError = (userId, amount) => {
     const raw = amountInputValues[userId];
     const num = raw !== undefined ? parseFloat(raw) : parseFloat(amount);
-    if (isNaN(num) || num <= 0) return 'Amount must be greater than $0';
-    if (num > totalAmount) return `Exceeds total $${totalAmount.toFixed(2)}`;
+    if (isNaN(num) || num <= 0) return t('createTransaction.amountMustBeGreater');
+    if (num > totalAmount) return t('createTransaction.exceedsTotal', { total: totalAmount.toFixed(2) });
     return null;
   };
 
@@ -242,21 +237,19 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
     return true;
   };
 
-  // ── submit ───────────────────────────────────────────────────────────────
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (formData.participants.length > 0) {
       if (getTotalPercentage() > 100) {
-        toast.error(`Split total exceeds 100% (${getTotalPercentage()}%). Adjust the split.`);
+        toast.error(t('createTransaction.splitExceedsError', { total: getTotalPercentage() }));
         return;
       }
       const zeroUsers = formData.participants.filter(
         p => parseFloat(getCalculatedAmount(p.percentage || 0)) <= 0
       );
       if (zeroUsers.length > 0) {
-        toast.error(`${zeroUsers.map(p => p.username).join(', ')} would owe $0. Adjust the split.`);
+        toast.error(t('createTransaction.zeroAmountError', { users: zeroUsers.map(p => p.username).join(', ') }));
         return;
       }
     }
@@ -278,26 +271,21 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
           amount_owed: parseFloat(getCalculatedAmount(p.percentage || 0)),
         })),
       }).unwrap();
-      toast.success(`${MODAL_TITLE[txType]} added successfully!`);
+      toast.success(t('createTransaction.addedSuccess', { type: MODAL_TITLE[txType] }));
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || 'Failed to save transaction');
+      toast.error(err?.data?.message || t('createTransaction.failedSave'));
     }
   };
-
-  // ── derived ──────────────────────────────────────────────────────────────
 
   const activeType       = TYPES.find(t => t.id === txType);
   const showSplit        = txType !== 'income';
   const showCategory     = txType !== 'bill';
   const categoryChips    = txType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-  const categoryFlat     = txType === 'income' ? INCOME_CATEGORIES_FLAT : EXPENSE_CATEGORIES_FLAT;
 
   const filteredFriends  = friends.filter(f =>
     f.username.toLowerCase().includes(friendSearch.toLowerCase())
   );
-
-  // ── render ───────────────────────────────────────────────────────────────
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -339,7 +327,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
 
           {/* Title */}
           <div>
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title">{t('createTransaction.title')} *</Label>
             <Input
               id="title"
               value={formData.title}
@@ -351,7 +339,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
 
           {/* Amount */}
           <div>
-            <Label htmlFor="amount">Amount *</Label>
+            <Label htmlFor="amount">{t('createTransaction.amount')} *</Label>
             <Input
               id="amount"
               type="number"
@@ -367,7 +355,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
           {/* Date — Expense & Income */}
           {txType !== 'bill' && (
             <div className="transition-all duration-200 animate-in fade-in slide-in-from-top-1">
-              <Label htmlFor="date">Date *</Label>
+              <Label htmlFor="date">{t('createTransaction.date')} *</Label>
               <Input
                 id="date"
                 type="date"
@@ -381,7 +369,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
           {/* Due Date — Bill only */}
           {txType === 'bill' && (
             <div className="transition-all duration-200 animate-in fade-in slide-in-from-top-1">
-              <Label htmlFor="due_date">Due Date *</Label>
+              <Label htmlFor="due_date">{t('createTransaction.dueDate')} *</Label>
               <Input
                 id="due_date"
                 type="date"
@@ -392,25 +380,24 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
             </div>
           )}
 
-          {/* Recurrence — Bill only (pill chips + dropdown fallback) */}
+          {/* Recurrence — Bill only */}
           {txType === 'bill' && (
             <div className="transition-all duration-200 animate-in fade-in slide-in-from-top-1 space-y-2">
-              <Label>Recurrence *</Label>
+              <Label>{t('createTransaction.recurrence')} *</Label>
               <ChipGroup
                 options={RECURRENCE_OPTIONS}
                 value={formData.recurrence}
                 onChange={(v) => set('recurrence', v)}
                 activeColor="bg-blue-600 text-white border-blue-600"
               />
-              
             </div>
           )}
 
-          {/* Category — icon chips + dropdown fallback */}
+          {/* Category */}
           {showCategory && (
             <div className="transition-all duration-200 animate-in fade-in slide-in-from-top-1 space-y-2">
               <Label>
-                Category{txType === 'expense' ? ' *' : ' (optional)'}
+                {txType === 'expense' ? `${t('createTransaction.category')} *` : t('createTransaction.categoryOptional')}
               </Label>
               <ChipGroup
                 options={categoryChips}
@@ -418,7 +405,6 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                 onChange={(v) => set('category', v)}
                 activeColor={txType === 'income' ? 'bg-green-600 text-white border-green-600' : 'bg-red-500 text-white border-red-500'}
               />
-              
             </div>
           )}
 
@@ -426,16 +412,16 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
           {showSplit && (
             <div className="transition-all duration-200 animate-in fade-in slide-in-from-top-1 space-y-3">
               <Label>
-                Split with Friends{txType === 'expense' ? ' (optional)' : ''}
+                {txType === 'expense' ? t('createTransaction.splitOptional') : t('createTransaction.splitWithFriends')}
               </Label>
 
               {friends.length === 0 ? (
-                <p className="text-xs text-gray-400">No friends added yet. Add friends to split transactions.</p>
+                <p className="text-xs text-gray-400">{t('createTransaction.noFriends')}</p>
               ) : (
                 <>
                   {/* Friend picker */}
                   <Input
-                    placeholder="Search friends..."
+                    placeholder={t('createTransaction.searchFriends')}
                     value={friendSearch}
                     onChange={(e) => setFriendSearch(e.target.value)}
                   />
@@ -455,7 +441,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                           ].join(' ')}
                         >
                           {friend.username}
-                          {selected && <span className="ml-2 text-xs text-blue-500">✓ selected</span>}
+                          {selected && <span className="ml-2 text-xs text-blue-500">✓ {t('createTransaction.selected')}</span>}
                         </button>
                       );
                     })}
@@ -464,10 +450,10 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                   {/* Split configuration */}
                   {formData.participants.length > 0 && (
                     <div className="border rounded-lg p-3 space-y-4 bg-gray-50">
-                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Split Configuration</p>
+                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">{t('createTransaction.splitConfig')}</p>
 
                       {totalAmount <= 0 && (
-                        <p className="text-xs text-amber-600">Enter an amount above to see dollar values.</p>
+                        <p className="text-xs text-amber-600">{t('createTransaction.enterAmount')}</p>
                       )}
 
                       {formData.participants.map(p => {
@@ -492,7 +478,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                               <div className="flex justify-between text-xs text-gray-400">
                                 <span>0%</span>
                                 <span className="font-medium text-gray-600">{p.percentage || 0}%</span>
-                                <span className={maxPct < 100 ? 'text-blue-500 font-medium' : ''}>{maxPct}% max</span>
+                                <span className={maxPct < 100 ? 'text-blue-500 font-medium' : ''}>{maxPct}% {t('createTransaction.max')}</span>
                               </div>
                               <input
                                 type="range"
@@ -547,9 +533,9 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                       <div className="space-y-1.5 pt-1 border-t">
                         <div className="space-y-0.5">
                           <div className="flex justify-between text-xs text-gray-500">
-                            <span>Split progress</span>
+                            <span>{t('createTransaction.splitProgress')}</span>
                             <span className={getTotalPercentage() > 100 ? 'text-red-600 font-medium' : ''}>
-                              {getTotalPercentage()}% assigned
+                              {getTotalPercentage()}% {t('createTransaction.assigned')}
                             </span>
                           </div>
                           <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -561,11 +547,11 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                         </div>
                         {getTotalPercentage() > 100 && (
                           <p className="text-xs text-red-600 font-medium">
-                            Over by {(getTotalPercentage() - 100).toFixed(1)}%. Reduce one or more shares.
+                            {t('createTransaction.overBy', { amount: (getTotalPercentage() - 100).toFixed(1) })}
                           </p>
                         )}
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-600">Your share:</span>
+                          <span className="text-gray-600">{t('createTransaction.yourShare')}:</span>
                           <Badge variant="outline" className="text-xs py-0">
                             {getCreatorPercentage()}%{totalAmount > 0 ? ` ($${getCalculatedAmount(getCreatorPercentage())})` : ''}
                           </Badge>
@@ -580,21 +566,21 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
 
           {/* Notes */}
           <div>
-            <Label htmlFor="notes">Notes (optional)</Label>
+            <Label htmlFor="notes">{t('createTransaction.notes')}</Label>
             <Textarea
               id="notes"
               value={formData.notes}
               onChange={(e) => set('notes', e.target.value)}
-              placeholder="Add any additional notes..."
+              placeholder={t('createTransaction.notesPlaceholder')}
               rows={2}
             />
           </div>
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
             <Button type="submit" disabled={isLoading || !isSplitValid()}>
-              {isLoading ? 'Saving...' : MODAL_TITLE[txType]}
+              {isLoading ? t('common.saving') : MODAL_TITLE[txType]}
             </Button>
           </div>
         </form>

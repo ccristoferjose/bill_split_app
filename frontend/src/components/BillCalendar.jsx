@@ -21,40 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import BillCard from './BillCard';
 import TransactionBillDetailModal from './TransactionBillDetailModal';
 import TransactionDetailModal from './TransactionDetailModal';
-
-// ─── constants ────────────────────────────────────────────────────────────────
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-const TX_CONFIG = {
-  expense: {
-    icon:         Receipt,
-    dotClass:     'bg-red-400',
-    bgClass:      'bg-red-50',
-    iconColor:    'text-red-500',
-    amountColor:  'text-red-500',
-    amountPrefix: '-',
-    label:        'Expense',
-  },
-  bill: {
-    icon:         CalendarDays,
-    dotClass:     'bg-orange-400',
-    bgClass:      'bg-orange-50',
-    iconColor:    'text-orange-500',
-    amountColor:  'text-blue-500',
-    amountPrefix: '-',
-    label:        'Recurring Bill',
-  },
-  income: {
-    icon:         ArrowDownCircle,
-    dotClass:     'bg-green-500',
-    bgClass:      'bg-green-50',
-    iconColor:    'text-green-600',
-    amountColor:  'text-green-600',
-    amountPrefix: '+',
-    label:        'Income',
-  },
-};
+import { useTranslation } from 'react-i18next';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -70,16 +37,11 @@ const parseLocalDate = (raw) => {
 const effectiveBillingDay = (anchorDay, date) =>
   Math.min(anchorDay, endOfMonth(date).getDate());
 
-/**
- * Returns how many times a weekly bill occurs within the given month.
- * Used for stats (multiplier) and expansion in the timeline.
- */
 const getWeeklyOccurrencesInMonth = (startDate, monthDate) => {
   const monthStart = startOfMonth(monthDate);
   const monthEnd   = endOfMonth(monthDate);
   if (startDate > monthEnd) return 0;
   let d = new Date(startDate.getTime());
-  // Advance to first occurrence on or after monthStart
   while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
   let count = 0;
   while (d <= monthEnd) {
@@ -106,9 +68,7 @@ const isTransactionOnDate = (tx, date) => {
   if (tx.type === 'bill' && tx.recurrence === 'monthly') {
     const startDate = parseLocalDate(tx.due_date);
     if (!startDate) return false;
-    // Bill must have started on or before this month
     if (startOfMonth(date) < startOfMonth(startDate)) return false;
-    // Show on the anchor day, clamped to last day of each month
     return date.getDate() === Math.min(startDate.getDate(), endOfMonth(date).getDate());
   }
   if (tx.type === 'bill' && tx.recurrence === 'weekly') {
@@ -121,17 +81,12 @@ const isTransactionOnDate = (tx, date) => {
   return txDate ? isSameDay(txDate, date) : false;
 };
 
-/**
- * Returns the amount this user is actually responsible for on a transaction,
- * accounting for accepted participant splits.
- */
 const getEffectiveTxAmount = (tx, userId) => {
   const full = parseFloat(tx.amount || 0);
   if (tx._role === 'participant') {
     const myRecord = (tx.participants || []).find(p => String(p.user_id) === String(userId));
     return myRecord ? parseFloat(myRecord.amount_owed) : full;
   }
-  // Owner: subtract accepted participants' shares
   const acceptedTotal = (tx.participants || [])
     .filter(p => p.invitation_status === 'accepted')
     .reduce((s, p) => s + parseFloat(p.amount_owed), 0);
@@ -141,6 +96,7 @@ const getEffectiveTxAmount = (tx, userId) => {
 // ─── MonthlySummary ───────────────────────────────────────────────────────────
 
 const MonthlySummary = ({ income, expenses, bills, month }) => {
+  const { t } = useTranslation();
   const remaining  = income - expenses - bills;
   const totalSpend = expenses + bills;
   const isOverspent = remaining < 0;
@@ -157,31 +113,31 @@ const MonthlySummary = ({ income, expenses, bills, month }) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h2 className="text-sm sm:text-base font-semibold text-gray-800">
-            {format(month, 'MMMM yyyy')} Summary
+            {format(month, 'MMMM yyyy')} {t('calendar.summary')}
           </h2>
           {isOverspent && (
             <Badge className="bg-red-50 text-red-600 border-red-200 text-xs font-medium shrink-0">
-              Over by ${fmt(Math.abs(remaining))}
+              {t('calendar.overBy')} ${fmt(Math.abs(remaining))}
             </Badge>
           )}
         </div>
 
-        {/* Stats grid: 2 cols on mobile, 4 on sm+ */}
+        {/* Stats grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-5">
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">Income</p>
+            <p className="text-xs text-gray-400 mb-0.5">{t('calendar.income')}</p>
             <p className="text-lg sm:text-xl font-bold text-green-600">${fmt(income)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">Expenses</p>
+            <p className="text-xs text-gray-400 mb-0.5">{t('calendar.expenses')}</p>
             <p className="text-lg sm:text-xl font-bold text-red-500">${fmt(expenses)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">Bills</p>
+            <p className="text-xs text-gray-400 mb-0.5">{t('calendar.billsLabel')}</p>
             <p className="text-lg sm:text-xl font-bold text-blue-500">${fmt(bills)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">Remaining</p>
+            <p className="text-xs text-gray-400 mb-0.5">{t('calendar.remaining')}</p>
             <p className={`text-lg sm:text-xl font-bold flex items-center gap-1 ${isOverspent ? 'text-red-600' : 'text-gray-800'}`}>
               {isOverspent
                 ? <TrendingDown className="h-4 w-4 shrink-0" />
@@ -203,40 +159,40 @@ const MonthlySummary = ({ income, expenses, bills, month }) => {
                   <div
                     className="bg-blue-400 h-full transition-all duration-500"
                     style={{ width: `${billPct}%` }}
-                    title={`Bills: $${fmt(bills)}`}
+                    title={`${t('calendar.billsLabel')}: $${fmt(bills)}`}
                   />
                 )}
                 {expPct > 0 && (
                   <div
                     className="bg-red-400 h-full transition-all duration-500"
                     style={{ width: `${expPct}%` }}
-                    title={`Expenses: $${fmt(expenses)}`}
+                    title={`${t('calendar.expenses')}: $${fmt(expenses)}`}
                   />
                 )}
                 {remPct > 0 && (
                   <div
                     className="bg-gray-200 h-full transition-all duration-500"
                     style={{ width: `${remPct}%` }}
-                    title={`Remaining: $${fmt(remaining)}`}
+                    title={`${t('calendar.remaining')}: $${fmt(remaining)}`}
                   />
                 )}
               </div>
             </div>
             <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-400">
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-sm bg-blue-400 inline-block" />Bills
+                <span className="w-2 h-2 rounded-sm bg-blue-400 inline-block" />{t('calendar.billsLabel')}
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-sm bg-red-400 inline-block" />Expenses
+                <span className="w-2 h-2 rounded-sm bg-red-400 inline-block" />{t('calendar.expenses')}
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-sm bg-gray-200 border inline-block" />Remaining
+                <span className="w-2 h-2 rounded-sm bg-gray-200 border inline-block" />{t('calendar.remaining')}
               </span>
             </div>
           </div>
         ) : (
           <p className="text-sm text-gray-400 text-center py-1">
-            No transactions recorded for {format(month, 'MMMM yyyy')}
+            {t('calendar.noTransactions', { month: format(month, 'MMMM yyyy') })}
           </p>
         )}
       </CardContent>
@@ -247,6 +203,38 @@ const MonthlySummary = ({ income, expenses, bills, month }) => {
 // ─── TransactionRow ───────────────────────────────────────────────────────────
 
 const TransactionRow = ({ transaction, onClick }) => {
+  const { t } = useTranslation();
+
+  const TX_CONFIG = {
+    expense: {
+      icon:         Receipt,
+      dotClass:     'bg-red-400',
+      bgClass:      'bg-red-50',
+      iconColor:    'text-red-500',
+      amountColor:  'text-red-500',
+      amountPrefix: '-',
+      label:        t('calendar.expense'),
+    },
+    bill: {
+      icon:         CalendarDays,
+      dotClass:     'bg-orange-400',
+      bgClass:      'bg-orange-50',
+      iconColor:    'text-orange-500',
+      amountColor:  'text-blue-500',
+      amountPrefix: '-',
+      label:        t('calendar.recurringBill'),
+    },
+    income: {
+      icon:         ArrowDownCircle,
+      dotClass:     'bg-green-500',
+      bgClass:      'bg-green-50',
+      iconColor:    'text-green-600',
+      amountColor:  'text-green-600',
+      amountPrefix: '+',
+      label:        t('calendar.income'),
+    },
+  };
+
   const cfg  = TX_CONFIG[transaction.type] || TX_CONFIG.expense;
   const Icon = cfg.icon;
   const dateStr = transaction.type === 'bill' ? transaction.due_date : transaction.date;
@@ -268,7 +256,7 @@ const TransactionRow = ({ transaction, onClick }) => {
             {cfg.label}
             {transaction.category && <> · <span className="capitalize">{transaction.category}</span></>}
             {txDate && <> · {format(txDate, 'MMM d')}</>}
-            {transaction.is_shared && <> · <span className="text-blue-400">Shared</span></>}
+            {transaction.is_shared && <> · <span className="text-blue-400">{t('calendar.shared')}</span></>}
           </p>
         </div>
       </div>
@@ -284,13 +272,14 @@ const TransactionRow = ({ transaction, onClick }) => {
 // ─── TransactionTimeline ──────────────────────────────────────────────────────
 
 const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }) => {
+  const { t } = useTranslation();
+
   const groups = useMemo(() => {
     const year  = currentMonth.getFullYear();
     const month = currentMonth.getMonth() + 1;
     const monthStart = startOfMonth(currentMonth);
     const monthEnd   = endOfMonth(currentMonth);
 
-    // Expand weekly bills into one virtual entry per occurrence in this month
     const expanded = [];
     transactions.forEach(tx => {
       if (tx.type === 'bill' && tx.recurrence === 'weekly') {
@@ -307,7 +296,6 @@ const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }
       }
     });
 
-    // Compute the display date key for a tx in the context of currentMonth
     const getDateKey = (tx) => {
       if (tx._weeklyDate) return tx._weeklyDate;
       if (tx.type === 'bill' && tx.recurrence === 'monthly') {
@@ -320,7 +308,7 @@ const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }
     };
 
     const monthTxs = expanded.filter(tx => {
-      if (tx._weeklyDate) return true; // already scoped to this month during expansion
+      if (tx._weeklyDate) return true;
       if (tx.type === 'bill' && tx.recurrence === 'monthly') {
         const startDate = parseLocalDate(tx.due_date);
         return startDate ? startOfMonth(startDate) <= monthStart : false;
@@ -346,7 +334,7 @@ const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }
     return (
       <div className="text-center py-8 text-gray-400">
         <Calendar className="h-7 w-7 mx-auto mb-2 opacity-30" />
-        <p className="text-sm">No transactions in {format(currentMonth, 'MMMM yyyy')}</p>
+        <p className="text-sm">{t('calendar.noTransactionsInMonth', { month: format(currentMonth, 'MMMM yyyy') })}</p>
       </div>
     );
   }
@@ -358,7 +346,7 @@ const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }
         const isCurrentDay = groupDate ? isToday(groupDate) : false;
         const dateLabel    = groupDate
           ? isCurrentDay
-            ? `Today · ${format(groupDate, 'MMM d')}`
+            ? `${t('common.today')} · ${format(groupDate, 'MMM d')}`
             : format(groupDate, 'MMM d, yyyy')
           : dateStr;
 
@@ -386,16 +374,21 @@ const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }
 // ─── BillCalendar ─────────────────────────────────────────────────────────────
 
 const BillCalendar = ({ userId, onSelectBill }) => {
+  const { t } = useTranslation();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate]  = useState(new Date());
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+  const WEEKDAYS = [
+    t('calendar.weekdays.sun'), t('calendar.weekdays.mon'), t('calendar.weekdays.tue'),
+    t('calendar.weekdays.wed'), t('calendar.weekdays.thu'), t('calendar.weekdays.fri'),
+    t('calendar.weekdays.sat')
+  ];
 
   const { data: createdBills,        refetch: refetchCreated        } = useGetUserCreatedBillsQuery(userId);
   const { data: participatingBills,  refetch: refetchParticipating  } = useGetUserParticipatingBillsQuery(userId);
   const { data: monthlyPaymentsData, refetch: refetchPayments        } = useGetMonthlyPaymentsQuery(userId);
   const { data: transactionsData,    refetch: refetchTransactions    } = useGetUserTransactionsQuery(userId);
-
-  // ── derived data ──────────────────────────────────────────────────────────
 
   const allBills = useMemo(() => {
     const created       = (createdBills?.bills      || []).map(b => ({ ...b, _isCreator: true  }));
@@ -418,8 +411,6 @@ const BillCalendar = ({ userId, onSelectBill }) => {
     return set;
   }, [monthlyPaymentsData]);
 
-  // ── monthly financial stats ───────────────────────────────────────────────
-
   const monthlyStats = useMemo(() => {
     const year       = currentMonth.getFullYear();
     const month      = currentMonth.getMonth() + 1;
@@ -432,14 +423,12 @@ const BillCalendar = ({ userId, onSelectBill }) => {
       return y === year && m === month;
     };
 
-    // Monthly-recurring bills are active every month from their start month onward
     const isMonthlyActive = (tx) => {
       if (tx.type !== 'bill' || tx.recurrence !== 'monthly') return false;
       const startDate = parseLocalDate(tx.due_date);
       return startDate ? startOfMonth(startDate) <= monthStart : false;
     };
 
-    // Weekly bills are active in any month that has at least one occurrence
     const isWeeklyActive = (tx) => {
       if (tx.type !== 'bill' || tx.recurrence !== 'weekly') return false;
       const startDate = parseLocalDate(tx.due_date);
@@ -469,8 +458,6 @@ const BillCalendar = ({ userId, onSelectBill }) => {
     };
   }, [currentMonth, allTransactions, userId]);
 
-  // ── calendar grid ─────────────────────────────────────────────────────────
-
   const calendarDays = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const days  = eachDayOfInterval({ start, end: endOfMonth(currentMonth) });
@@ -498,8 +485,6 @@ const BillCalendar = ({ userId, onSelectBill }) => {
     return map;
   }, [currentMonth, allBills, allTransactions]);
 
-  // ── selected-date items (both service bills AND transactions) ────────────
-
   const selectedBills = useMemo(
     () => allBills.filter(b => isBillActiveOnDate(b, selectedDate)),
     [selectedDate, allBills]
@@ -517,12 +502,12 @@ const BillCalendar = ({ userId, onSelectBill }) => {
     refetchTransactions();
   };
 
-  // ── render ────────────────────────────────────────────────────────────────
+  const itemCount = selectedBills.length + selectedTransactions.length;
 
   return (
     <div className="space-y-4 sm:space-y-6">
 
-      {/* 1 ── Monthly financial summary (full width) */}
+      {/* 1 ── Monthly financial summary */}
       <MonthlySummary
         income={monthlyStats.income}
         expenses={monthlyStats.expenses}
@@ -530,7 +515,7 @@ const BillCalendar = ({ userId, onSelectBill }) => {
         month={currentMonth}
       />
 
-      {/* 2 ── Responsive grid: Calendar (2/3) | Timeline (1/3) */}
+      {/* 2 ── Responsive grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-start">
 
         {/* ── Left column: calendar + selected-day bills ── */}
@@ -549,7 +534,6 @@ const BillCalendar = ({ userId, onSelectBill }) => {
                 </Button>
               </div>
 
-              {/* Prevent overflow on very narrow screens */}
               <div className="overflow-x-auto">
                 <div className="min-w-[280px]">
                   {/* Weekday headers */}
@@ -603,29 +587,28 @@ const BillCalendar = ({ userId, onSelectBill }) => {
 
               {/* Dot legend */}
               <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t text-xs text-gray-400">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500   inline-block" /> Bill</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" /> Recurring</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400    inline-block" /> Expense</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500  inline-block" /> Income</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500   inline-block" /> {t('calendar.bill')}</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" /> {t('calendar.recurring')}</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400    inline-block" /> {t('calendar.expense')}</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500  inline-block" /> {t('calendar.income')}</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Selected-day activity: service bills + transactions */}
+          {/* Selected-day activity */}
           <div>
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 sm:mb-3">
-              {isToday(selectedDate) ? 'Today' : format(selectedDate, 'MMM d, yyyy')}
-              {' '}— {selectedBills.length + selectedTransactions.length} item{selectedBills.length + selectedTransactions.length !== 1 ? 's' : ''}
+              {isToday(selectedDate) ? t('common.today') : format(selectedDate, 'MMM d, yyyy')}
+              {' '}&mdash; {itemCount} {itemCount !== 1 ? t('calendar.items') : t('calendar.item')}
             </h3>
 
             {selectedBills.length === 0 && selectedTransactions.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
                 <Calendar className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No activity on this date</p>
+                <p className="text-sm">{t('calendar.noActivityOnDate')}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {/* Service bills (existing BillCard system with payment buttons) */}
                 {selectedBills.map(bill => (
                   <BillCard
                     key={`bill-${bill.id}`}
@@ -638,7 +621,6 @@ const BillCalendar = ({ userId, onSelectBill }) => {
                   />
                 ))}
 
-                {/* Transactions for this date */}
                 {selectedTransactions.length > 0 && (
                   <Card>
                     <CardContent className="p-2 sm:p-3 divide-y divide-gray-50">
@@ -662,9 +644,8 @@ const BillCalendar = ({ userId, onSelectBill }) => {
           <Card className="lg:sticky lg:top-20">
             <CardContent className="p-3 sm:p-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-3 sm:mb-4">
-                {format(currentMonth, 'MMMM yyyy')} Transactions
+                {format(currentMonth, 'MMMM yyyy')} {t('calendar.transactions')}
               </h3>
-              {/* Scrollable on desktop so it doesn't grow the page */}
               <div className="lg:max-h-[calc(100vh-14rem)] lg:overflow-y-auto lg:pr-1">
                 <TransactionTimeline
                   transactions={allTransactions}

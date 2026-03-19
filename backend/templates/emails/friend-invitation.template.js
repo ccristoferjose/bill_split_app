@@ -1,6 +1,6 @@
 'use strict';
 
-const { baseTemplate } = require('./base.template');
+const { baseTemplate, avatarHtml } = require('./base.template');
 
 /**
  * Template for a friend request / invitation.
@@ -20,55 +20,62 @@ const friendInvitationTemplate = ({
   message,
   invitationId,
 }) => {
-  const appUrl    = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const acceptUrl = `${appUrl}/friends/invitations/${invitationId}?action=accept`;
-  const declineUrl= `${appUrl}/friends/invitations/${invitationId}?action=decline`;
-  const profileUrl= `${appUrl}/users/${senderUsername}`;
+  const appUrl     = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const acceptUrl  = `${appUrl}/friends/invitations/${invitationId}?action=accept`;
+  const declineUrl = `${appUrl}/friends/invitations/${invitationId}?action=decline`;
+  const profileUrl = `${appUrl}/users/${senderUsername}`;
 
   const content = /* html */ `
-    <h2>You have a new friend request! 🤝</h2>
+    <h2>New friend request!</h2>
 
-    <p>
-      Hi <strong>${recipientName}</strong>,<br/>
-      <strong>${senderName}</strong> (<em>@${senderUsername}</em>) wants to connect with you
-      on BillSplit so you can start splitting bills together.
+    <p>Hi <strong>${recipientName}</strong>,</p>
+
+    <!-- Sender profile card -->
+    <div style="text-align:center;margin:24px 0;">
+      <div style="margin-bottom:12px;">
+        ${avatarHtml(senderName)}
+      </div>
+      <p style="margin:0;font-size:17px;font-weight:700;color:#111827;">${senderName}</p>
+      <p style="margin:2px 0 0;font-size:14px;color:#6b7280;">@${senderUsername}</p>
+    </div>
+
+    <p style="text-align:center;color:#4b5563;">
+      wants to connect with you so you can start splitting bills together.
     </p>
 
     ${message ? `
-    <!-- Personal message card -->
-    <div class="info-card" style="border-left: 4px solid #4F46E5;">
-      <p style="margin:0;font-style:italic;color:#374151;">
-        💬 &ldquo;${message}&rdquo;
-      </p>
-      <p style="margin:8px 0 0;font-size:13px;color:#6b7280;">— ${senderName}</p>
+    <!-- Personal message -->
+    <div class="quote-card">
+      <p>&ldquo;${message}&rdquo;</p>
+      <p class="quote-author">&mdash; ${senderName}</p>
     </div>
     ` : ''}
 
     <!-- Sender info card -->
-    <div class="info-card">
+    <div class="info-card" role="table" aria-label="Sender details">
       <table>
         <tr>
-          <td class="label">👤 Name</td>
+          <td class="label">Name</td>
           <td class="value">${senderName}</td>
         </tr>
         <tr>
-          <td class="label" style="border-bottom:none;">🔖 Username</td>
-          <td class="value" style="border-bottom:none;">@${senderUsername}</td>
+          <td class="label">Username</td>
+          <td class="value">@${senderUsername}</td>
         </tr>
       </table>
     </div>
 
     <div class="btn-wrapper">
-      <a href="${acceptUrl}" class="btn">✓ Accept Request</a>
-      <a href="${declineUrl}" class="btn-secondary">✗ Decline</a>
+      <a href="${acceptUrl}" class="btn-success" role="button">Accept Request</a>
+      <a href="${declineUrl}" class="btn-secondary" role="button">Decline</a>
     </div>
 
     <hr class="divider" />
 
     <p style="font-size:13px;color:#9ca3af;text-align:center;">
       Want to check their profile first?
-      <a href="${profileUrl}" style="color:#4F46E5;font-weight:600;">
-        View @${senderUsername}'s profile →
+      <a href="${profileUrl}" style="font-weight:600;">
+        View @${senderUsername}'s profile &rarr;
       </a>
     </p>
   `;
