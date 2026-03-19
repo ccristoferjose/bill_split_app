@@ -8,6 +8,7 @@ import Login from './components/Login'
 import Register from './components/Register'
 import Dashboard from './components/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
+import ForgotPassword from './components/ForgotPassword'
 import { SocketProvider } from './contexts/SocketContext'
 import { Toaster } from 'sonner'
 
@@ -29,6 +30,10 @@ function App() {
           <Route
             path="/register"
             element={user ? <Navigate to="/dashboard" replace /> : <Register />}
+          />
+          <Route
+            path="/forgot-password"
+            element={user ? <Navigate to="/dashboard" replace /> : <ForgotPassword />}
           />
           <Route
             path="/dashboard"
