@@ -90,8 +90,26 @@
     "submitting": "Logging in...",
     "needAccount": "Need an account?",
     "register": "Register",
+    "forgotPassword": "Forgot your password?",
     "failed": "Login failed. Please try again.",
     "syncFailed": "Login succeeded but failed to sync account. Please try again."
+  },
+
+  "forgotPassword": {
+    "title": "Reset your password",
+    "subtitle": "Enter your email and we'll send you a reset code",
+    "sendCode": "Send reset code",
+    "sending": "Sending...",
+    "checkEmail": "Check your email",
+    "codeSentTo": "We sent a reset code to",
+    "code": "Verification code",
+    "newPassword": "New password",
+    "resetPassword": "Reset password",
+    "resetting": "Resetting...",
+    "wrongEmail": "Wrong email? Go back",
+    "backToLogin": "Back to login",
+    "requestFailed": "Failed to send reset code. Please try again.",
+    "confirmFailed": "Failed to reset password. Please check your code and try again."
   },
 
   "register": {

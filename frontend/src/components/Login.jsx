@@ -170,7 +170,12 @@ const Login = () => {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center space-y-2">
+          <p className="text-sm">
+            <a href="/forgot-password" className="text-gray-500 hover:text-gray-300 transition-colors duration-300">
+              {t('login.forgotPassword')}
+            </a>
+          </p>
           <p className="text-sm text-gray-500">
             {t('login.needAccount')}{' '}
             <a href="/register" className="text-teal-400 font-medium hover:text-teal-300 transition-colors duration-300">

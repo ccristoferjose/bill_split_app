@@ -90,8 +90,26 @@
     "submitting": "Iniciando sesión...",
     "needAccount": "¿Necesitas una cuenta?",
     "register": "Registrarse",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
     "failed": "Error al iniciar sesión. Por favor, inténtalo de nuevo.",
     "syncFailed": "Inicio de sesión exitoso pero no se pudo sincronizar la cuenta. Por favor, inténtalo de nuevo."
+  },
+
+  "forgotPassword": {
+    "title": "Restablecer contraseña",
+    "subtitle": "Ingresa tu correo y te enviaremos un código de restablecimiento",
+    "sendCode": "Enviar código",
+    "sending": "Enviando...",
+    "checkEmail": "Revisa tu correo",
+    "codeSentTo": "Enviamos un código de restablecimiento a",
+    "code": "Código de verificación",
+    "newPassword": "Nueva contraseña",
+    "resetPassword": "Restablecer contraseña",
+    "resetting": "Restableciendo...",
+    "wrongEmail": "¿Correo incorrecto? Volver",
+    "backToLogin": "Volver al inicio de sesión",
+    "requestFailed": "Error al enviar el código. Por favor, inténtalo de nuevo.",
+    "confirmFailed": "Error al restablecer la contraseña. Verifica el código e inténtalo de nuevo."
   },
 
   "register": {
