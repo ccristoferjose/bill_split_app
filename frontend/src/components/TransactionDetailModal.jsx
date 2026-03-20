@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, ArrowDownCircle, CalendarDays, DollarSign, Tag, FileText, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Receipt, ArrowDownCircle, CalendarDays, DollarSign, Tag, FileText, Users, Trash2 } from 'lucide-react';
+import { useDeleteTransactionMutation } from '../services/api';
+import { toast } from 'sonner';
 
 const TYPE_CONFIG = {
   expense: {
@@ -38,6 +41,9 @@ const parseLocalDate = (raw) => {
 };
 
 const TransactionDetailModal = ({ transaction, userId, onClose }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteTransaction, { isLoading: isDeleting }] = useDeleteTransactionMutation();
+
   const cfg = TYPE_CONFIG[transaction.type] || TYPE_CONFIG.expense;
   const Icon = cfg.icon;
 
@@ -58,6 +64,16 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
 
   // Am I the owner?
   const isOwner = String(transaction.user_id) === String(userId);
+
+  const handleDelete = async () => {
+    try {
+      await deleteTransaction({ transactionId: transaction.id, user_id: userId }).unwrap();
+      toast.success('Transaction deleted');
+      onClose();
+    } catch (err) {
+      toast.error(err?.data?.message || 'Failed to delete transaction');
+    }
+  };
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -160,6 +176,32 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
                 <FileText className="h-3.5 w-3.5" /> Notes
               </p>
               <p className="text-sm text-gray-700">{transaction.notes}</p>
+            </div>
+          )}
+
+          {/* Delete — owner only */}
+          {isOwner && (
+            <div className="pt-2 border-t border-gray-100">
+              {confirmDelete ? (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-gray-600">Delete this transaction?</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                    <Button size="sm" variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                      {isDeleting ? 'Deleting…' : 'Delete'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete transaction
+                </Button>
+              )}
             </div>
           )}
 
