@@ -191,13 +191,13 @@ const searchNonFriends = async (req, res) => {
     const { userId } = req.params;
     const { q } = req.query;
 
-    if (!q || q.length < 2) {
+    if (!q || !q.includes('@')) {
       return res.json({ users: [] });
     }
 
     const users = await executeQuery(
       `SELECT id, username, email FROM users
-       WHERE (username LIKE ? OR email LIKE ?)
+       WHERE email LIKE ?
          AND id != ?
          AND id NOT IN (
            SELECT CASE WHEN requester_id = ? THEN addressee_id ELSE requester_id END
@@ -205,7 +205,7 @@ const searchNonFriends = async (req, res) => {
            WHERE (requester_id = ? OR addressee_id = ?) AND status IN ('pending', 'accepted')
          )
        LIMIT 10`,
-      [`%${q}%`, `%${q}%`, userId, userId, userId, userId]
+      [`${q}%`, userId, userId, userId, userId]
     );
     res.json({ users });
   } catch (error) {

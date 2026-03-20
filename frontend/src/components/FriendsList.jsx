@@ -17,20 +17,19 @@ const FriendsList = ({ userId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const atIndex = searchTerm.indexOf('@');
-  const emailQuery = atIndex !== -1 ? searchTerm.slice(atIndex + 1) : '';
+  const hasAt = searchTerm.includes('@');
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(emailQuery), 400);
+    const timer = setTimeout(() => setDebouncedSearch(hasAt ? searchTerm : ''), 400);
     return () => clearTimeout(timer);
-  }, [emailQuery]);
+  }, [searchTerm, hasAt]);
 
   const { data: friendsData, isLoading: friendsLoading } = useGetFriendsQuery(userId);
   const { data: pendingData } = useGetPendingRequestsQuery(userId);
   const { data: sentData } = useGetSentRequestsQuery(userId);
   const { data: searchData, isFetching: isSearching } = useSearchNonFriendsQuery(
     { userId, searchTerm: debouncedSearch },
-    { skip: !debouncedSearch || debouncedSearch.length < 1 }
+    { skip: !debouncedSearch }
   );
 
   const [sendRequest] = useSendFriendRequestMutation();
@@ -110,7 +109,7 @@ const FriendsList = ({ userId }) => {
             </div>
           )}
 
-          {debouncedSearch.length >= 1 && !isSearching && searchResults.length === 0 && (
+          {debouncedSearch && !isSearching && searchResults.length === 0 && (
             <p className="text-sm text-gray-500">{t('friends.noUsersFound')}</p>
           )}
         </CardContent>
