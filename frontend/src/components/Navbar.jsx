@@ -41,7 +41,7 @@ const Navbar = ({ onCreateBill, onNavigateToProfile }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex items-center cursor-pointer" onClick={() => navigate('/dashboard')}>
+          <div className="flex items-center cursor-pointer" onClick={() => navigate('/dashboard?tab=calendar')}>
             <Receipt className="h-8 w-8 text-blue-600 mr-3" />
             <h1 className="text-xl font-semibold text-gray-900">{t('nav.appName')}</h1>
           </div>
