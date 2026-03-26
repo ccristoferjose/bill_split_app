@@ -175,7 +175,9 @@
   "dashboard": {
     "myBills": "Mis Cuentas",
     "billSplitInvitations": "Invitaciones para Dividir Cuentas",
-    "sharedBillInvitations": "Invitaciones de Cuentas Compartidas"
+    "sharedBillInvitations": "Invitaciones de Cuentas Compartidas",
+    "exportProOnly": "La exportación CSV está disponible en el plan Pro",
+    "exportFailed": "Error al exportar transacciones"
   },
 
   "profile": {

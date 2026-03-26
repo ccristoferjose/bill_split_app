@@ -1,6 +1,6 @@
 const { findOne, executeQuery } = require('../config/database');
 const { sendNotificationToUser } = require('../utils/notifications');
-const { sendEmail } = require('../services/email.service');
+const { sendEmail, canSendEmail } = require('../services/email.service');
 const { friendInvitationTemplate } = require('../templates/emails/friend-invitation.template');
 
 const sendFriendRequest = async (req, res) => {
@@ -56,11 +56,13 @@ const sendFriendRequest = async (req, res) => {
         senderUsername: requester.username,
         invitationId:   friendshipId,
       });
-      await sendEmail({
-        to:      addressee.email,
-        subject: `🤝 ${requester.username} sent you a friend request on BillSplit`,
-        html,
-      });
+      if (await canSendEmail(requester_id)) {
+        await sendEmail({
+          to:      addressee.email,
+          subject: `🤝 ${requester.username} sent you a friend request on BillSplit`,
+          html,
+        });
+      }
     }
 
     res.status(201).json({ message: 'Friend request sent successfully' });

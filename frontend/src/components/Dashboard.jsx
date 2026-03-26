@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Receipt, Users, Settings, UserPlus, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Receipt, Users, Settings, UserPlus, CalendarDays, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import Navbar from './Navbar';
@@ -17,7 +17,9 @@ import UserProfile from './UserProfile';
 import FriendsList from './FriendsList';
 import PersonalBillsList from './PersonalBillsList';
 import TransactionInvitationsList from './TransactionInvitationsList';
-import { useGetTransactionInvitationsQuery, useGetPendingRequestsQuery } from '../services/api';
+import { useGetTransactionInvitationsQuery, useGetPendingRequestsQuery, useGetUserProfileQuery } from '../services/api';
+import { toast } from 'sonner';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 const Dashboard = () => {
   const { t } = useTranslation();
@@ -31,8 +33,38 @@ const Dashboard = () => {
   const { data: invitationsData } = useGetTransactionInvitationsQuery(user?.id, { skip: !user });
   const { data: pendingFriendsData } = useGetPendingRequestsQuery(user?.id, { skip: !user });
 
+  const { data: profileData } = useGetUserProfileQuery(user?.id, { skip: !user });
+
   const pendingInvitations = invitationsData?.transactions?.length || 0;
   const pendingFriendRequests = pendingFriendsData?.requests?.length || pendingFriendsData?.length || 0;
+  const isPro = profileData?.subscription_tier === 'pro';
+
+  const handleExport = async () => {
+    if (!isPro) {
+      toast.error(t('dashboard.exportProOnly'));
+      return;
+    }
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString();
+      const year = billsMonth.getFullYear();
+      const month = billsMonth.getMonth() + 1;
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      const res = await fetch(`${apiUrl}/export/transactions/${user.id}?year=${year}&month=${month}&format=csv`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `spendsync-${year}-${String(month).padStart(2, '0')}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(t('dashboard.exportFailed'));
+    }
+  };
 
   if (!user) {
     return (
@@ -107,6 +139,17 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base sm:text-lg">{t('dashboard.myBills')}</CardTitle>
                   <div className="flex items-center gap-2">
+                    {isPro && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={handleExport}
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1" />
+                        CSV
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"

@@ -22,6 +22,7 @@ const friendRoutes      = require('./routes/friend.routes');
 const transactionRoutes  = require('./routes/transaction.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const stripeRoutes       = require('./routes/stripe.routes');
+const exportRoutes       = require('./routes/export.routes');
 const { handleWebhook }  = require('./controllers/stripe.controller');
 
 // Support multiple comma-separated origins: FRONTEND_URL=https://a.com,https://b.com
@@ -86,6 +87,7 @@ app.use('/friends',      verifyToken, friendRoutes);
 app.use('/transactions',  verifyToken, transactionRoutes);
 app.use('/notifications', verifyToken, notificationRoutes);
 app.use('/stripe',        stripeRoutes);
+app.use('/export',        verifyToken, exportRoutes);
 
 // Initialize database and start server
 const startServer = async () => {

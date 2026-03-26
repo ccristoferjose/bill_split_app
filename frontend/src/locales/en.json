@@ -175,7 +175,9 @@
   "dashboard": {
     "myBills": "My Bills",
     "billSplitInvitations": "Bill Split Invitations",
-    "sharedBillInvitations": "Shared Bill Invitations"
+    "sharedBillInvitations": "Shared Bill Invitations",
+    "exportProOnly": "CSV export is available on the Pro plan",
+    "exportFailed": "Failed to export transactions"
   },
 
   "profile": {

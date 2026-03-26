@@ -353,6 +353,17 @@ export const api = createApi({
         method: 'POST',
       }),
     }),
+
+    // Export
+    exportTransactions: builder.query({
+      query: ({ userId, month, year, format }) => {
+        const params = new URLSearchParams();
+        if (month) params.set('month', month);
+        if (year) params.set('year', year);
+        if (format) params.set('format', format);
+        return `/export/transactions/${userId}?${params.toString()}`;
+      },
+    }),
   }),
 });
 

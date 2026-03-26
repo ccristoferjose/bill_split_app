@@ -2,7 +2,7 @@
 
 const { findOne, executeQuery } = require('../config/database');
 const { sendNotificationToUser } = require('../utils/notifications');
-const { sendEmail } = require('../services/email.service');
+const { sendEmail, canSendEmail } = require('../services/email.service');
 const { transactionInvitationTemplate } = require('../templates/emails/transaction-invitation.template');
 const { billStatusTemplate } = require('../templates/emails/bill-status.template');
 
@@ -22,6 +22,9 @@ const getUserContact = async (userId) => {
 // Helper — send invitation email to a participant
 // ─────────────────────────────────────────────────────────────
 const sendInvitationEmail = async ({ owner, participant, transaction }) => {
+  // Email gating: only send if the owner has a paid plan
+  if (!(await canSendEmail(owner?.id))) return;
+
   if (!participant?.email) {
     console.warn(
       `[sendInvitationEmail] ⚠️ No email for user ${participant?.id} (${participant?.username}) — skipping`
@@ -86,6 +89,9 @@ const sendInvitationEmail = async ({ owner, participant, transaction }) => {
 // Helper — send response email to the transaction owner
 // ─────────────────────────────────────────────────────────────
 const sendResponseEmail = async ({ responder, owner, transaction, action }) => {
+  // Email gating: only send if the owner has a paid plan
+  if (!(await canSendEmail(owner?.id))) return;
+
   if (!owner?.email) {
     console.warn(
       `[sendResponseEmail] ⚠️ No email for owner ${owner?.id} (${owner?.username}) — skipping`
@@ -437,6 +443,20 @@ const getUserTransactions = async (req, res) => {
     const { userId } = req.params;
     const { type } = req.query;
 
+    // Budget history gating: free = current month, plus = 6 months, pro = unlimited
+    const user = await findOne('SELECT subscription_tier FROM users WHERE id = ?', [userId]);
+    const tier = user?.subscription_tier || 'free';
+    let dateClause = '';
+    const now = new Date();
+    if (tier === 'free') {
+      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      dateClause = ` AND created_at >= '${monthStart}'`;
+    } else if (tier === 'plus') {
+      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      const monthStart = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
+      dateClause = ` AND created_at >= '${monthStart}'`;
+    }
+
     const typeClause = (type && ['expense', 'bill', 'income'].includes(type)) ? ' AND type = ?' : '';
     const partTypeClause = (type && ['expense', 'bill', 'income'].includes(type)) ? ' AND t.type = ?' : '';
     const ownParams = type ? [userId, type] : [userId];
@@ -444,14 +464,14 @@ const getUserTransactions = async (req, res) => {
 
     const [ownTxs, partTxs] = await Promise.all([
       executeQuery(
-        `SELECT *, 'owner' AS _role FROM transactions WHERE user_id = ?${typeClause} ORDER BY created_at DESC`,
+        `SELECT *, 'owner' AS _role FROM transactions WHERE user_id = ?${typeClause}${dateClause} ORDER BY created_at DESC`,
         ownParams
       ),
       executeQuery(
         `SELECT t.*, 'participant' AS _role
          FROM transactions t
          JOIN transaction_participants tp ON t.id = tp.transaction_id
-         WHERE tp.user_id = ? AND t.user_id != ? AND tp.invitation_status = 'accepted'${partTypeClause}
+         WHERE tp.user_id = ? AND t.user_id != ? AND tp.invitation_status = 'accepted'${partTypeClause}${dateClause.replace(/created_at/g, 't.created_at')}
          ORDER BY t.created_at DESC`,
         partParams
       ),

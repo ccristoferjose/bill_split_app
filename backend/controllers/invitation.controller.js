@@ -2,7 +2,7 @@
 
 const { findOne, executeQuery }            = require('../config/database');
 const { sendNotificationToUser }           = require('../utils/notifications');
-const { sendEmail }                        = require('../services/email.service');
+const { sendEmail, canSendEmail }           = require('../services/email.service');
 const { billInvitationTemplate }           = require('../templates/emails/bill-invitation.template');
 const { billStatusTemplate }              = require('../templates/emails/bill-status.template');
 
@@ -131,13 +131,14 @@ const inviteUsers = async (req, res) => {
           : null,
       });
 
-      const emailResult = await sendEmail({
-        to:      invitedUser.email,
-        subject: `💰 ${inviter.username} invited you to split "${bill.title}"`,
-        html,
-      });
-
-      console.log(`[inviteUsers] Email result for ${invitedUser.email}:`, JSON.stringify(emailResult));
+      if (await canSendEmail(invited_by)) {
+        const emailResult = await sendEmail({
+          to:      invitedUser.email,
+          subject: `💰 ${inviter.username} invited you to split "${bill.title}"`,
+          html,
+        });
+        console.log(`[inviteUsers] Email result for ${invitedUser.email}:`, JSON.stringify(emailResult));
+      }
     }
 
     await executeQuery(
@@ -305,18 +306,20 @@ const respondToInvitation = async (req, res) => {
           action:           action === 'accept' ? 'accepted' : 'rejected',
           respondedAmount:  invitation.proposed_amount,
         });
-        console.log(`Sending email to bill creator (${bill.creator_email}) about ${action}ing invitation...`);
-        await sendEmail({
-          to:      bill.creator_email,
-          subject: billStatus
-            ? `🎉 Bill "${bill.title}" has been ${billStatus}`
-            : `📩 ${respondingUser.username} ${action === 'accept' ? 'accepted' : 'declined'} "${bill.title}"`,
-          html:    creatorEmailHtml,
-        });
+        if (await canSendEmail(bill.created_by)) {
+          console.log(`Sending email to bill creator (${bill.creator_email}) about ${action}ing invitation...`);
+          await sendEmail({
+            to:      bill.creator_email,
+            subject: billStatus
+              ? `🎉 Bill "${bill.title}" has been ${billStatus}`
+              : `📩 ${respondingUser.username} ${action === 'accept' ? 'accepted' : 'declined'} "${bill.title}"`,
+            html:    creatorEmailHtml,
+          });
+        }
       }
 
       // ── Email → Responder (acceptance/rejection confirmation) ─
-      if (respondingUser?.email) {
+      if (respondingUser?.email && await canSendEmail(bill.created_by)) {
         const responderStatus = action === 'accept' ? 'invitation_accepted' : 'invitation_rejected';
         const responderEmailHtml = billStatusTemplate({
           recipientName: respondingUser.username,
@@ -374,11 +377,13 @@ const respondToInvitation = async (req, res) => {
               yourAmount:    participantRecord?.amount_owed,
             });
 
-            await sendEmail({
-              to:      participantUser.email,
-              subject: `🎉 Bill "${bill.title}" is finalized — time to pay!`,
-              html,
-            });
+            if (await canSendEmail(bill.created_by)) {
+              await sendEmail({
+                to:      participantUser.email,
+                subject: `🎉 Bill "${bill.title}" is finalized — time to pay!`,
+                html,
+              });
+            }
           }
         }
       }
@@ -467,11 +472,13 @@ const reopenBill = async (req, res) => {
           yourAmount:    inv.proposed_amount,
         });
 
-        await sendEmail({
-          to:      invitedUser.email,
-          subject: `🔄 Reminder: You're invited to split "${bill.title}"`,
-          html,
-        });
+        if (await canSendEmail(bill.created_by)) {
+          await sendEmail({
+            to:      invitedUser.email,
+            subject: `🔄 Reminder: You're invited to split "${bill.title}"`,
+            html,
+          });
+        }
       }
     }
 

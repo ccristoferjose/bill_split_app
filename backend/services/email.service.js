@@ -1,6 +1,7 @@
 'use strict';
 
 const nodemailer = require('nodemailer');
+const { findOne } = require('../config/database');
 
 let transporter = null;
 
@@ -92,4 +93,11 @@ const verifyConnection = async () => {
   }
 };
 
-module.exports = { sendEmail, verifyConnection };
+// Check if a user's tier allows email notifications (plus or pro only)
+const canSendEmail = async (userId) => {
+  if (!userId) return false;
+  const user = await findOne('SELECT subscription_tier FROM users WHERE id = ?', [userId]);
+  return user?.subscription_tier === 'plus' || user?.subscription_tier === 'pro';
+};
+
+module.exports = { sendEmail, verifyConnection, canSendEmail };

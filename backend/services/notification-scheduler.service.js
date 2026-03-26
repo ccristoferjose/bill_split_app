@@ -2,7 +2,7 @@
 
 const cron = require('node-cron');
 const { findOne, executeQuery } = require('../config/database');
-const { sendEmail } = require('./email.service');
+const { sendEmail, canSendEmail } = require('./email.service');
 const { paymentReminderTemplate } = require('../templates/emails/payment-reminder.template');
 const { weeklySummaryTemplate } = require('../templates/emails/weekly-summary.template');
 
@@ -113,13 +113,14 @@ const sendPaymentReminders = async () => {
         overdue: `\uD83D\uDEA8 Overdue: $${parseFloat(bill.amount_owed).toFixed(2)} for "${bill.bill_title}"`,
       };
 
-      await sendEmail({
-        to: bill.participant_email,
-        subject: subjectByUrgency[urgency],
-        html,
-      });
-
-      console.log(`[Scheduler] Sent ${urgency} reminder to ${bill.participant_email} for "${bill.bill_title}"`);
+      if (await canSendEmail(bill.participant_id || bill.created_by)) {
+        await sendEmail({
+          to: bill.participant_email,
+          subject: subjectByUrgency[urgency],
+          html,
+        });
+        console.log(`[Scheduler] Sent ${urgency} reminder to ${bill.participant_email} for "${bill.bill_title}"`);
+      }
     }
 
     console.log(`[Scheduler] Payment reminders complete. Processed ${unpaidBills.length} reminder(s).`);
@@ -264,13 +265,14 @@ const sendWeeklySummaries = async () => {
           totalBills: totalBillsResult?.count || 0,
         });
 
-        await sendEmail({
-          to: user.email,
-          subject: `\uD83D\uDCCA Your weekly summary: ${weekLabel}`,
-          html,
-        });
-
-        console.log(`[Scheduler] Sent weekly summary to ${user.email}`);
+        if (await canSendEmail(user.id)) {
+          await sendEmail({
+            to: user.email,
+            subject: `\uD83D\uDCCA Your weekly summary: ${weekLabel}`,
+            html,
+          });
+          console.log(`[Scheduler] Sent weekly summary to ${user.email}`);
+        }
       } catch (userError) {
         console.error(`[Scheduler] Error generating summary for user ${user.id}:`, userError);
       }
