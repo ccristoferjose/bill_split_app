@@ -7,6 +7,8 @@ import {
   ChevronDown,
   Menu,
   X,
+  Check,
+  Minus,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,6 +17,7 @@ const LandingPage = () => {
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [yearlyBilling, setYearlyBilling] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -87,6 +90,12 @@ const LandingPage = () => {
                 {t('landing.navFeatures')}
               </button>
               <button
+                onClick={() => scrollTo('pricing')}
+                className="text-gray-400 hover:text-white text-sm font-medium transition-colors duration-300"
+              >
+                {t('landing.navPricing')}
+              </button>
+              <button
                 onClick={() => scrollTo('about')}
                 className="text-gray-400 hover:text-white text-sm font-medium transition-colors duration-300"
               >
@@ -125,7 +134,7 @@ const LandingPage = () => {
         <div
           className="md:hidden overflow-hidden transition-all duration-400"
           style={{
-            maxHeight: mobileMenu ? '300px' : '0',
+            maxHeight: mobileMenu ? '350px' : '0',
             opacity: mobileMenu ? 1 : 0,
             background: 'rgba(15, 23, 42, 0.98)',
             backdropFilter: 'blur(12px)',
@@ -136,6 +145,9 @@ const LandingPage = () => {
           >
             <button onClick={() => scrollTo('features')} className="text-gray-300 text-sm text-left py-2 hover:text-white transition-colors">
               {t('landing.navFeatures')}
+            </button>
+            <button onClick={() => scrollTo('pricing')} className="text-gray-300 text-sm text-left py-2 hover:text-white transition-colors">
+              {t('landing.navPricing')}
             </button>
             <button onClick={() => scrollTo('about')} className="text-gray-300 text-sm text-left py-2 hover:text-white transition-colors">
               {t('landing.navAbout')}
@@ -303,6 +315,238 @@ const LandingPage = () => {
                 <p className="text-gray-400 text-sm leading-relaxed">{feature.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════ PRICING ═══════════ */}
+      <section id="pricing" className="relative py-24 sm:py-32" style={{ background: '#0f172a' }}>
+        <div
+          className="absolute top-0 left-0 right-0 h-px"
+          style={{
+            background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.3), rgba(13,148,136,0.3), transparent)',
+          }}
+        />
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <p className="text-teal-400 text-sm font-semibold uppercase tracking-[0.2em] mb-3">
+              {t('landing.pricingTag')}
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4 tracking-tight">
+              {t('landing.pricingTitle')}
+            </h2>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="h-px w-16 bg-gradient-to-r from-transparent to-teal-500/50" />
+              <div className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+              <div className="h-px w-16 bg-gradient-to-l from-transparent to-teal-500/50" />
+            </div>
+            <p className="text-gray-400 max-w-2xl mx-auto leading-relaxed mb-8">
+              {t('landing.pricingSubtitle')}
+            </p>
+
+            {/* Billing toggle */}
+            <div className="flex items-center justify-center gap-3">
+              <span className={`text-sm font-medium transition-colors ${!yearlyBilling ? 'text-white' : 'text-gray-500'}`}>
+                {t('landing.pricingMonthly')}
+              </span>
+              <button
+                onClick={() => setYearlyBilling(!yearlyBilling)}
+                className="relative w-14 h-7 rounded-full transition-colors duration-300"
+                style={{ background: yearlyBilling ? 'linear-gradient(135deg, #0d9488, #0f766e)' : 'rgba(255,255,255,0.15)' }}
+              >
+                <div
+                  className="absolute top-1 w-5 h-5 rounded-full bg-white transition-transform duration-300 shadow-md"
+                  style={{ left: yearlyBilling ? '2rem' : '0.25rem' }}
+                />
+              </button>
+              <span className={`text-sm font-medium transition-colors ${yearlyBilling ? 'text-white' : 'text-gray-500'}`}>
+                {t('landing.pricingYearly')}
+              </span>
+              {yearlyBilling && (
+                <span className="text-xs font-semibold text-teal-400 bg-teal-400/10 px-2 py-0.5 rounded-full">
+                  {t('landing.pricingSave')}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+
+            {/* FREE */}
+            <div
+              className="rounded-2xl p-6 sm:p-8 flex flex-col"
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <h3 className="text-lg font-bold text-white mb-1">{t('landing.pricingFree')}</h3>
+              <p className="text-sm text-gray-400 mb-6">{t('landing.pricingFreeDesc')}</p>
+              <div className="mb-6">
+                <span className="text-4xl font-extrabold text-white">$0</span>
+                <span className="text-gray-500 text-sm">{t('landing.pricingMo')}</span>
+              </div>
+              <button
+                onClick={() => navigate('/register')}
+                className="w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 mb-8"
+                style={{
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: 'rgba(255,255,255,0.8)',
+                }}
+              >
+                {t('landing.pricingGetStarted')}
+              </button>
+              <ul className="space-y-3 text-sm flex-1">
+                {[
+                  `10 ${t('landing.pricingTransactions')}`,
+                  `3 ${t('landing.pricingSharedBills')}`,
+                  `3 ${t('landing.pricingFriends')}`,
+                  `1 ${t('landing.pricingRecurring')}`,
+                  t('landing.pricingBudgetCurrent'),
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-gray-400">
+                    <Check className="h-4 w-4 text-teal-400 mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+                {[
+                  t('landing.pricingEmailNotifications'),
+                  t('landing.pricingSmartReminders'),
+                  t('landing.pricingHousehold'),
+                ].map((item, i) => (
+                  <li key={`no-${i}`} className="flex items-start gap-2.5 text-gray-600">
+                    <Minus className="h-4 w-4 text-gray-700 mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* PLUS — highlighted */}
+            <div
+              className="rounded-2xl p-6 sm:p-8 flex flex-col relative"
+              style={{
+                background: 'rgba(13, 148, 136, 0.08)',
+                border: '1px solid rgba(13, 148, 136, 0.3)',
+                boxShadow: '0 0 40px rgba(13, 148, 136, 0.1)',
+              }}
+            >
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="text-xs font-bold text-white bg-gradient-to-r from-teal-500 to-teal-600 px-4 py-1 rounded-full">
+                  {t('landing.pricingMostPopular')}
+                </span>
+              </div>
+              <h3 className="text-lg font-bold text-white mb-1">{t('landing.pricingPlus')}</h3>
+              <p className="text-sm text-gray-400 mb-6">{t('landing.pricingPlusDesc')}</p>
+              <div className="mb-6">
+                <span className="text-4xl font-extrabold text-white">
+                  ${yearlyBilling ? '29.99' : '2.99'}
+                </span>
+                <span className="text-gray-500 text-sm">
+                  {yearlyBilling ? t('landing.pricingYr') : t('landing.pricingMo')}
+                </span>
+                {yearlyBilling && (
+                  <span className="block text-xs text-teal-400 mt-1">
+                    $2.50{t('landing.pricingMo')} · {t('landing.pricingBilledYearly')}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => navigate('/register')}
+                className="w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all duration-300 hover:scale-[1.02] mb-8"
+                style={{
+                  background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+                  boxShadow: '0 4px 15px rgba(13, 148, 136, 0.3)',
+                }}
+              >
+                {t('landing.pricingGetStarted')}
+              </button>
+              <ul className="space-y-3 text-sm flex-1">
+                {[
+                  t('landing.pricingUnlimitedTransactions'),
+                  `10 ${t('landing.pricingSharedBills')}`,
+                  `10 ${t('landing.pricingFriends')}`,
+                  `10 ${t('landing.pricingRecurringPlural')}`,
+                  t('landing.pricingBudget6'),
+                  t('landing.pricingEmailNotifications'),
+                  t('landing.pricingBasicReminders'),
+                  `3 ${t('landing.pricingSplitTemplates')}`,
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-gray-300">
+                    <Check className="h-4 w-4 text-teal-400 mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+                {[
+                  t('landing.pricingHousehold'),
+                  t('landing.pricingExport'),
+                  t('landing.pricingForecasting'),
+                ].map((item, i) => (
+                  <li key={`no-${i}`} className="flex items-start gap-2.5 text-gray-600">
+                    <Minus className="h-4 w-4 text-gray-700 mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* PRO */}
+            <div
+              className="rounded-2xl p-6 sm:p-8 flex flex-col"
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <h3 className="text-lg font-bold text-white mb-1">{t('landing.pricingPro')}</h3>
+              <p className="text-sm text-gray-400 mb-6">{t('landing.pricingProDesc')}</p>
+              <div className="mb-6">
+                <span className="text-4xl font-extrabold text-white">
+                  ${yearlyBilling ? '79.99' : '7.99'}
+                </span>
+                <span className="text-gray-500 text-sm">
+                  {yearlyBilling ? t('landing.pricingYr') : t('landing.pricingMo')}
+                </span>
+                {yearlyBilling && (
+                  <span className="block text-xs text-purple-400 mt-1">
+                    $6.67{t('landing.pricingMo')} · {t('landing.pricingBilledYearly')}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => navigate('/register')}
+                className="w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all duration-300 hover:scale-[1.02] mb-8"
+                style={{
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+                  boxShadow: '0 4px 15px rgba(124, 58, 237, 0.3)',
+                }}
+              >
+                {t('landing.pricingGetStarted')}
+              </button>
+              <ul className="space-y-3 text-sm flex-1">
+                {[
+                  t('landing.pricingUnlimitedTransactions'),
+                  t('landing.pricingUnlimitedBills'),
+                  t('landing.pricingUnlimitedFriends'),
+                  t('landing.pricingUnlimitedRecurring'),
+                  t('landing.pricingBudgetFull'),
+                  t('landing.pricingEmailNotifications'),
+                  t('landing.pricingSmartReminders'),
+                  t('landing.pricingUnlimitedTemplates'),
+                  t('landing.pricingHousehold'),
+                  t('landing.pricingExport'),
+                  t('landing.pricingMoveInOut'),
+                  t('landing.pricingForecasting'),
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-gray-300">
+                    <Check className="h-4 w-4 text-purple-400 mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
           </div>
         </div>
       </section>

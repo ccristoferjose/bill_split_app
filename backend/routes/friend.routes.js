@@ -4,8 +4,9 @@ const {
   sendFriendRequest, respondToFriendRequest, getFriends,
   getPendingRequests, getSentRequests, removeFriend, searchNonFriends
 } = require('../controllers/friend.controller');
+const { checkFriendLimit } = require('../middleware/tierLimits');
 
-router.post('/request', sendFriendRequest);
+router.post('/request', checkFriendLimit, sendFriendRequest);
 router.post('/respond', respondToFriendRequest);
 router.get('/:userId', getFriends);
 router.get('/:userId/pending', getPendingRequests);

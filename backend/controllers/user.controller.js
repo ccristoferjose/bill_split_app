@@ -153,18 +153,10 @@ const searchUsers = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
     const { userId } = req.params;
-    const profile = await findOne(`
-      SELECT
-        u.id, u.username, u.email, u.phone, u.address, u.city, u.country, u.created_at,
-        COUNT(DISTINCT sb_created.id) as bills_created,
-        COUNT(DISTINCT sbp.service_bill_id) as bills_participated,
-        COALESCE(SUM(sbp.amount_owed), 0) as total_paid
-      FROM users u
-      LEFT JOIN service_bills sb_created ON u.id = sb_created.created_by
-      LEFT JOIN service_bill_participants sbp ON u.id = sbp.user_id AND sbp.payment_status = 'paid'
-      WHERE u.id = ?
-      GROUP BY u.id
-    `, [userId]);
+    const profile = await findOne(
+      'SELECT id, username, email, phone, address, city, country, subscription_tier, created_at FROM users WHERE id = ?',
+      [userId]
+    );
 
     if (!profile) {
       return res.status(404).json({ message: 'User not found' });

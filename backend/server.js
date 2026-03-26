@@ -21,6 +21,8 @@ const userRoutes        = require('./routes/user.routes');
 const friendRoutes      = require('./routes/friend.routes');
 const transactionRoutes  = require('./routes/transaction.routes');
 const notificationRoutes = require('./routes/notification.routes');
+const stripeRoutes       = require('./routes/stripe.routes');
+const { handleWebhook }  = require('./controllers/stripe.controller');
 
 // Support multiple comma-separated origins: FRONTEND_URL=https://a.com,https://b.com
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
@@ -36,6 +38,9 @@ const io     = socketIo(server, {
 });
 
 setIo(io);
+
+// Stripe webhook needs raw body — mount before express.json()
+app.post('/stripe/webhook', express.raw({ type: 'application/json' }), handleWebhook);
 
 // Global middleware
 app.use(express.json());
@@ -80,6 +85,7 @@ app.use('/users',        verifyToken, userRoutes);
 app.use('/friends',      verifyToken, friendRoutes);
 app.use('/transactions',  verifyToken, transactionRoutes);
 app.use('/notifications', verifyToken, notificationRoutes);
+app.use('/stripe',        stripeRoutes);
 
 // Initialize database and start server
 const startServer = async () => {

@@ -337,6 +337,22 @@ export const api = createApi({
       }),
       invalidatesTags: ['Friend'],
     }),
+
+    // Stripe subscription endpoints
+    createCheckoutSession: builder.mutation({
+      query: (data) => ({
+        url: '/stripe/create-checkout-session',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
+    createPortalSession: builder.mutation({
+      query: () => ({
+        url: '/stripe/manage',
+        method: 'POST',
+      }),
+    }),
   }),
 });
 
@@ -380,4 +396,6 @@ export const {
   useSendFriendRequestMutation,
   useRespondToFriendRequestMutation,
   useRemoveFriendMutation,
+  useCreateCheckoutSessionMutation,
+  useCreatePortalSessionMutation,
 } = api;

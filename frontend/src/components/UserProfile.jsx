@@ -1,6 +1,7 @@
 // frontend/src/components/UserProfile.jsx
 import React, { useState } from 'react';
 import { useGetUserProfileQuery, useUpdateUserProfileMutation } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../feature/auth/authSlice';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, User, Mail, Phone, MapPin, Calendar, Edit2, Save, X, CheckCircle, Globe } from 'lucide-react';
+import { Loader2, User, Mail, Phone, MapPin, Calendar, Edit2, Save, X, CheckCircle, Globe, CreditCard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const UserProfile = ({ userId }) => {
@@ -17,6 +18,7 @@ const UserProfile = ({ userId }) => {
   const dispatch = useDispatch();
   const { data: profile, isLoading, error, refetch } = useGetUserProfileQuery(userId);
   const [updateProfile, { isLoading: isUpdating }] = useUpdateUserProfileMutation();
+  const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -274,24 +276,62 @@ const UserProfile = ({ userId }) => {
               </div>
             </div>
 
-            {/* Account Details Section */}
+            {/* Subscription & Account Section */}
             <div className="space-y-4 pt-6 border-t">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                 <Calendar className="h-5 w-5 mr-2 text-blue-600" />
                 {t('profile.accountDetails')}
               </h3>
 
-              <div className="space-y-2">
-                <Label className="text-gray-500">{t('profile.memberSince')}</Label>
-                <Input
-                  value={profile?.created_at ? new Date(profile.created_at).toLocaleDateString(i18n.language === 'es' ? 'es-ES' : 'en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  }) : 'N/A'}
-                  disabled
-                  className="bg-gray-50"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-500">{t('profile.subscription')}</Label>
+                  <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border ${
+                    profile?.subscription_tier === 'pro'
+                      ? 'bg-purple-50 border-purple-200'
+                      : profile?.subscription_tier === 'plus'
+                        ? 'bg-teal-50 border-teal-200'
+                        : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <CreditCard className={`h-4 w-4 ${
+                        profile?.subscription_tier === 'pro' ? 'text-purple-500'
+                          : profile?.subscription_tier === 'plus' ? 'text-teal-500'
+                            : 'text-gray-400'
+                      }`} />
+                      <span className={`text-sm font-semibold capitalize ${
+                        profile?.subscription_tier === 'pro'
+                          ? 'text-purple-700'
+                          : profile?.subscription_tier === 'plus'
+                            ? 'text-teal-700'
+                            : 'text-gray-600'
+                      }`}>
+                        {profile?.subscription_tier === 'pro' ? 'Pro' : profile?.subscription_tier === 'plus' ? 'Plus' : 'Free'}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      className={`text-xs h-7 ${profile?.subscription_tier === 'free' ? 'bg-teal-600 hover:bg-teal-700 text-white' : ''}`}
+                      variant={profile?.subscription_tier === 'free' ? 'default' : 'outline'}
+                      onClick={() => navigate('/subscription')}
+                    >
+                      {profile?.subscription_tier === 'free' ? t('profile.upgrade') : t('profile.managePlan')}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-500">{t('profile.memberSince')}</Label>
+                  <Input
+                    value={profile?.created_at ? new Date(profile.created_at).toLocaleDateString(i18n.language === 'es' ? 'es-ES' : 'en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    }) : 'N/A'}
+                    disabled
+                    className="bg-gray-50"
+                  />
+                </div>
               </div>
             </div>
 

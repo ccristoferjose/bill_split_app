@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS users (
     address VARCHAR(255) NULL,
     city VARCHAR(100) NULL,
     country VARCHAR(100) NULL,
+    subscription_tier ENUM('free', 'plus', 'pro') NOT NULL DEFAULT 'free',
+    stripe_customer_id VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

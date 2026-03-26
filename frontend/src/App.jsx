@@ -9,6 +9,7 @@ import Register from './components/Register'
 import Dashboard from './components/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import ForgotPassword from './components/ForgotPassword'
+import SubscriptionPage from './components/SubscriptionPage'
 import { SocketProvider } from './contexts/SocketContext'
 import { Toaster } from 'sonner'
 
@@ -40,6 +41,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subscription"
+            element={
+              <ProtectedRoute>
+                <SubscriptionPage />
               </ProtectedRoute>
             }
           />
