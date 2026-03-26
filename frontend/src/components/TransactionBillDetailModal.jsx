@@ -311,13 +311,7 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
                   </Button>
                 </div>
               )}
-              {myRecord.invitation_status === 'accepted' && transaction.type === 'expense' && (
-                <div className="flex items-center justify-center gap-2 py-2 text-blue-600 bg-blue-50 rounded-lg">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">Expense accepted — your share (${Number(myRecord.amount_owed).toFixed(2)}) is tracked</span>
-                </div>
-              )}
-              {myRecord.invitation_status === 'accepted' && transaction.type !== 'expense' && !myParticipantPaid && (
+              {myRecord.invitation_status === 'accepted' && !myParticipantPaid && (
                 <Button
                   className="w-full bg-green-600 hover:bg-green-700"
                   disabled={isActioning}
@@ -327,7 +321,7 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
                   Pay My Share (${Number(myRecord.amount_owed).toFixed(2)})
                 </Button>
               )}
-              {myRecord.invitation_status === 'accepted' && transaction.type !== 'expense' && myParticipantPaid && (
+              {myRecord.invitation_status === 'accepted' && myParticipantPaid && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-center gap-2 py-2 text-green-600 bg-green-50 rounded-lg">
                     <CheckCircle className="h-4 w-4" />

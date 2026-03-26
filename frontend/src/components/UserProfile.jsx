@@ -281,28 +281,17 @@ const UserProfile = ({ userId }) => {
                 {t('profile.accountDetails')}
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-gray-500">{t('profile.userId')}</Label>
-                  <Input
-                    value={profile?.id || 'N/A'}
-                    disabled
-                    className="bg-gray-50"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-gray-500">{t('profile.memberSince')}</Label>
-                  <Input
-                    value={profile?.created_at ? new Date(profile.created_at).toLocaleDateString(i18n.language === 'es' ? 'es-ES' : 'en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    }) : 'N/A'}
-                    disabled
-                    className="bg-gray-50"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label className="text-gray-500">{t('profile.memberSince')}</Label>
+                <Input
+                  value={profile?.created_at ? new Date(profile.created_at).toLocaleDateString(i18n.language === 'es' ? 'es-ES' : 'en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  }) : 'N/A'}
+                  disabled
+                  className="bg-gray-50"
+                />
               </div>
             </div>
 
@@ -362,34 +351,6 @@ const UserProfile = ({ userId }) => {
         </CardContent>
       </Card>
 
-      {/* Statistics Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('profile.activityStats')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-3xl font-bold text-blue-600">
-                {profile?.bills_created || 0}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">{t('profile.billsCreated')}</div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-3xl font-bold text-green-600">
-                {profile?.bills_participated || 0}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">{t('profile.billsParticipated')}</div>
-            </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="text-3xl font-bold text-purple-600">
-                {profile?.total_paid || 0}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">{t('profile.totalPaid')}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

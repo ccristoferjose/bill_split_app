@@ -17,6 +17,7 @@ import UserProfile from './UserProfile';
 import FriendsList from './FriendsList';
 import PersonalBillsList from './PersonalBillsList';
 import TransactionInvitationsList from './TransactionInvitationsList';
+import { useGetTransactionInvitationsQuery, useGetPendingRequestsQuery } from '../services/api';
 
 const Dashboard = () => {
   const { t } = useTranslation();
@@ -26,6 +27,12 @@ const Dashboard = () => {
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
   const [billsMonth, setBillsMonth] = useState(startOfMonth(new Date()));
+
+  const { data: invitationsData } = useGetTransactionInvitationsQuery(user?.id, { skip: !user });
+  const { data: pendingFriendsData } = useGetPendingRequestsQuery(user?.id, { skip: !user });
+
+  const pendingInvitations = invitationsData?.transactions?.length || 0;
+  const pendingFriendRequests = pendingFriendsData?.requests?.length || pendingFriendsData?.length || 0;
 
   if (!user) {
     return (
@@ -43,6 +50,7 @@ const Dashboard = () => {
       <Navbar
         onCreateBill={() => setShowCreateBill(true)}
         onNavigateToProfile={() => setActiveTab('profile')}
+        onNavigateToCalendar={() => setActiveTab('calendar')}
       />
 
       <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -59,13 +67,23 @@ const Dashboard = () => {
                 <Receipt className="h-4 w-4 shrink-0" />
                 <span className="hidden sm:inline">{t('tabs.bills')}</span>
               </TabsTrigger>
-              <TabsTrigger value="invitations" className="flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
+              <TabsTrigger value="invitations" className="relative flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
                 <Users className="h-4 w-4 shrink-0" />
                 <span className="hidden sm:inline">{t('tabs.invitations')}</span>
+                {pendingInvitations > 0 && (
+                  <span className="absolute -top-1 -right-1 sm:relative sm:top-auto sm:right-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {pendingInvitations}
+                  </span>
+                )}
               </TabsTrigger>
-              <TabsTrigger value="friends" className="flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
+              <TabsTrigger value="friends" className="relative flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
                 <UserPlus className="h-4 w-4 shrink-0" />
                 <span className="hidden sm:inline">{t('tabs.friends')}</span>
+                {pendingFriendRequests > 0 && (
+                  <span className="absolute -top-1 -right-1 sm:relative sm:top-auto sm:right-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {pendingFriendRequests}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger value="profile" className="flex-1 flex items-center justify-center gap-1.5 min-w-[44px] sm:min-w-0">
                 <Settings className="h-4 w-4 shrink-0" />

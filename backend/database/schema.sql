@@ -2,28 +2,8 @@
 -- Auth: Amazon Cognito (sub UUID is the users.id primary key)
 -- Full rebuild: disables FK checks, drops all tables, recreates with updated schema
 
-SET FOREIGN_KEY_CHECKS = 0;
-
--- Drop tables in reverse dependency order
-DROP TABLE IF EXISTS transaction_cycle_payments;
-DROP TABLE IF EXISTS transaction_participants;
-DROP TABLE IF EXISTS transactions;
-DROP TABLE IF EXISTS bill_activity_log;
-DROP TABLE IF EXISTS service_bill_items;
-DROP TABLE IF EXISTS service_bill_participants;
-DROP TABLE IF EXISTS monthly_cycle_payments;
-DROP TABLE IF EXISTS bill_invitations;
-DROP TABLE IF EXISTS email_invitations;
-DROP TABLE IF EXISTS service_bills;
-DROP TABLE IF EXISTS services;
-DROP TABLE IF EXISTS friendships;
-DROP TABLE IF EXISTS users;
-
-SET FOREIGN_KEY_CHECKS = 1;
-
--- Create the work_db database
-CREATE DATABASE IF NOT EXISTS work_db;
-USE work_db;
+-- Uses the database created by MYSQL_DATABASE (e.g. billsplit_db)
+-- No DROP statements — safe for existing data on re-import
 
 -- =====================
 -- Core tables

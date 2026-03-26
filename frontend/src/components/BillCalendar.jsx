@@ -93,6 +93,41 @@ const getEffectiveTxAmount = (tx, userId) => {
   return Math.max(0, full - acceptedTotal);
 };
 
+// Returns the amount to deduct from remaining.
+// Non-shared items always deduct (personal spending).
+// Shared items only deduct once the user marks as paid.
+const getPaidTxAmount = (tx, userId, cycleYear, cycleMonth) => {
+  const isShared = tx.is_shared && (tx.participants || []).length > 0;
+
+  // Non-shared: always deduct full amount (personal expense/bill)
+  if (!isShared) return parseFloat(tx.amount || 0);
+
+  const hasCyclePaidForUser = (uid) =>
+    (tx.cycle_payments || []).some(
+      cp =>
+        String(cp.user_id) === String(uid) &&
+        Number(cp.cycle_year) === cycleYear &&
+        Number(cp.cycle_month) === cycleMonth
+    );
+
+  const isMonthly = tx.recurrence === 'monthly' || tx.recurrence === 'weekly';
+
+  if (tx._role === 'participant') {
+    const myRecord = (tx.participants || []).find(p => String(p.user_id) === String(userId));
+    if (!myRecord) return 0;
+    const isPaid = isMonthly ? hasCyclePaidForUser(userId) : myRecord.status === 'paid';
+    return isPaid ? parseFloat(myRecord.amount_owed) : 0;
+  }
+
+  // Owner of shared item: check if owner has marked as paid
+  const isPaid = isMonthly ? hasCyclePaidForUser(userId) : tx.status === 'paid';
+  if (!isPaid) return 0;
+  const acceptedTotal = (tx.participants || [])
+    .filter(p => p.invitation_status === 'accepted')
+    .reduce((s, p) => s + parseFloat(p.amount_owed), 0);
+  return Math.max(0, parseFloat(tx.amount || 0) - acceptedTotal);
+};
+
 // ─── MonthlySummary ───────────────────────────────────────────────────────────
 
 const MonthlySummary = ({ income, expenses, bills, month }) => {
@@ -202,7 +237,7 @@ const MonthlySummary = ({ income, expenses, bills, month }) => {
 
 // ─── TransactionRow ───────────────────────────────────────────────────────────
 
-const TransactionRow = ({ transaction, onClick }) => {
+const TransactionRow = ({ transaction, userId, viewMonth, onClick }) => {
   const { t } = useTranslation();
 
   const TX_CONFIG = {
@@ -240,6 +275,30 @@ const TransactionRow = ({ transaction, onClick }) => {
   const dateStr = transaction.type === 'bill' ? transaction.due_date : transaction.date;
   const txDate  = parseLocalDate(dateStr);
 
+  // Check if this shared transaction is unpaid by the current user
+  const isUnpaid = (() => {
+    if (!userId || transaction.type === 'income') return false;
+    const isShared = transaction.is_shared && (transaction.participants || []).length > 0;
+    if (!isShared) return false; // only show tag for split transactions
+
+    const isMonthly = transaction.recurrence === 'monthly' || transaction.recurrence === 'weekly';
+    const month = viewMonth || new Date();
+    const cycleYear = month.getFullYear();
+    const cycleMonth = month.getMonth() + 1;
+    const hasCycle = (transaction.cycle_payments || []).some(
+      cp => String(cp.user_id) === String(userId) &&
+            Number(cp.cycle_year) === cycleYear &&
+            Number(cp.cycle_month) === cycleMonth
+    );
+
+    if (transaction._role === 'participant') {
+      const myRecord = (transaction.participants || []).find(p => String(p.user_id) === String(userId));
+      if (!myRecord) return false;
+      return isMonthly ? !hasCycle : myRecord.status !== 'paid';
+    }
+    return isMonthly ? !hasCycle : transaction.status !== 'paid';
+  })();
+
   return (
     <div
       className={`flex items-center justify-between py-2.5 px-2 rounded-lg transition-colors ${onClick ? 'cursor-pointer hover:bg-gray-100 active:bg-gray-200' : 'hover:bg-gray-50'}`}
@@ -261,17 +320,24 @@ const TransactionRow = ({ transaction, onClick }) => {
         </div>
       </div>
 
-      {/* Amount */}
-      <span className={`text-sm font-semibold shrink-0 ml-2 tabular-nums ${cfg.amountColor}`}>
-        {cfg.amountPrefix}${parseFloat(transaction.amount).toFixed(2)}
-      </span>
+      <div className="flex items-center gap-2 shrink-0 ml-2">
+        {isUnpaid && (
+          <span className="text-[10px] font-medium text-orange-600 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5">
+            {t('common.unpaid')}
+          </span>
+        )}
+        {/* Amount — show user's effective share for split transactions */}
+        <span className={`text-sm font-semibold tabular-nums ${cfg.amountColor}`}>
+          {cfg.amountPrefix}${(userId ? getEffectiveTxAmount(transaction, userId) : parseFloat(transaction.amount)).toFixed(2)}
+        </span>
+      </div>
     </div>
   );
 };
 
 // ─── TransactionTimeline ──────────────────────────────────────────────────────
 
-const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }) => {
+const TransactionTimeline = ({ transactions, currentMonth, userId, viewMonth, onSelectTransaction }) => {
   const { t } = useTranslation();
 
   const groups = useMemo(() => {
@@ -360,6 +426,8 @@ const TransactionTimeline = ({ transactions, currentMonth, onSelectTransaction }
                 <TransactionRow
                   key={tx.id}
                   transaction={tx}
+                  userId={userId}
+                  viewMonth={viewMonth}
                   onClick={onSelectTransaction ? () => onSelectTransaction(tx) : undefined}
                 />
               ))}
@@ -444,11 +512,11 @@ const BillCalendar = ({ userId, onSelectBill }) => {
         .reduce((s, t) => s + parseFloat(t.amount || 0), 0),
       expenses: allTransactions
         .filter(t => t.type === 'expense' && inMonth(t, 'date'))
-        .reduce((s, t) => s + getEffectiveTxAmount(t, userId), 0),
+        .reduce((s, t) => s + getPaidTxAmount(t, userId, year, month), 0),
       bills: allTransactions
         .filter(billFilter)
         .reduce((s, t) => {
-          const amt = getEffectiveTxAmount(t, userId);
+          const amt = getPaidTxAmount(t, userId, year, month);
           if (t.recurrence === 'weekly') {
             const startDate = parseLocalDate(t.due_date);
             return s + amt * getWeeklyOccurrencesInMonth(startDate, currentMonth);
@@ -628,6 +696,8 @@ const BillCalendar = ({ userId, onSelectBill }) => {
                         <TransactionRow
                           key={`tx-${tx.id}`}
                           transaction={tx}
+                          userId={userId}
+                          viewMonth={currentMonth}
                           onClick={() => setSelectedTransaction(tx)}
                         />
                       ))}
@@ -650,6 +720,8 @@ const BillCalendar = ({ userId, onSelectBill }) => {
                 <TransactionTimeline
                   transactions={allTransactions}
                   currentMonth={currentMonth}
+                  userId={userId}
+                  viewMonth={currentMonth}
                   onSelectTransaction={setSelectedTransaction}
                 />
               </div>
@@ -659,7 +731,7 @@ const BillCalendar = ({ userId, onSelectBill }) => {
 
       </div>
 
-      {selectedTransaction && selectedTransaction.type === 'bill' && (
+      {selectedTransaction && (selectedTransaction.type === 'bill' || (selectedTransaction.is_shared && selectedTransaction.participants?.length > 0)) && (
         <TransactionBillDetailModal
           transaction={selectedTransaction}
           userId={userId}
@@ -667,7 +739,7 @@ const BillCalendar = ({ userId, onSelectBill }) => {
           onClose={() => setSelectedTransaction(null)}
         />
       )}
-      {selectedTransaction && selectedTransaction.type !== 'bill' && (
+      {selectedTransaction && selectedTransaction.type !== 'bill' && !(selectedTransaction.is_shared && selectedTransaction.participants?.length > 0) && (
         <TransactionDetailModal
           transaction={selectedTransaction}
           userId={userId}
