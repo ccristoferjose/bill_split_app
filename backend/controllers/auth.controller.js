@@ -21,6 +21,7 @@ const syncUser = async (req, res) => {
       `INSERT INTO users (id, username, email)
        VALUES (?, ?, ?)
        ON DUPLICATE KEY UPDATE
+         id       = VALUES(id),
          username = VALUES(username),
          email    = VALUES(email)`,
       [userId, username, email]
