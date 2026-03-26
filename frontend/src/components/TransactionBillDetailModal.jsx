@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   CalendarDays, DollarSign, Users, CheckCircle,
-  XCircle, RotateCcw, Clock, RefreshCw,
+  XCircle, RotateCcw, Clock, RefreshCw, Trash2, AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -14,6 +14,7 @@ import {
   useResendTransactionInvitationMutation,
   useMarkTransactionPaidMutation,
   useMarkTransactionCyclePaidMutation,
+  useDeleteTransactionMutation,
 } from '../services/api';
 
 const RECURRENCE_LABELS = {
@@ -44,6 +45,8 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
   const [resendInvitation, { isLoading: isResending }] = useResendTransactionInvitationMutation();
   const [markTransactionPaid, { isLoading: isMarkingBillPaid }] = useMarkTransactionPaidMutation();
   const [markCyclePaid, { isLoading: isMarkingCycle }] = useMarkTransactionCyclePaidMutation();
+  const [deleteTransaction, { isLoading: isDeleting }] = useDeleteTransactionMutation();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isMonthly = transaction.recurrence === 'monthly' || transaction.recurrence === 'weekly';
   const cycleYear = (viewMonth || new Date()).getFullYear();
@@ -286,6 +289,48 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
                   ? <><RotateCcw className="h-4 w-4 mr-1.5" />Undo</>
                   : <><CheckCircle className="h-4 w-4 mr-1.5" />Mark as Paid</>}
               </Button>
+            </div>
+          )}
+
+          {/* Owner: delete */}
+          {isOwner && (
+            <div className="pt-1 border-t">
+              {confirmDelete ? (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-gray-600 flex items-center gap-1">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                    Delete this transaction?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={isDeleting}
+                      onClick={async () => {
+                        try {
+                          await deleteTransaction({ transactionId: transaction.id, user_id: userId }).unwrap();
+                          toast.success('Transaction deleted');
+                          onClose();
+                        } catch (err) {
+                          toast.error(err?.data?.message || 'Failed to delete');
+                        }
+                      }}
+                    >
+                      {isDeleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete transaction
+                </Button>
+              )}
             </div>
           )}
 

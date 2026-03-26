@@ -634,26 +634,9 @@ const markParticipantPaid = async (req, res) => {
     );
 
     const transaction = await findOne('SELECT * FROM transactions WHERE id = ?', [transactionId]);
-    const [unpaidRow, pendingInviteRow] = await Promise.all([
-      findOne(
-        `SELECT COUNT(*) AS count FROM transaction_participants
-         WHERE transaction_id = ? AND invitation_status = 'accepted' AND status = 'pending'`,
-        [transactionId]
-      ),
-      findOne(
-        `SELECT COUNT(*) AS count FROM transaction_participants
-         WHERE transaction_id = ? AND invitation_status = 'pending'`,
-        [transactionId]
-      ),
-    ]);
-    const allPaid = unpaidRow.count === 0 && pendingInviteRow.count === 0;
 
-    if (allPaid && newStatus === 'paid') {
-      await executeQuery('UPDATE transactions SET status = ? WHERE id = ?', ['paid', transactionId]);
-    } else if (!allPaid && transaction.status === 'paid') {
-      await executeQuery('UPDATE transactions SET status = ? WHERE id = ?', ['pending', transactionId]);
-    }
-
+    // Notify owner and other participants — but do NOT auto-mark transaction as paid.
+    // Each user (owner + participants) tracks their own payment independently.
     const payer = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
     const otherParticipants = await executeQuery(
       `SELECT user_id FROM transaction_participants
@@ -666,25 +649,22 @@ const markParticipantPaid = async (req, res) => {
       transaction.user_id,
     ].filter(uid => String(uid) !== String(user_id));
 
-    const notificationMessage = allPaid && newStatus === 'paid'
-      ? `All participants have paid for "${transaction.title}". Bill is now closed!`
-      : newStatus === 'paid'
-        ? `${payer.username} paid their share of "${transaction.title}"`
-        : `${payer.username} undid their payment for "${transaction.title}"`;
+    const notificationMessage = newStatus === 'paid'
+      ? `${payer.username} paid their share of "${transaction.title}"`
+      : `${payer.username} undid their payment for "${transaction.title}"`;
 
     for (const uid of recipients) {
       sendNotificationToUser(String(uid), {
         type: 'transaction_payment',
-        title: allPaid && newStatus === 'paid' ? 'Bill Fully Paid' : 'Payment Update',
+        title: 'Payment Update',
         message: notificationMessage,
-        data: { transactionId, allPaid: allPaid && newStatus === 'paid' },
+        data: { transactionId },
       });
     }
 
     res.json({
       message: newStatus === 'paid' ? 'Marked as paid' : 'Marked as unpaid',
       status: newStatus,
-      allPaid: allPaid && newStatus === 'paid',
     });
   } catch (error) {
     console.error('Error marking participant paid:', error);

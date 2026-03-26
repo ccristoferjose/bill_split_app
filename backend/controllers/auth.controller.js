@@ -17,6 +17,16 @@ const syncUser = async (req, res) => {
       return res.status(400).json({ message: 'username and email are required' });
     }
 
+    // Check if a user with this email/username exists but with a different Cognito sub
+    const existing = await findOne(
+      'SELECT id FROM users WHERE (email = ? OR username = ?) AND id != ?',
+      [email, username, userId]
+    );
+    if (existing) {
+      // Cognito sub changed (user re-registered) — remove old record; CASCADE cleans up FKs
+      await executeQuery('DELETE FROM users WHERE id = ?', [existing.id]);
+    }
+
     await executeQuery(
       `INSERT INTO users (id, username, email)
        VALUES (?, ?, ?)
