@@ -94,13 +94,12 @@ const getEffectiveTxAmount = (tx, userId) => {
 };
 
 // Returns the amount to deduct from remaining.
-// Non-shared items always deduct (personal spending).
-// Shared items only deduct once the user marks as paid.
+// Expenses (non-shared): always deduct (personal spending already happened).
+// Bills: only deduct when user marks as paid (user decides when to pay).
+// Shared items: only deduct once the user marks their share as paid.
 const getPaidTxAmount = (tx, userId, cycleYear, cycleMonth) => {
   const isShared = tx.is_shared && (tx.participants || []).length > 0;
-
-  // Non-shared: always deduct full amount (personal expense/bill)
-  if (!isShared) return parseFloat(tx.amount || 0);
+  const isRecurring = tx.recurrence === 'monthly' || tx.recurrence === 'weekly';
 
   const hasCyclePaidForUser = (uid) =>
     (tx.cycle_payments || []).some(
@@ -110,17 +109,28 @@ const getPaidTxAmount = (tx, userId, cycleYear, cycleMonth) => {
         Number(cp.cycle_month) === cycleMonth
     );
 
-  const isMonthly = tx.recurrence === 'monthly' || tx.recurrence === 'weekly';
+  // Non-shared expenses: always deduct (you already spent the money)
+  if (!isShared && tx.type === 'expense') return parseFloat(tx.amount || 0);
 
+  // Non-shared bills: only deduct when marked as paid
+  if (!isShared && tx.type === 'bill') {
+    const isPaid = isRecurring ? hasCyclePaidForUser(userId) : tx.status === 'paid';
+    return isPaid ? parseFloat(tx.amount || 0) : 0;
+  }
+
+  // Non-shared income or other: always count
+  if (!isShared) return parseFloat(tx.amount || 0);
+
+  // Shared — participant
   if (tx._role === 'participant') {
     const myRecord = (tx.participants || []).find(p => String(p.user_id) === String(userId));
     if (!myRecord) return 0;
-    const isPaid = isMonthly ? hasCyclePaidForUser(userId) : myRecord.status === 'paid';
+    const isPaid = isRecurring ? hasCyclePaidForUser(userId) : myRecord.status === 'paid';
     return isPaid ? parseFloat(myRecord.amount_owed) : 0;
   }
 
-  // Owner of shared item: check if owner has marked as paid
-  const isPaid = isMonthly ? hasCyclePaidForUser(userId) : tx.status === 'paid';
+  // Shared — owner: check if owner has marked as paid
+  const isPaid = isRecurring ? hasCyclePaidForUser(userId) : tx.status === 'paid';
   if (!isPaid) return 0;
   const acceptedTotal = (tx.participants || [])
     .filter(p => p.invitation_status === 'accepted')

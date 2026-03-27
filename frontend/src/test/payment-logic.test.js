@@ -16,9 +16,7 @@ const getEffectiveTxAmount = (tx, userId) => {
 // Replicate getPaidTxAmount from BillCalendar.jsx
 const getPaidTxAmount = (tx, userId, cycleYear, cycleMonth) => {
   const isShared = tx.is_shared && (tx.participants || []).length > 0;
-
-  // Non-shared: always deduct (personal spending)
-  if (!isShared) return parseFloat(tx.amount || 0);
+  const isRecurring = tx.recurrence === 'monthly' || tx.recurrence === 'weekly';
 
   const hasCyclePaidForUser = (uid) =>
     (tx.cycle_payments || []).some(
@@ -28,17 +26,23 @@ const getPaidTxAmount = (tx, userId, cycleYear, cycleMonth) => {
         Number(cp.cycle_month) === cycleMonth
     );
 
-  const isMonthly = tx.recurrence === 'monthly' || tx.recurrence === 'weekly';
+  if (!isShared && tx.type === 'expense') return parseFloat(tx.amount || 0);
+
+  if (!isShared && tx.type === 'bill') {
+    const isPaid = isRecurring ? hasCyclePaidForUser(userId) : tx.status === 'paid';
+    return isPaid ? parseFloat(tx.amount || 0) : 0;
+  }
+
+  if (!isShared) return parseFloat(tx.amount || 0);
 
   if (tx._role === 'participant') {
     const myRecord = (tx.participants || []).find(p => String(p.user_id) === String(userId));
     if (!myRecord) return 0;
-    const isPaid = isMonthly ? hasCyclePaidForUser(userId) : myRecord.status === 'paid';
+    const isPaid = isRecurring ? hasCyclePaidForUser(userId) : myRecord.status === 'paid';
     return isPaid ? parseFloat(myRecord.amount_owed) : 0;
   }
 
-  // Owner of shared item
-  const isPaid = isMonthly ? hasCyclePaidForUser(userId) : tx.status === 'paid';
+  const isPaid = isRecurring ? hasCyclePaidForUser(userId) : tx.status === 'paid';
   if (!isPaid) return 0;
   const acceptedTotal = (tx.participants || [])
     .filter(p => p.invitation_status === 'accepted')
@@ -140,9 +144,17 @@ describe('Bill Split Amount Calculation', () => {
 describe('Remaining Balance — only deduct paid items', () => {
   const userId = 'owner-1';
 
-  it('non-shared bill always deducts (personal responsibility)', () => {
+  it('non-shared unpaid bill does NOT deduct', () => {
     const tx = {
-      amount: '2000', status: 'pending', _role: 'owner',
+      amount: '2000', type: 'bill', status: 'pending', _role: 'owner',
+      is_shared: false, participants: [], cycle_payments: [],
+    };
+    expect(getPaidTxAmount(tx, userId, 2026, 3)).toBe(0);
+  });
+
+  it('non-shared paid bill DOES deduct', () => {
+    const tx = {
+      amount: '2000', type: 'bill', status: 'paid', _role: 'owner',
       is_shared: false, participants: [], cycle_payments: [],
     };
     expect(getPaidTxAmount(tx, userId, 2026, 3)).toBe(2000);
@@ -200,10 +212,19 @@ describe('Remaining Balance — only deduct paid items', () => {
     expect(getPaidTxAmount(tx, 'friend-1', 2026, 3)).toBe(1000);
   });
 
-  it('non-shared monthly bill always deducts', () => {
+  it('non-shared monthly bill unpaid does NOT deduct', () => {
     const tx = {
-      amount: '500', status: 'pending', recurrence: 'monthly', _role: 'owner',
+      amount: '500', type: 'bill', status: 'pending', recurrence: 'monthly', _role: 'owner',
       is_shared: false, participants: [], cycle_payments: [],
+    };
+    expect(getPaidTxAmount(tx, userId, 2026, 3)).toBe(0);
+  });
+
+  it('non-shared monthly bill paid DOES deduct', () => {
+    const tx = {
+      amount: '500', type: 'bill', status: 'pending', recurrence: 'monthly', _role: 'owner',
+      is_shared: false, participants: [],
+      cycle_payments: [{ user_id: userId, cycle_year: 2026, cycle_month: 3 }],
     };
     expect(getPaidTxAmount(tx, userId, 2026, 3)).toBe(500);
   });
@@ -241,12 +262,13 @@ describe('Remaining Balance — only deduct paid items', () => {
     expect(getPaidTxAmount(tx, userId, 2026, 3)).toBe(0);
   });
 
-  it('full scenario: $3000 income, $2000 non-shared bill, $500 shared unpaid bill', () => {
+  it('full scenario: $3000 income, $2000 unpaid bill, $500 paid bill, $200 shared unpaid', () => {
     const transactions = [
       { type: 'income', amount: '3000', date: '2026-03-01' },
       { type: 'bill', amount: '2000', status: 'pending', _role: 'owner', is_shared: false, participants: [], cycle_payments: [] },
-      { type: 'bill', amount: '500', status: 'pending', _role: 'owner', is_shared: true, participants: [
-        { user_id: 'f1', amount_owed: '250', invitation_status: 'accepted' },
+      { type: 'bill', amount: '500', status: 'paid', _role: 'owner', is_shared: false, participants: [], cycle_payments: [] },
+      { type: 'bill', amount: '200', status: 'pending', _role: 'owner', is_shared: true, participants: [
+        { user_id: 'f1', amount_owed: '100', invitation_status: 'accepted' },
       ], cycle_payments: [] },
     ];
 
@@ -259,8 +281,8 @@ describe('Remaining Balance — only deduct paid items', () => {
       .reduce((s, t) => s + getPaidTxAmount(t, 'owner-1', 2026, 3), 0);
 
     expect(income).toBe(3000);
-    expect(bills).toBe(2000); // non-shared always counted, shared unpaid not counted
-    expect(income - bills).toBe(1000);
+    expect(bills).toBe(500); // only paid non-shared bill; unpaid + shared unpaid = 0
+    expect(income - bills).toBe(2500);
   });
 
   it('shared expense: participant unpaid does NOT deduct', () => {
