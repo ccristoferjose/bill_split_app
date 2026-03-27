@@ -17,7 +17,7 @@ import UserProfile from './UserProfile';
 import FriendsList from './FriendsList';
 import PersonalBillsList from './PersonalBillsList';
 import TransactionInvitationsList from './TransactionInvitationsList';
-import { useGetTransactionInvitationsQuery, useGetPendingRequestsQuery, useGetUserProfileQuery } from '../services/api';
+import { useGetTransactionInvitationsQuery, useGetPendingRequestsQuery, useGetUserProfileQuery, useGetUserInvitedBillsQuery } from '../services/api';
 import { toast } from 'sonner';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
@@ -32,10 +32,12 @@ const Dashboard = () => {
 
   const { data: invitationsData } = useGetTransactionInvitationsQuery(user?.id, { skip: !user });
   const { data: pendingFriendsData } = useGetPendingRequestsQuery(user?.id, { skip: !user });
+  const { data: billInvitationsData } = useGetUserInvitedBillsQuery(user?.id, { skip: !user });
 
   const { data: profileData } = useGetUserProfileQuery(user?.id, { skip: !user });
 
-  const pendingInvitations = invitationsData?.transactions?.length || 0;
+  const pendingBillInvitations = (billInvitationsData?.bills || []).filter(b => b.invitation_status === 'pending').length;
+  const pendingInvitations = (invitationsData?.transactions?.length || 0) + pendingBillInvitations;
   const pendingFriendRequests = pendingFriendsData?.requests?.length || pendingFriendsData?.length || 0;
   const isPro = profileData?.subscription_tier === 'pro';
 
