@@ -213,10 +213,10 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
       <div className="space-y-3">
         {bills.map((bill) => {
           const isOwner = bill._role === 'owner';
-          const isRecurring = isCycleBased(bill);
+          const isMonthly = bill.recurrence === 'monthly';
 
           // Effective paid status for this bill/cycle
-          const myIsPaid = isRecurring
+          const myIsPaid = isMonthly
             ? hasCyclePaid(bill, userId)
             : bill.status === 'paid';
 
@@ -228,7 +228,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
             : null;
 
           // Participant's effective paid status (for the "I Paid" area)
-          const myParticipantIsPaid = isRecurring
+          const myParticipantIsPaid = isMonthly
             ? hasCyclePaid(bill, userId)
             : myParticipantRecord?.status === 'paid';
 
@@ -295,7 +295,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                         <div className="flex flex-wrap gap-2">
                           {bill.participants.map((p) => {
                             const invStatus = p.invitation_status || 'accepted';
-                            const pPaid = isRecurring ? hasCyclePaid(bill, p.user_id) : p.status === 'paid';
+                            const pPaid = isMonthly ? hasCyclePaid(bill, p.user_id) : p.status === 'paid';
                             const isAccepted = invStatus === 'accepted';
                             const isRejected = invStatus === 'rejected';
                             const isPendingInv = invStatus === 'pending';
