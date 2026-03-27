@@ -575,7 +575,7 @@ const LandingPage = () => {
                 />
                 <img
                   src="/images/split-illustration.png"
-                  alt="Friends splitting bills"
+                  alt="SpendSync — roommates splitting bills and tracking shared expenses together"
                   className="relative w-full max-w-sm h-auto"
                 />
               </div>

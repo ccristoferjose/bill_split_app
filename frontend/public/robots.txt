@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /subscription
+Disallow: /forgot-password
+
+Sitemap: https://app.spend-sync.com/sitemap.xml
