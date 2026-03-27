@@ -26,6 +26,10 @@ export const SocketProvider = ({ children }) => {
       // Initialize socket connection
       const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5001', {
         withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 30000,
       });
 
       newSocket.on('connect', () => {
@@ -196,9 +200,8 @@ export const SocketProvider = ({ children }) => {
 
       newSocket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
-        toast.error('Connection Error', {
-          description: 'Failed to connect to real-time notifications',
-        });
+        // Silent retry — don't show toast on transient connection failures
+        // (e.g., mobile browser backgrounded, network switch, token refresh)
       });
 
       setSocket(newSocket);
