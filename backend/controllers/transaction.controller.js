@@ -699,8 +699,8 @@ const markTransactionCyclePaid = async (req, res) => {
 
     const transaction = await findOne('SELECT * FROM transactions WHERE id = ?', [transactionId]);
     if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
-    if (transaction.recurrence !== 'monthly' && transaction.recurrence !== 'weekly') {
-      return res.status(400).json({ message: 'Only recurring bills use cycle payments' });
+    if (transaction.recurrence !== 'monthly') {
+      return res.status(400).json({ message: 'Only monthly bills use cycle payments' });
     }
 
     const isOwner = String(transaction.user_id) === String(user_id);
