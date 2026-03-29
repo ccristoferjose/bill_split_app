@@ -4,9 +4,9 @@ const { findOne, executeQuery } = require('../config/database');
 
 const TIER_LIMITS = {
   free: {
-    transactions_per_month: 10,
-    active_shared_bills: 3,
-    friends: 3,
+    transactions_per_month: Infinity,
+    active_shared_bills: 1,
+    friends: 0,
     recurring_bills: 1,
   },
   plus: {
@@ -137,7 +137,9 @@ const checkFriendLimit = async (req, res, next) => {
 
     if (row.count >= limits.friends) {
       return res.status(403).json({
-        message: `You've reached the limit of ${limits.friends} friends on the ${tier} plan. Upgrade for more.`,
+        message: limits.friends === 0
+          ? `Friends are not available on the ${tier} plan. Upgrade to Plus or Pro to add friends.`
+          : `You've reached the limit of ${limits.friends} friends on the ${tier} plan. Upgrade for more.`,
         code: 'TIER_LIMIT_FRIENDS',
         limit: limits.friends,
         current: row.count,

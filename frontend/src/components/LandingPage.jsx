@@ -399,9 +399,8 @@ const LandingPage = () => {
               </button>
               <ul className="space-y-3 text-sm flex-1">
                 {[
-                  `10 ${t('landing.pricingTransactions')}`,
-                  `3 ${t('landing.pricingSharedBills')}`,
-                  `3 ${t('landing.pricingFriends')}`,
+                  t('landing.pricingUnlimitedPersonal'),
+                  `1 ${t('landing.pricingSharedBill')}`,
                   `1 ${t('landing.pricingRecurring')}`,
                   t('landing.pricingBudgetCurrent'),
                 ].map((item, i) => (
@@ -411,6 +410,7 @@ const LandingPage = () => {
                   </li>
                 ))}
                 {[
+                  t('landing.pricingFriendsLocked'),
                   t('landing.pricingEmailNotifications'),
                   t('landing.pricingSmartReminders'),
                   t('landing.pricingHousehold'),

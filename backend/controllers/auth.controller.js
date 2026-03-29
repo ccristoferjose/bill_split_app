@@ -27,7 +27,7 @@ const syncUser = async (req, res) => {
       await executeQuery('DELETE FROM users WHERE id = ?', [existing.id]);
     }
 
-    await executeQuery(
+    const result = await executeQuery(
       `INSERT INTO users (id, username, email)
        VALUES (?, ?, ?)
        ON DUPLICATE KEY UPDATE
@@ -36,12 +36,15 @@ const syncUser = async (req, res) => {
       [userId, username, email]
     );
 
+    // affectedRows === 1 means INSERT (new user), 2 means UPDATE (existing)
+    const isNew = result.affectedRows === 1;
+
     const user = await findOne(
       'SELECT id, username, email, phone, address, city, country FROM users WHERE id = ?',
       [userId]
     );
-    console.log('[syncUser] User synced:', user);
-    res.json({ user });
+    console.log('[syncUser] User synced:', user, 'isNew:', isNew);
+    res.json({ user, isNew });
   } catch (error) {
     console.error('[syncUser] Error:', error);
     res.status(500).json({ message: 'Internal server error' });

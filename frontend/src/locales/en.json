@@ -87,7 +87,7 @@
     "pricingFree": "Free",
     "pricingPlus": "Plus",
     "pricingPro": "Pro",
-    "pricingFreeDesc": "Try it out",
+    "pricingFreeDesc": "Personal budgeting, free forever",
     "pricingPlusDesc": "For students & casual roommates",
     "pricingProDesc": "For household managers",
     "pricingMo": "/mo",
@@ -100,7 +100,10 @@
     "pricingCurrentPlan": "Current plan",
     "pricingMostPopular": "Most popular",
     "pricingTransactions": "transactions/month",
+    "pricingUnlimitedPersonal": "Unlimited personal transactions",
+    "pricingFriendsLocked": "Friends (Plus required)",
     "pricingUnlimitedTransactions": "Unlimited transactions",
+    "pricingSharedBill": "active shared bill",
     "pricingSharedBills": "active shared bills",
     "pricingUnlimitedBills": "Unlimited shared bills",
     "pricingFriends": "friends",
@@ -177,7 +180,15 @@
     "billSplitInvitations": "Bill Split Invitations",
     "sharedBillInvitations": "Shared Bill Invitations",
     "exportProOnly": "CSV export is available on the Pro plan",
-    "exportFailed": "Failed to export transactions"
+    "exportFailed": "Failed to export transactions",
+    "pdfReport": "PDF Report",
+    "reportTitle": "Download PDF Report",
+    "reportFrom": "From",
+    "reportTo": "To",
+    "reportDownload": "Download PDF",
+    "reportFailed": "Failed to generate report",
+    "reportSelectDates": "Please select both start and end dates",
+    "reportHint": "Includes separate totals for expenses, billings, and earnings"
   },
 
   "profile": {
@@ -419,5 +430,30 @@
     "resendInvitations": "Resend Invitations",
     "resending": "Resending...",
     "failedResend": "Failed to resend invitations"
+  },
+
+  "welcome": {
+    "langTitle": "Choose your language",
+    "langDesc": "You can change this later in your profile settings.",
+    "continue": "Continue",
+    "back": "Back",
+    "featuresTitle": "Welcome to SpendSync",
+    "featuresDesc": "Here's what you can do with your account:",
+    "featureTransactions": "Track unlimited personal income and expenses",
+    "featureCalendar": "View all your bills on a visual calendar",
+    "featureBills": "Manage recurring and one-time bills",
+    "featureBudget": "See your monthly budget summary at a glance",
+    "featureSplit": "Try splitting a bill with friends",
+    "planTitle": "Your free plan",
+    "planDesc": "Start managing your finances right away.",
+    "freePlan": "Free plan",
+    "currentPlan": "Your plan",
+    "freeFeature1": "Unlimited personal transactions (income & expenses)",
+    "freeFeature2": "1 shared bill and 1 recurring bill to try",
+    "freeFeature3": "Monthly budget summary and calendar view",
+    "upgradeTitle": "Want more?",
+    "upgradeDesc": "Unlock friends, more shared bills, email notifications, PDF reports, and more with Plus or Pro.",
+    "startFree": "Start for free",
+    "viewPlans": "View plans"
   }
 }
