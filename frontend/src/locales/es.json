@@ -87,7 +87,7 @@
     "pricingFree": "Gratis",
     "pricingPlus": "Plus",
     "pricingPro": "Pro",
-    "pricingFreeDesc": "Para probar",
+    "pricingFreeDesc": "Presupuesto personal, gratis para siempre",
     "pricingPlusDesc": "Para estudiantes y roommates",
     "pricingProDesc": "Para administradores del hogar",
     "pricingMo": "/mes",
@@ -100,7 +100,10 @@
     "pricingCurrentPlan": "Plan actual",
     "pricingMostPopular": "Más popular",
     "pricingTransactions": "transacciones/mes",
+    "pricingUnlimitedPersonal": "Transacciones personales ilimitadas",
+    "pricingFriendsLocked": "Amigos (requiere Plus)",
     "pricingUnlimitedTransactions": "Transacciones ilimitadas",
+    "pricingSharedBill": "cuenta compartida activa",
     "pricingSharedBills": "cuentas compartidas activas",
     "pricingUnlimitedBills": "Cuentas compartidas ilimitadas",
     "pricingFriends": "amigos",
@@ -177,7 +180,15 @@
     "billSplitInvitations": "Invitaciones para Dividir Cuentas",
     "sharedBillInvitations": "Invitaciones de Cuentas Compartidas",
     "exportProOnly": "La exportación CSV está disponible en el plan Pro",
-    "exportFailed": "Error al exportar transacciones"
+    "exportFailed": "Error al exportar transacciones",
+    "pdfReport": "Reporte PDF",
+    "reportTitle": "Descargar Reporte PDF",
+    "reportFrom": "Desde",
+    "reportTo": "Hasta",
+    "reportDownload": "Descargar PDF",
+    "reportFailed": "Error al generar el reporte",
+    "reportSelectDates": "Selecciona ambas fechas",
+    "reportHint": "Incluye totales separados de gastos, cuentas y ganancias"
   },
 
   "profile": {
@@ -419,5 +430,30 @@
     "resendInvitations": "Reenviar Invitaciones",
     "resending": "Reenviando...",
     "failedResend": "Error al reenviar invitaciones"
+  },
+
+  "welcome": {
+    "langTitle": "Elige tu idioma",
+    "langDesc": "Puedes cambiarlo después en la configuración de tu perfil.",
+    "continue": "Continuar",
+    "back": "Atrás",
+    "featuresTitle": "Bienvenido a SpendSync",
+    "featuresDesc": "Esto es lo que puedes hacer con tu cuenta:",
+    "featureTransactions": "Registra ingresos y gastos personales sin límite",
+    "featureCalendar": "Visualiza todas tus cuentas en un calendario",
+    "featureBills": "Administra cuentas recurrentes y únicas",
+    "featureBudget": "Consulta tu resumen de presupuesto mensual",
+    "featureSplit": "Prueba dividir una cuenta con amigos",
+    "planTitle": "Tu plan gratuito",
+    "planDesc": "Empieza a administrar tus finanzas ahora mismo.",
+    "freePlan": "Plan gratuito",
+    "currentPlan": "Tu plan",
+    "freeFeature1": "Transacciones personales ilimitadas (ingresos y gastos)",
+    "freeFeature2": "1 cuenta compartida y 1 recurrente para probar",
+    "freeFeature3": "Resumen de presupuesto mensual y vista de calendario",
+    "upgradeTitle": "¿Quieres más?",
+    "upgradeDesc": "Desbloquea amigos, más cuentas compartidas, notificaciones por email, reportes PDF y más con Plus o Pro.",
+    "startFree": "Empezar gratis",
+    "viewPlans": "Ver planes"
   }
 }
