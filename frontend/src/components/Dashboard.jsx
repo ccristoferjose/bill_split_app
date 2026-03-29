@@ -1,12 +1,12 @@
 // frontend/src/components/Dashboard.jsx
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Receipt, Users, Settings, UserPlus, CalendarDays, ChevronLeft, ChevronRight, Download } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth } from 'date-fns';
+import { Receipt, Users, Settings, UserPlus, CalendarDays, ChevronLeft, ChevronRight, Download, FileText, Loader2 } from 'lucide-react';
+import { format, addMonths, subMonths, startOfMonth, subDays } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import Navbar from './Navbar';
 import BillsList from './BillsList';
@@ -17,6 +17,7 @@ import UserProfile from './UserProfile';
 import FriendsList from './FriendsList';
 import PersonalBillsList from './PersonalBillsList';
 import TransactionInvitationsList from './TransactionInvitationsList';
+import WelcomeModal from './WelcomeModal';
 import { useGetTransactionInvitationsQuery, useGetPendingRequestsQuery, useGetUserProfileQuery, useGetUserInvitedBillsQuery } from '../services/api';
 import { toast } from 'sonner';
 import { fetchAuthSession } from 'aws-amplify/auth';
@@ -24,11 +25,19 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 const Dashboard = () => {
   const { t } = useTranslation();
   const { user } = useSelector((state) => state.auth);
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'calendar');
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
   const [billsMonth, setBillsMonth] = useState(startOfMonth(new Date()));
+  const [showReportPanel, setShowReportPanel] = useState(false);
+  const [reportFrom, setReportFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [reportTo, setReportTo] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [isReportLoading, setIsReportLoading] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(
+    () => location.state?.isNew === true
+  );
 
   const { data: invitationsData } = useGetTransactionInvitationsQuery(user?.id, { skip: !user });
   const { data: pendingFriendsData } = useGetPendingRequestsQuery(user?.id, { skip: !user });
@@ -65,6 +74,39 @@ const Dashboard = () => {
       URL.revokeObjectURL(url);
     } catch (err) {
       toast.error(t('dashboard.exportFailed'));
+    }
+  };
+
+  const handleReportDownload = async () => {
+    if (!isPro) {
+      toast.error(t('dashboard.exportProOnly'));
+      return;
+    }
+    if (!reportFrom || !reportTo) {
+      toast.error(t('dashboard.reportSelectDates'));
+      return;
+    }
+    setIsReportLoading(true);
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString();
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      const res = await fetch(`${apiUrl}/export/report/${user.id}?from=${reportFrom}&to=${reportTo}`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Report generation failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `spendsync-report-${reportFrom}-to-${reportTo}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShowReportPanel(false);
+    } catch (err) {
+      toast.error(t('dashboard.reportFailed'));
+    } finally {
+      setIsReportLoading(false);
     }
   };
 
@@ -142,15 +184,26 @@ const Dashboard = () => {
                   <CardTitle className="text-base sm:text-lg">{t('dashboard.myBills')}</CardTitle>
                   <div className="flex items-center gap-2">
                     {isPro && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={handleExport}
-                      >
-                        <Download className="h-3.5 w-3.5 mr-1" />
-                        CSV
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={handleExport}
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1" />
+                          CSV
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => setShowReportPanel(p => !p)}
+                        >
+                          <FileText className="h-3.5 w-3.5 mr-1" />
+                          {t('dashboard.pdfReport')}
+                        </Button>
+                      </>
                     )}
                     <Button
                       variant="ghost"
@@ -174,6 +227,45 @@ const Dashboard = () => {
                   </div>
                 </div>
               </CardHeader>
+              {showReportPanel && (
+                <div className="mx-4 sm:mx-6 mb-2 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <p className="text-sm font-medium text-purple-800 mb-3">{t('dashboard.reportTitle')}</p>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+                    <div>
+                      <label className="block text-xs text-purple-600 mb-1">{t('dashboard.reportFrom')}</label>
+                      <input
+                        type="date"
+                        value={reportFrom}
+                        onChange={(e) => setReportFrom(e.target.value)}
+                        className="h-8 px-2 text-sm border border-purple-300 rounded-md bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-purple-600 mb-1">{t('dashboard.reportTo')}</label>
+                      <input
+                        type="date"
+                        value={reportTo}
+                        onChange={(e) => setReportTo(e.target.value)}
+                        className="h-8 px-2 text-sm border border-purple-300 rounded-md bg-white"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                      onClick={handleReportDownload}
+                      disabled={isReportLoading}
+                    >
+                      {isReportLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      {t('dashboard.reportDownload')}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-purple-500 mt-2">{t('dashboard.reportHint')}</p>
+                </div>
+              )}
               <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6 pt-0 space-y-3">
                 <PersonalBillsList userId={user.id} viewMonth={billsMonth} />
                 <div className="border-t pt-3">
@@ -243,6 +335,8 @@ const Dashboard = () => {
           onClose={() => setSelectedBill(null)}
         />
       )}
+
+      <WelcomeModal open={showWelcome} onClose={() => setShowWelcome(false)} />
     </div>
   );
 };

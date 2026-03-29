@@ -35,16 +35,16 @@ const Login = () => {
       const username = idClaims?.name || idClaims?.['cognito:username'] || email;
       const userEmail = idClaims?.email || email;
 
-      let user;
+      let user, isNew;
       try {
-        ({ user } = await syncUser({ username, email: userEmail }).unwrap());
+        ({ user, isNew } = await syncUser({ username, email: userEmail }).unwrap());
       } catch (syncErr) {
         console.error('Backend sync failed:', syncErr);
         throw new Error(t('login.syncFailed'));
       }
 
       dispatch(setCredentials({ user }));
-      navigate('/dashboard');
+      navigate('/dashboard', { state: { isNew } });
     } catch (err) {
       console.error('Login failed:', err);
       setError(err.message || t('login.failed'));
