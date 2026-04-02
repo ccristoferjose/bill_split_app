@@ -298,7 +298,10 @@ const TransactionRow = ({ transaction, userId, viewMonth, onClick }) => {
     const hasCycle = (transaction.cycle_payments || []).some(
       cp => String(cp.user_id) === String(userId) &&
             Number(cp.cycle_year) === cycleYear &&
-            Number(cp.cycle_month) === cycleMonth
+            Number(cp.cycle_month) === cycleMonth &&
+            (transaction.recurrence === 'weekly'
+              ? Number(cp.cycle_week) === (transaction._weekIndex || 0)
+              : cp.cycle_week == null)
     );
 
     if (transaction._role === 'participant') {
@@ -363,9 +366,11 @@ const TransactionTimeline = ({ transactions, currentMonth, userId, viewMonth, on
         if (!startDate || startDate > monthEnd) return;
         let d = new Date(startDate.getTime());
         while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
+        let weekIdx = 1;
         while (d <= monthEnd) {
-          expanded.push({ ...tx, _weeklyDate: format(d, 'yyyy-MM-dd') });
+          expanded.push({ ...tx, _weeklyDate: format(d, 'yyyy-MM-dd'), _weekIndex: weekIdx });
           d = new Date(d.getTime() + 7 * 86400000);
+          weekIdx++;
         }
       } else {
         expanded.push(tx);
@@ -746,6 +751,7 @@ const BillCalendar = ({ userId, onSelectBill }) => {
           transaction={selectedTransaction}
           userId={userId}
           viewMonth={currentMonth}
+          weekIndex={selectedTransaction._weekIndex || null}
           onClose={() => setSelectedTransaction(null)}
         />
       )}

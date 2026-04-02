@@ -493,7 +493,7 @@ const getUserTransactions = async (req, res) => {
         txIds
       ),
       executeQuery(
-        `SELECT transaction_id, user_id, cycle_year, cycle_month, paid_at
+        `SELECT transaction_id, user_id, cycle_year, cycle_month, cycle_week, paid_at
          FROM transaction_cycle_payments
          WHERE transaction_id IN (${txIds.map(() => '?').join(',')})`,
         txIds
@@ -695,12 +695,18 @@ const markParticipantPaid = async (req, res) => {
 const markTransactionCyclePaid = async (req, res) => {
   try {
     const { transactionId, year, month } = req.params;
-    const { user_id } = req.body;
+    const { user_id, week } = req.body;
 
     const transaction = await findOne('SELECT * FROM transactions WHERE id = ?', [transactionId]);
     if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
     if (transaction.recurrence !== 'monthly' && transaction.recurrence !== 'weekly') {
       return res.status(400).json({ message: 'Only recurring bills use cycle payments' });
+    }
+
+    // Weekly bills require a week index (1-5)
+    const cycleWeek = transaction.recurrence === 'weekly' ? (week || null) : null;
+    if (transaction.recurrence === 'weekly' && !cycleWeek) {
+      return res.status(400).json({ message: 'Weekly bills require a week index' });
     }
 
     const isOwner = String(transaction.user_id) === String(user_id);
@@ -712,24 +718,31 @@ const markTransactionCyclePaid = async (req, res) => {
       if (!participant) return res.status(403).json({ message: 'Not authorized' });
     }
 
+    // For weekly: match on cycle_week; for monthly: cycle_week IS NULL
+    const weekCondition = cycleWeek
+      ? 'AND cycle_week = ?'
+      : 'AND cycle_week IS NULL';
+    const weekParams = cycleWeek ? [cycleWeek] : [];
+
     const existing = await findOne(
-      'SELECT id FROM transaction_cycle_payments WHERE transaction_id = ? AND user_id = ? AND cycle_year = ? AND cycle_month = ?',
-      [transactionId, user_id, year, month]
+      `SELECT id FROM transaction_cycle_payments WHERE transaction_id = ? AND user_id = ? AND cycle_year = ? AND cycle_month = ? ${weekCondition}`,
+      [transactionId, user_id, year, month, ...weekParams]
     );
 
     if (existing) {
       await executeQuery(
-        'DELETE FROM transaction_cycle_payments WHERE transaction_id = ? AND user_id = ? AND cycle_year = ? AND cycle_month = ?',
-        [transactionId, user_id, year, month]
+        `DELETE FROM transaction_cycle_payments WHERE transaction_id = ? AND user_id = ? AND cycle_year = ? AND cycle_month = ? ${weekCondition}`,
+        [transactionId, user_id, year, month, ...weekParams]
       );
       return res.json({ message: 'Marked as unpaid', status: 'pending', allPaid: false });
     }
 
     await executeQuery(
-      'INSERT INTO transaction_cycle_payments (transaction_id, user_id, cycle_year, cycle_month) VALUES (?, ?, ?, ?)',
-      [transactionId, user_id, year, month]
+      'INSERT INTO transaction_cycle_payments (transaction_id, user_id, cycle_year, cycle_month, cycle_week) VALUES (?, ?, ?, ?, ?)',
+      [transactionId, user_id, year, month, cycleWeek]
     );
 
+    // For "allPaid" check on weekly bills, only check this specific week
     const [acceptedParticipants, pendingInviteRow, paidUsers] = await Promise.all([
       executeQuery(
         `SELECT user_id FROM transaction_participants WHERE transaction_id = ? AND invitation_status = 'accepted'`,
@@ -740,8 +753,8 @@ const markTransactionCyclePaid = async (req, res) => {
         [transactionId]
       ),
       executeQuery(
-        'SELECT user_id FROM transaction_cycle_payments WHERE transaction_id = ? AND cycle_year = ? AND cycle_month = ?',
-        [transactionId, year, month]
+        `SELECT user_id FROM transaction_cycle_payments WHERE transaction_id = ? AND cycle_year = ? AND cycle_month = ? ${weekCondition}`,
+        [transactionId, year, month, ...weekParams]
       ),
     ]);
 
@@ -751,7 +764,9 @@ const markTransactionCyclePaid = async (req, res) => {
 
     const payer = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
     const otherUserIds = allUserIds.filter(uid => uid !== String(user_id));
-    const cycleLabel = `${year}-${String(month).padStart(2, '0')}`;
+    const cycleLabel = cycleWeek
+      ? `${year}-${String(month).padStart(2, '0')} week ${cycleWeek}`
+      : `${year}-${String(month).padStart(2, '0')}`;
 
     for (const uid of otherUserIds) {
       sendNotificationToUser(uid, {
@@ -760,7 +775,7 @@ const markTransactionCyclePaid = async (req, res) => {
         message: allPaid
           ? `All participants paid for "${transaction.title}" (${cycleLabel})`
           : `${payer.username} paid their share of "${transaction.title}" for ${cycleLabel}`,
-        data: { transactionId, allPaid, cycleYear: Number(year), cycleMonth: Number(month) },
+        data: { transactionId, allPaid, cycleYear: Number(year), cycleMonth: Number(month), cycleWeek: cycleWeek ? Number(cycleWeek) : null },
       });
     }
 
