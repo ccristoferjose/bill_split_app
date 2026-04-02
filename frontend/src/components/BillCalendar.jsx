@@ -97,7 +97,9 @@ const getEffectiveTxAmount = (tx, userId) => {
 // Expenses (non-shared): always deduct (personal spending already happened).
 // Bills: only deduct when user marks as paid (user decides when to pay).
 // Shared items: only deduct once the user marks their share as paid.
-const getPaidTxAmount = (tx, userId, cycleYear, cycleMonth) => {
+// For weekly bills with weekIndex: checks a specific week occurrence.
+// For weekly bills without weekIndex: returns per-occurrence amount (used by monthlyStats).
+const getPaidTxAmount = (tx, userId, cycleYear, cycleMonth, weekIndex) => {
   const isShared = tx.is_shared && (tx.participants || []).length > 0;
   const isRecurring = tx.recurrence === 'monthly' || tx.recurrence === 'weekly';
 
@@ -106,7 +108,10 @@ const getPaidTxAmount = (tx, userId, cycleYear, cycleMonth) => {
       cp =>
         String(cp.user_id) === String(uid) &&
         Number(cp.cycle_year) === cycleYear &&
-        Number(cp.cycle_month) === cycleMonth
+        Number(cp.cycle_month) === cycleMonth &&
+        (tx.recurrence === 'weekly'
+          ? Number(cp.cycle_week) === (weekIndex || 0)
+          : cp.cycle_week == null)
     );
 
   // Non-shared expenses: always deduct (you already spent the money)
@@ -531,12 +536,17 @@ const BillCalendar = ({ userId, onSelectBill }) => {
       bills: allTransactions
         .filter(billFilter)
         .reduce((s, t) => {
-          const amt = getPaidTxAmount(t, userId, year, month);
           if (t.recurrence === 'weekly') {
+            // Sum each weekly occurrence individually based on its paid status
             const startDate = parseLocalDate(t.due_date);
-            return s + amt * getWeeklyOccurrencesInMonth(startDate, currentMonth);
+            const occurrences = getWeeklyOccurrencesInMonth(startDate, currentMonth);
+            let weeklyTotal = 0;
+            for (let w = 1; w <= occurrences; w++) {
+              weeklyTotal += getPaidTxAmount(t, userId, year, month, w);
+            }
+            return s + weeklyTotal;
           }
-          return s + amt;
+          return s + getPaidTxAmount(t, userId, year, month);
         }, 0),
     };
   }, [currentMonth, allTransactions, userId]);
