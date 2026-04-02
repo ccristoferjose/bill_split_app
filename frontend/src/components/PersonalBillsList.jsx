@@ -80,17 +80,42 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
   const cycleYear = (viewMonth || new Date()).getFullYear();
   const cycleMonth = (viewMonth || new Date()).getMonth() + 1; // 1-12
 
-  const bills = (data?.transactions || [])
+  const filteredBills = (data?.transactions || [])
     .filter(t => t.type === 'bill')
     .filter(t => !viewMonth || isBillInMonth(t, viewMonth));
 
+  // Expand weekly bills into individual occurrences with _weekIndex (1-based)
+  const bills = filteredBills.flatMap((bill) => {
+    if (bill.recurrence === 'weekly' && viewMonth) {
+      const start = parseLocalDate(bill.due_date);
+      if (!start) return [bill];
+      const monthStart = startOfMonth(viewMonth);
+      const monthEnd = endOfMonth(viewMonth);
+      let d = new Date(start.getTime());
+      while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
+      const occurrences = [];
+      let weekIdx = 1;
+      while (d <= monthEnd) {
+        occurrences.push({ ...bill, _weekIndex: weekIdx, _weeklyDate: new Date(d) });
+        d = new Date(d.getTime() + 7 * 86400000);
+        weekIdx++;
+      }
+      return occurrences.length > 0 ? occurrences : [bill];
+    }
+    return [bill];
+  });
+
   // Returns true if a given user has paid for the current viewed cycle
+  // For weekly bills, checks the specific week index
   const hasCyclePaid = (bill, uid) =>
     (bill.cycle_payments || []).some(
       cp =>
         String(cp.user_id) === String(uid) &&
         Number(cp.cycle_year) === cycleYear &&
-        Number(cp.cycle_month) === cycleMonth
+        Number(cp.cycle_month) === cycleMonth &&
+        (bill.recurrence === 'weekly'
+          ? Number(cp.cycle_week) === (bill._weekIndex || 0)
+          : cp.cycle_week == null)
     );
 
   // Effective due date adjusted to viewMonth for recurring bills
@@ -104,15 +129,9 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
       return new Date(viewMonth.getFullYear(), viewMonth.getMonth(), clamped);
     }
 
+    // Weekly: use the expanded _weeklyDate if available
     if (bill.recurrence === 'weekly') {
-      const start = parseLocalDate(bill.due_date);
-      if (!start) return null;
-      const monthStart = startOfMonth(viewMonth);
-      const monthEnd   = endOfMonth(viewMonth);
-      let d = new Date(start.getTime());
-      // Advance to first occurrence on or after the start of viewMonth
-      while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
-      return d <= monthEnd ? d : null;
+      return bill._weeklyDate || null;
     }
 
     return parseLocalDate(bill.due_date);
@@ -126,7 +145,9 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
   const handleTogglePaid = async (bill) => {
     try {
       if (isCycleBased(bill)) {
-        const result = await markCyclePaid({ transactionId: bill.id, year: cycleYear, month: cycleMonth, user_id: userId }).unwrap();
+        const params = { transactionId: bill.id, year: cycleYear, month: cycleMonth, user_id: userId };
+        if (bill.recurrence === 'weekly' && bill._weekIndex) params.week = bill._weekIndex;
+        const result = await markCyclePaid(params).unwrap();
         toast.success(result.message);
       } else {
         const result = await markTransactionPaid({ transactionId: bill.id, user_id: userId }).unwrap();
@@ -140,7 +161,9 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
   const handleToggleParticipantPaid = async (bill, participant) => {
     try {
       if (isCycleBased(bill)) {
-        const result = await markCyclePaid({ transactionId: bill.id, year: cycleYear, month: cycleMonth, user_id: userId }).unwrap();
+        const params = { transactionId: bill.id, year: cycleYear, month: cycleMonth, user_id: userId };
+        if (bill.recurrence === 'weekly' && bill._weekIndex) params.week = bill._weekIndex;
+        const result = await markCyclePaid(params).unwrap();
         toast.success(result.message);
       } else {
         const result = await markParticipantPaid({
@@ -234,7 +257,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
 
           return (
             <Card
-              key={`${bill.id}-${bill._role}-${cycleYear}-${cycleMonth}`}
+              key={`${bill.id}-${bill._role}-${cycleYear}-${cycleMonth}-${bill._weekIndex || 0}`}
               className={`transition-shadow ${myIsPaid ? 'opacity-75' : 'hover:shadow-md'}`}
             >
               <CardContent className="p-4">
@@ -249,7 +272,10 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                     {/* Title row */}
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
                       <CalendarDays className="h-4 w-4 text-blue-500 shrink-0" />
-                      <h3 className="font-semibold text-sm truncate">{bill.title}</h3>
+                      <h3 className="font-semibold text-sm truncate">
+                        {bill.title}
+                        {bill._weekIndex ? ` (Week ${bill._weekIndex})` : ''}
+                      </h3>
 
                       {/* Paid status for this cycle/month */}
                       {myIsPaid ? (
@@ -435,6 +461,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
           transaction={detailBill}
           userId={userId}
           viewMonth={viewMonth}
+          weekIndex={detailBill._weekIndex || null}
           onClose={() => setDetailBill(null)}
         />
       )}

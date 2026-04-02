@@ -262,10 +262,10 @@ export const api = createApi({
     }),
 
     markTransactionCyclePaid: builder.mutation({
-      query: ({ transactionId, year, month, user_id }) => ({
+      query: ({ transactionId, year, month, user_id, week }) => ({
         url: `/transactions/${transactionId}/cycles/${year}/${month}/mark-paid`,
         method: 'POST',
-        body: { user_id },
+        body: { user_id, week },
       }),
       invalidatesTags: ['Transaction'],
     }),
