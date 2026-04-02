@@ -39,7 +39,8 @@ const PayStatusBadge = ({ paid }) => {
 };
 
 // viewMonth: the currently viewed month (Date object), used for cycle-aware status
-const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose }) => {
+// weekIndex: for weekly bills, the occurrence index (1-5) within the month
+const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex, onClose }) => {
   const [respondToSplit, { isLoading: isResponding }] = useRespondToTransactionSplitMutation();
   const [markParticipantPaid, { isLoading: isMarkingPaid }] = useMarkParticipantPaidMutation();
   const [resendInvitation, { isLoading: isResending }] = useResendTransactionInvitationMutation();
@@ -60,13 +61,17 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
     setLocalPaid(null);
   }, [transaction.id]);
 
-  // Returns true if a given user has a cycle payment record for the viewed month
+  // Returns true if a given user has a cycle payment record for the viewed cycle
+  // For weekly bills, checks the specific week index
   const hasCyclePaid = (uid) =>
     (transaction.cycle_payments || []).some(
       cp =>
         String(cp.user_id) === String(uid) &&
         Number(cp.cycle_year) === cycleYear &&
-        Number(cp.cycle_month) === cycleMonth
+        Number(cp.cycle_month) === cycleMonth &&
+        (transaction.recurrence === 'weekly'
+          ? Number(cp.cycle_week) === (weekIndex || 0)
+          : cp.cycle_week == null)
     );
 
   const isOwner = transaction._role === 'owner' || String(transaction.user_id) === String(userId);
@@ -111,12 +116,14 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
     setLocalPaid(newPaid); // optimistic update
     try {
       if (isMonthly) {
-        const result = await markCyclePaid({
+        const params = {
           transactionId: transaction.id,
           year: cycleYear,
           month: cycleMonth,
           user_id: userId,
-        }).unwrap();
+        };
+        if (transaction.recurrence === 'weekly' && weekIndex) params.week = weekIndex;
+        const result = await markCyclePaid(params).unwrap();
         toast.success(result.message);
       } else {
         await markParticipantPaid({
@@ -137,12 +144,14 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
     setLocalPaid(newPaid); // optimistic update
     try {
       if (isMonthly) {
-        const result = await markCyclePaid({
+        const params = {
           transactionId: transaction.id,
           year: cycleYear,
           month: cycleMonth,
           user_id: userId,
-        }).unwrap();
+        };
+        if (transaction.recurrence === 'weekly' && weekIndex) params.week = weekIndex;
+        const result = await markCyclePaid(params).unwrap();
         toast.success(result.message);
       } else {
         const result = await markTransactionPaid({ transactionId: transaction.id, user_id: userId }).unwrap();
@@ -189,7 +198,9 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, onClose })
             </div>
             <div>
               <p className="text-xs text-gray-400 mb-0.5">
-                {isMonthly ? `Status (${format(viewMonth || new Date(), 'MMM yyyy')})` : 'Status'}
+                {isMonthly
+                  ? `Status (${format(viewMonth || new Date(), 'MMM yyyy')}${weekIndex ? ` Wk ${weekIndex}` : ''})`
+                  : 'Status'}
               </p>
               {myIsPaid
                 ? <Badge className="bg-green-100 text-green-700"><CheckCircle className="h-3 w-3 mr-1" />Paid</Badge>

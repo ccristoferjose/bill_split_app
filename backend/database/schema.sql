@@ -203,16 +203,19 @@ CREATE TABLE IF NOT EXISTS transaction_participants (
     UNIQUE KEY unique_transaction_participant (transaction_id, user_id)
 );
 
--- Per-cycle payment tracking for monthly transaction bills
--- Each row = one user marking their share paid for a specific year+month
+-- Per-cycle payment tracking for recurring transaction bills
+-- Each row = one user marking their share paid for a specific cycle.
+-- Monthly bills: cycle_week is NULL (one payment per month).
+-- Weekly bills: cycle_week = 1-5 (occurrence index within the month).
 CREATE TABLE IF NOT EXISTS transaction_cycle_payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     transaction_id INT NOT NULL,
     user_id VARCHAR(128) NOT NULL,
     cycle_year SMALLINT NOT NULL,
     cycle_month TINYINT NOT NULL,
+    cycle_week TINYINT DEFAULT NULL,
     paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_cycle (transaction_id, user_id, cycle_year, cycle_month),
+    UNIQUE KEY unique_cycle (transaction_id, user_id, cycle_year, cycle_month, cycle_week),
     FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
