@@ -387,7 +387,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
           {/* Recurrence — Bill only */}
           {txType === 'bill' && (
             <div className="transition-all duration-200 animate-in fade-in slide-in-from-top-1 space-y-2">
-              <Label>{t('createTransaction.recurrence')} *</Label>
+              <Label>{t('createTransaction.recurrence')}</Label>
               <ChipGroup
                 options={RECURRENCE_OPTIONS}
                 value={formData.recurrence}
