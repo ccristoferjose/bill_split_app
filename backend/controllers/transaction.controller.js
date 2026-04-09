@@ -145,6 +145,8 @@ const createTransaction = async (req, res) => {
       recurrence_end_date, notes, is_shared, participants
     } = req.body;
 
+    console.log('[createTransaction] recurrence:', recurrence, '| recurrence_end_date:', recurrence_end_date);
+
     if (!user_id || !type || !title || amount === undefined) {
       return res.status(400).json({ message: 'user_id, type, title, and amount are required' });
     }
@@ -513,13 +515,22 @@ const getUserTransactions = async (req, res) => {
       cycleMap[c.transaction_id].push(c);
     }
 
-    res.json({
-      transactions: transactions.map(t => ({
-        ...t,
-        participants: participantMap[t.id] || [],
-        cycle_payments: cycleMap[t.id] || [],
-      })),
-    });
+    const result = transactions.map(t => ({
+      ...t,
+      participants: participantMap[t.id] || [],
+      cycle_payments: cycleMap[t.id] || [],
+    }));
+
+    // Debug: log recurring bills with end dates
+    const recurring = result.filter(t => t.recurrence);
+    if (recurring.length > 0) {
+      console.log('[getUserTransactions] Recurring bills:', recurring.map(t => ({
+        id: t.id, title: t.title, recurrence: t.recurrence,
+        recurrence_end_date: t.recurrence_end_date, due_date: t.due_date
+      })));
+    }
+
+    res.json({ transactions: result });
   } catch (error) {
     console.error('Error fetching transactions:', error);
     res.status(500).json({ message: 'Internal server error' });
