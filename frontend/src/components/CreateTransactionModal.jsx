@@ -116,6 +116,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
     due_date:     '',
     category:     '',
     recurrence:   '',
+    recurrence_end_date: '',
     notes:        '',
     participants: [],
   });
@@ -139,6 +140,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
       due_date:     '',
       category:     '',
       recurrence:   '',
+      recurrence_end_date: '',
       participants: [],
     }));
     setFriendSearch('');
@@ -264,6 +266,8 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
         due_date:     txType === 'bill' ? (formData.due_date || null) : null,
         category:     formData.category  || null,
         recurrence:   txType === 'bill'  ? (formData.recurrence || null) : null,
+        recurrence_end_date: txType === 'bill' && formData.recurrence
+          ? (formData.recurrence_end_date || null) : null,
         notes:        formData.notes     || null,
         is_shared:    formData.participants.length > 0,
         participants: formData.participants.map(p => ({
@@ -387,9 +391,48 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
               <ChipGroup
                 options={RECURRENCE_OPTIONS}
                 value={formData.recurrence}
-                onChange={(v) => set('recurrence', v)}
+                onChange={(v) => {
+                  set('recurrence', v);
+                  if (!v) set('recurrence_end_date', '');
+                }}
                 activeColor="bg-blue-600 text-white border-blue-600"
               />
+            </div>
+          )}
+
+          {txType === 'bill' && formData.recurrence && (
+            <div className="transition-all duration-200 animate-in fade-in slide-in-from-top-1 space-y-2">
+              <Label>{t('createTransaction.endDate')}</Label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="endDateMode"
+                    checked={!formData.recurrence_end_date}
+                    onChange={() => set('recurrence_end_date', '')}
+                    className="accent-blue-600"
+                  />
+                  {t('createTransaction.indefinite')}
+                </label>
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="endDateMode"
+                    checked={!!formData.recurrence_end_date}
+                    onChange={() => set('recurrence_end_date', formData.due_date || today)}
+                    className="accent-blue-600"
+                  />
+                  {t('createTransaction.hasEndDate')}
+                </label>
+              </div>
+              {formData.recurrence_end_date && (
+                <Input
+                  type="date"
+                  value={formData.recurrence_end_date}
+                  min={formData.due_date || undefined}
+                  onChange={(e) => set('recurrence_end_date', e.target.value)}
+                />
+              )}
             </div>
           )}
 

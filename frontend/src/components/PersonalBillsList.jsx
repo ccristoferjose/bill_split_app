@@ -35,18 +35,31 @@ const isBillInMonth = (bill, monthDate) => {
   if (bill.recurrence === 'monthly') {
     const start = parseLocalDate(bill.due_date);
     if (!start) return false;
-    return startOfMonth(start) <= monthStart;
+    if (startOfMonth(start) > monthStart) return false;
+    if (bill.recurrence_end_date) {
+      const endDate = parseLocalDate(bill.recurrence_end_date);
+      if (endDate && endDate < monthStart) return false;
+    }
+    return true;
   }
 
   if (bill.recurrence === 'yearly') {
     const start = parseLocalDate(bill.due_date);
     if (!start) return false;
+    if (bill.recurrence_end_date) {
+      const endDate = parseLocalDate(bill.recurrence_end_date);
+      if (endDate && endDate < monthStart) return false;
+    }
     return start.getMonth() === monthDate.getMonth();
   }
 
   if (bill.recurrence === 'weekly') {
     const start = parseLocalDate(bill.due_date);
     if (!start) return false;
+    if (bill.recurrence_end_date) {
+      const endDate = parseLocalDate(bill.recurrence_end_date);
+      if (endDate && endDate < monthStart) return false;
+    }
     return start <= monthEnd;
   }
 
@@ -91,11 +104,13 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
       if (!start) return [bill];
       const monthStart = startOfMonth(viewMonth);
       const monthEnd = endOfMonth(viewMonth);
+      const billEndDate = bill.recurrence_end_date ? parseLocalDate(bill.recurrence_end_date) : null;
       let d = new Date(start.getTime());
       while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
       const occurrences = [];
       let weekIdx = 1;
       while (d <= monthEnd) {
+        if (billEndDate && d > billEndDate) break;
         occurrences.push({ ...bill, _weekIndex: weekIdx, _weeklyDate: new Date(d) });
         d = new Date(d.getTime() + 7 * 86400000);
         weekIdx++;
@@ -292,6 +307,11 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                         <Badge variant="outline" className="text-xs">
                           {RECURRENCE_LABELS[bill.recurrence] || bill.recurrence}
                         </Badge>
+                      )}
+                      {bill.recurrence_end_date && (
+                        <span className="text-xs text-gray-400">
+                          {t('personalBills.endsOn', { date: format(parseLocalDate(bill.recurrence_end_date), 'MMM dd, yyyy') })}
+                        </span>
                       )}
                       {!isOwner && (
                         <Badge className="bg-purple-100 text-purple-800 text-xs">{t('personalBills.sharedWithMe')}</Badge>

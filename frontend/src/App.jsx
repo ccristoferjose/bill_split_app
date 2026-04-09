@@ -9,6 +9,8 @@ import Register from './components/Register'
 import Dashboard from './components/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import ForgotPassword from './components/ForgotPassword'
+import VerifyEmail from './components/VerifyEmail'
+import FriendInvitationHandler from './components/FriendInvitationHandler'
 import SubscriptionPage from './components/SubscriptionPage'
 import { SocketProvider } from './contexts/SocketContext'
 import { Toaster } from 'sonner'
@@ -31,6 +33,14 @@ function App() {
           <Route
             path="/register"
             element={user ? <Navigate to="/dashboard" replace /> : <Register />}
+          />
+          <Route
+            path="/verify"
+            element={user ? <Navigate to="/dashboard" replace /> : <VerifyEmail />}
+          />
+          <Route
+            path="/friends/invitations/:friendshipId"
+            element={<FriendInvitationHandler />}
           />
           <Route
             path="/forgot-password"

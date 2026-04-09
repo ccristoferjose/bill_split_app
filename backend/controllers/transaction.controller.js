@@ -142,7 +142,7 @@ const createTransaction = async (req, res) => {
     const {
       user_id, type, title, amount,
       date, due_date, category, recurrence,
-      notes, is_shared, participants
+      recurrence_end_date, notes, is_shared, participants
     } = req.body;
 
     if (!user_id || !type || !title || amount === undefined) {
@@ -154,12 +154,13 @@ const createTransaction = async (req, res) => {
     }
 
     const result = await executeQuery(
-      `INSERT INTO transactions (user_id, type, title, amount, date, due_date, category, recurrence, notes, is_shared)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO transactions (user_id, type, title, amount, date, due_date, category, recurrence, recurrence_end_date, notes, is_shared)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         user_id, type, title, parseFloat(amount),
         date || null, due_date || null,
         category || null, recurrence || null,
+        recurrence_end_date || null,
         notes || null, is_shared ? 1 : 0
       ]
     );

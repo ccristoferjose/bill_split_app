@@ -180,6 +180,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     due_date DATE NULL,
     category VARCHAR(50) NULL,
     recurrence ENUM('monthly', 'weekly', 'yearly', 'custom') NULL,
+    recurrence_end_date DATE NULL,
     notes TEXT NULL,
     is_shared BOOLEAN DEFAULT FALSE,
     status ENUM('pending', 'paid') NOT NULL DEFAULT 'pending',
