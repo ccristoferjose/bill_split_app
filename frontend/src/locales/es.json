@@ -135,7 +135,8 @@
     "register": "Registrarse",
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "failed": "Error al iniciar sesión. Por favor, inténtalo de nuevo.",
-    "syncFailed": "Inicio de sesión exitoso pero no se pudo sincronizar la cuenta. Por favor, inténtalo de nuevo."
+    "syncFailed": "Inicio de sesión exitoso pero no se pudo sincronizar la cuenta. Por favor, inténtalo de nuevo.",
+    "emailVerified": "¡Correo verificado! Inicia sesión para continuar."
   },
 
   "forgotPassword": {
@@ -172,7 +173,17 @@
     "confirm": "Confirmar cuenta",
     "confirming": "Verificando...",
     "didntReceive": "¿No lo recibiste?",
-    "resendCode": "Reenviar código"
+    "resendCode": "Reenviar código",
+    "verificationLinkSent": "Enviamos un enlace de verificación a",
+    "clickLinkToVerify": "Haz clic en el enlace del correo para verificar tu cuenta, luego inicia sesión.",
+    "goToLogin": "Ir a Iniciar Sesión",
+    "resendEmail": "Reenviar correo",
+    "resending": "Enviando...",
+    "pwMin8": "Al menos 8 caracteres",
+    "pwUppercase": "Letra mayúscula (A-Z)",
+    "pwLowercase": "Letra minúscula (a-z)",
+    "pwNumber": "Número (0-9)",
+    "pwSpecial": "Carácter especial (!@#$%^&*)"
   },
 
   "dashboard": {
@@ -284,7 +295,8 @@
     "recurrenceMonthly": "Mensual",
     "recurrenceWeekly": "Semanal",
     "recurrenceYearly": "Anual",
-    "recurrenceCustom": "Personalizado"
+    "recurrenceCustom": "Personalizado",
+    "endsOn": "Finaliza {{date}}"
   },
 
   "invitations": {
@@ -401,7 +413,10 @@
     "bonus": "Bono",
     "monthly": "Mensual",
     "weekly": "Semanal",
-    "yearly": "Anual"
+    "yearly": "Anual",
+    "endDate": "Fecha de finalización",
+    "indefinite": "Indefinido",
+    "hasEndDate": "Establecer fecha final"
   },
 
   "billDetails": {

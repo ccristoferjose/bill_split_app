@@ -37,7 +37,7 @@ const parseLocalDate = (raw) => {
 const effectiveBillingDay = (anchorDay, date) =>
   Math.min(anchorDay, endOfMonth(date).getDate());
 
-const getWeeklyOccurrencesInMonth = (startDate, monthDate) => {
+const getWeeklyOccurrencesInMonth = (startDate, monthDate, endDate) => {
   const monthStart = startOfMonth(monthDate);
   const monthEnd   = endOfMonth(monthDate);
   if (startDate > monthEnd) return 0;
@@ -45,6 +45,7 @@ const getWeeklyOccurrencesInMonth = (startDate, monthDate) => {
   while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
   let count = 0;
   while (d <= monthEnd) {
+    if (endDate && d > endDate) break;
     count++;
     d = new Date(d.getTime() + 7 * 86400000);
   }
@@ -65,6 +66,11 @@ const isBillActiveOnDate = (bill, date) => {
 };
 
 const isTransactionOnDate = (tx, date) => {
+  // End date check for recurring bills
+  if (tx.recurrence_end_date) {
+    const endDate = parseLocalDate(tx.recurrence_end_date);
+    if (endDate && date > endDate) return false;
+  }
   if (tx.type === 'bill' && tx.recurrence === 'monthly') {
     const startDate = parseLocalDate(tx.due_date);
     if (!startDate) return false;
@@ -369,10 +375,12 @@ const TransactionTimeline = ({ transactions, currentMonth, userId, viewMonth, on
       if (tx.type === 'bill' && tx.recurrence === 'weekly') {
         const startDate = parseLocalDate(tx.due_date);
         if (!startDate || startDate > monthEnd) return;
+        const txEndDate = tx.recurrence_end_date ? parseLocalDate(tx.recurrence_end_date) : null;
         let d = new Date(startDate.getTime());
         while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
         let weekIdx = 1;
         while (d <= monthEnd) {
+          if (txEndDate && d > txEndDate) break;
           expanded.push({ ...tx, _weeklyDate: format(d, 'yyyy-MM-dd'), _weekIndex: weekIdx });
           d = new Date(d.getTime() + 7 * 86400000);
           weekIdx++;
@@ -397,7 +405,12 @@ const TransactionTimeline = ({ transactions, currentMonth, userId, viewMonth, on
       if (tx._weeklyDate) return true;
       if (tx.type === 'bill' && tx.recurrence === 'monthly') {
         const startDate = parseLocalDate(tx.due_date);
-        return startDate ? startOfMonth(startDate) <= monthStart : false;
+        if (!startDate || startOfMonth(startDate) > monthStart) return false;
+        if (tx.recurrence_end_date) {
+          const endDate = parseLocalDate(tx.recurrence_end_date);
+          if (endDate && endDate < monthStart) return false;
+        }
+        return true;
       }
       const raw = tx.type === 'bill' ? tx.due_date : tx.date;
       if (!raw) return false;
@@ -514,13 +527,23 @@ const BillCalendar = ({ userId, onSelectBill }) => {
     const isMonthlyActive = (tx) => {
       if (tx.type !== 'bill' || tx.recurrence !== 'monthly') return false;
       const startDate = parseLocalDate(tx.due_date);
-      return startDate ? startOfMonth(startDate) <= monthStart : false;
+      if (!startDate || startOfMonth(startDate) > monthStart) return false;
+      if (tx.recurrence_end_date) {
+        const endDate = parseLocalDate(tx.recurrence_end_date);
+        if (endDate && endDate < monthStart) return false;
+      }
+      return true;
     };
 
     const isWeeklyActive = (tx) => {
       if (tx.type !== 'bill' || tx.recurrence !== 'weekly') return false;
       const startDate = parseLocalDate(tx.due_date);
-      return startDate ? startDate <= endOfMonth(currentMonth) : false;
+      if (!startDate || startDate > endOfMonth(currentMonth)) return false;
+      if (tx.recurrence_end_date) {
+        const endDate = parseLocalDate(tx.recurrence_end_date);
+        if (endDate && endDate < monthStart) return false;
+      }
+      return true;
     };
 
     const billFilter = (t) =>
@@ -539,7 +562,8 @@ const BillCalendar = ({ userId, onSelectBill }) => {
           if (t.recurrence === 'weekly') {
             // Sum each weekly occurrence individually based on its paid status
             const startDate = parseLocalDate(t.due_date);
-            const occurrences = getWeeklyOccurrencesInMonth(startDate, currentMonth);
+            const endDate = t.recurrence_end_date ? parseLocalDate(t.recurrence_end_date) : null;
+            const occurrences = getWeeklyOccurrencesInMonth(startDate, currentMonth, endDate);
             let weeklyTotal = 0;
             for (let w = 1; w <= occurrences; w++) {
               weeklyTotal += getPaidTxAmount(t, userId, year, month, w);
@@ -583,10 +607,28 @@ const BillCalendar = ({ userId, onSelectBill }) => {
     [selectedDate, allBills]
   );
 
-  const selectedTransactions = useMemo(
-    () => allTransactions.filter(t => isTransactionOnDate(t, selectedDate)),
-    [selectedDate, allTransactions]
-  );
+  const selectedTransactions = useMemo(() => {
+    const matched = allTransactions.filter(t => isTransactionOnDate(t, selectedDate));
+    return matched.map(tx => {
+      if (tx.type === 'bill' && tx.recurrence === 'weekly') {
+        const startDate = parseLocalDate(tx.due_date);
+        if (!startDate) return tx;
+        const monthStart = startOfMonth(selectedDate);
+        const monthEnd = endOfMonth(selectedDate);
+        let d = new Date(startDate.getTime());
+        while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
+        let weekIdx = 1;
+        while (d <= monthEnd) {
+          if (isSameDay(d, selectedDate)) {
+            return { ...tx, _weeklyDate: format(d, 'yyyy-MM-dd'), _weekIndex: weekIdx };
+          }
+          d = new Date(d.getTime() + 7 * 86400000);
+          weekIdx++;
+        }
+      }
+      return tx;
+    });
+  }, [selectedDate, allTransactions]);
 
   const handleRefresh = () => {
     refetchCreated();

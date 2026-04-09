@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { format, endOfMonth } from 'date-fns';
+import { format, endOfMonth, startOfMonth } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -90,6 +90,23 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
   // Effective due date adjusted to the viewed month for recurring bills
   const getEffectiveDueDate = () => {
     if (!isMonthly || !viewMonth) return parseLocalDate(transaction.due_date);
+
+    // Weekly: use _weeklyDate if available, or compute from weekIndex
+    if (transaction.recurrence === 'weekly') {
+      if (transaction._weeklyDate) return parseLocalDate(transaction._weeklyDate);
+      if (weekIndex) {
+        const start = parseLocalDate(transaction.due_date);
+        if (!start) return null;
+        const monthStart = startOfMonth(viewMonth);
+        let d = new Date(start.getTime());
+        while (d < monthStart) d = new Date(d.getTime() + 7 * 86400000);
+        for (let i = 1; i < weekIndex; i++) d = new Date(d.getTime() + 7 * 86400000);
+        return d;
+      }
+      return parseLocalDate(transaction.due_date);
+    }
+
+    // Monthly: clamp day to valid range
     const start = parseLocalDate(transaction.due_date);
     if (!start) return null;
     const clamped = Math.min(start.getDate(), endOfMonth(viewMonth).getDate());
@@ -216,6 +233,12 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Recurrence</p>
                 <Badge variant="outline" className="text-xs">{RECURRENCE_LABELS[transaction.recurrence]}</Badge>
+              </div>
+            )}
+            {transaction.recurrence_end_date && (
+              <div>
+                <p className="text-xs text-gray-400 mb-0.5">Ends On</p>
+                <p className="text-sm">{format(parseLocalDate(transaction.recurrence_end_date), 'MMM dd, yyyy')}</p>
               </div>
             )}
             {transaction.category && (

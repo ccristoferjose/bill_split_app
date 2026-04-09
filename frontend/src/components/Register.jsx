@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signUp, confirmSignUp, resendSignUpCode } from 'aws-amplify/auth';
-import { Eye, EyeOff, Receipt, ArrowLeft } from 'lucide-react';
+import { signUp, resendSignUpCode } from 'aws-amplify/auth';
+import { Eye, EyeOff, Receipt, ArrowLeft, Mail, Check, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const Register = () => {
@@ -10,7 +10,6 @@ const Register = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
   const [cognitoUsername, setCognitoUsername] = useState('');
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +31,10 @@ const Register = () => {
         },
       });
       setCognitoUsername(internalUsername);
+      // Store credentials temporarily so /verify can auto-login after confirmation
+      sessionStorage.setItem('_pendingVerification', JSON.stringify({
+        email, password, username: internalUsername, displayName: username,
+      }));
       setStep('confirm');
     } catch (err) {
       console.error('Registration failed:', err);
@@ -41,28 +44,15 @@ const Register = () => {
     }
   };
 
-  const handleConfirm = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      await confirmSignUp({ username: cognitoUsername, confirmationCode: code });
-      navigate('/login');
-    } catch (err) {
-      console.error('Confirmation failed:', err);
-      setError(err.message || 'Invalid confirmation code.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleResendCode = async () => {
+    setIsLoading(true);
     try {
       await resendSignUpCode({ username: cognitoUsername });
       setError(null);
     } catch (err) {
-      setError(err.message || 'Failed to resend code.');
+      setError(err.message || 'Failed to resend verification email.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -139,46 +129,30 @@ const Register = () => {
   if (step === 'confirm') {
     return renderCard(
       <>
+        <Mail className="h-12 w-12 text-teal-400 mx-auto mb-4" />
         <h2 className="text-xl font-semibold text-white text-center mb-2">{t('register.checkEmail')}</h2>
-        <p className="text-sm text-gray-400 text-center mb-6">
-          {t('register.confirmationSent')} <strong className="text-white">{email}</strong>
+        <p className="text-sm text-gray-400 text-center mb-2">
+          {t('register.verificationLinkSent')} <strong className="text-white">{email}</strong>
+        </p>
+        <p className="text-sm text-gray-500 text-center mb-6">
+          {t('register.clickLinkToVerify')}
         </p>
         {error && (
           <div className="rounded-lg px-4 py-3 mb-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
             <p className="text-red-400 text-sm text-center">{error}</p>
           </div>
         )}
-        <form onSubmit={handleConfirm} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('register.confirmationCode')}</label>
-            <input
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder={t('register.confirmPlaceholder')}
-              required
-              className={inputClass}
-              style={inputStyle}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-            />
-          </div>
+        <p className="text-sm text-center text-gray-500">
+          {t('register.didntReceive')}{' '}
           <button
-            type="submit"
+            type="button"
+            onClick={handleResendCode}
             disabled={isLoading}
-            className="w-full h-11 rounded-lg text-sm font-semibold text-white transition-all duration-300 disabled:opacity-50 relative overflow-hidden group"
-            style={{ background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)', boxShadow: '0 4px 15px rgba(13,148,136,0.3)' }}
+            className="text-teal-400 hover:text-teal-300 transition-colors disabled:opacity-50"
           >
-            <span className="relative z-10">{isLoading ? t('register.confirming') : t('register.confirm')}</span>
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' }} />
+            {isLoading ? t('register.resending') : t('register.resendEmail')}
           </button>
-          <p className="text-sm text-center text-gray-500 mt-3">
-            {t('register.didntReceive')}{' '}
-            <button type="button" onClick={handleResendCode} className="text-teal-400 hover:text-teal-300 transition-colors">
-              {t('register.resendCode')}
-            </button>
-          </p>
-        </form>
+        </p>
       </>
     );
   }
@@ -241,6 +215,26 @@ const Register = () => {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
+
+          {/* Password requirements checklist */}
+          {password.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {[
+                { test: password.length >= 8, label: t('register.pwMin8') },
+                { test: /[A-Z]/.test(password), label: t('register.pwUppercase') },
+                { test: /[a-z]/.test(password), label: t('register.pwLowercase') },
+                { test: /[0-9]/.test(password), label: t('register.pwNumber') },
+                { test: /[^A-Za-z0-9]/.test(password), label: t('register.pwSpecial') },
+              ].map(({ test, label }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  {test
+                    ? <Check className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                    : <X className="h-3.5 w-3.5 text-gray-600 shrink-0" />}
+                  <span className={`text-xs ${test ? 'text-green-400' : 'text-gray-500'}`}>{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <button
           type="submit"
