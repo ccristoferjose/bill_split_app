@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { signIn, signOut, fetchAuthSession } from 'aws-amplify/auth';
 import { setCredentials } from '../feature/auth/authSlice';
 import { useSyncUserMutation } from '../services/api';
-import { Eye, EyeOff, Receipt, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Receipt, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const Login = () => {
@@ -17,6 +17,8 @@ const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [syncUser] = useSyncUserMutation();
+  const [searchParams] = useSearchParams();
+  const justVerified = searchParams.get('verified') === 'true';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,7 +46,8 @@ const Login = () => {
       }
 
       dispatch(setCredentials({ user }));
-      navigate('/dashboard', { state: { isNew } });
+      const redirectTo = searchParams.get('redirect');
+      navigate(redirectTo || '/dashboard', { state: { isNew }, replace: true });
     } catch (err) {
       console.error('Login failed:', err);
       setError(err.message || t('login.failed'));
@@ -105,6 +108,13 @@ const Login = () => {
         <p className="text-gray-400 text-center mb-6 text-sm">
           {t('landing.signInContinue')}
         </p>
+
+        {justVerified && (
+          <div className="rounded-lg px-4 py-3 mb-4 flex items-center justify-center gap-2" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
+            <CheckCircle className="h-4 w-4 text-green-400 shrink-0" />
+            <p className="text-green-400 text-sm">{t('login.emailVerified')}</p>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg px-4 py-3 mb-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>

@@ -135,7 +135,8 @@
     "register": "Register",
     "forgotPassword": "Forgot your password?",
     "failed": "Login failed. Please try again.",
-    "syncFailed": "Login succeeded but failed to sync account. Please try again."
+    "syncFailed": "Login succeeded but failed to sync account. Please try again.",
+    "emailVerified": "Email verified! Log in to continue."
   },
 
   "forgotPassword": {
@@ -172,7 +173,17 @@
     "confirm": "Confirm account",
     "confirming": "Verifying...",
     "didntReceive": "Didn't receive it?",
-    "resendCode": "Resend code"
+    "resendCode": "Resend code",
+    "verificationLinkSent": "We sent a verification link to",
+    "clickLinkToVerify": "Click the link in the email to verify your account, then log in.",
+    "goToLogin": "Go to Login",
+    "resendEmail": "Resend email",
+    "resending": "Sending...",
+    "pwMin8": "At least 8 characters",
+    "pwUppercase": "Uppercase letter (A-Z)",
+    "pwLowercase": "Lowercase letter (a-z)",
+    "pwNumber": "Number (0-9)",
+    "pwSpecial": "Special character (!@#$%^&*)"
   },
 
   "dashboard": {
@@ -284,7 +295,8 @@
     "recurrenceMonthly": "Monthly",
     "recurrenceWeekly": "Weekly",
     "recurrenceYearly": "Yearly",
-    "recurrenceCustom": "Custom"
+    "recurrenceCustom": "Custom",
+    "endsOn": "Ends {{date}}"
   },
 
   "invitations": {
@@ -401,7 +413,10 @@
     "bonus": "Bonus",
     "monthly": "Monthly",
     "weekly": "Weekly",
-    "yearly": "Yearly"
+    "yearly": "Yearly",
+    "endDate": "End Date",
+    "indefinite": "Indefinite",
+    "hasEndDate": "Set end date"
   },
 
   "billDetails": {
