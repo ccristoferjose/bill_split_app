@@ -1,6 +1,12 @@
 // frontend/src/components/UserProfile.jsx
 import React, { useState } from 'react';
-import { useGetUserProfileQuery, useUpdateUserProfileMutation } from '../services/api';
+import {
+  useGetUserProfileQuery,
+  useUpdateUserProfileMutation,
+  useGetUserSettingsQuery,
+  useUpdateUserSettingsMutation,
+} from '../services/api';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../feature/auth/authSlice';
@@ -18,6 +24,11 @@ const UserProfile = ({ userId }) => {
   const dispatch = useDispatch();
   const { data: profile, isLoading, error, refetch } = useGetUserProfileQuery(userId);
   const [updateProfile, { isLoading: isUpdating }] = useUpdateUserProfileMutation();
+  const { data: settings } = useGetUserSettingsQuery(userId, { skip: !userId });
+  const [updateSettings, { isLoading: isUpdatingSettings }] = useUpdateUserSettingsMutation();
+
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -54,8 +65,42 @@ const UserProfile = ({ userId }) => {
     }));
   };
 
-  const handleLanguageChange = (lang) => {
+  const handleLanguageChange = async (lang) => {
     i18n.changeLanguage(lang);
+    try { await updateSettings({ userId, language: lang }).unwrap(); } catch { /* non-fatal */ }
+  };
+
+  const handleCurrencyChange = async (currency) => {
+    try {
+      await updateSettings({ userId, currency }).unwrap();
+      toast.success(t('profile.currencyUpdated', 'Currency updated'));
+    } catch (err) {
+      toast.error(err?.data?.message || t('profile.updateFailed', 'Update failed'));
+    }
+  };
+
+  const handleAdjustBalance = async () => {
+    const delta = Number(adjustAmount);
+    if (!Number.isFinite(delta) || delta === 0) {
+      toast.error(t('profile.adjustInvalid', 'Enter a non-zero amount'));
+      return;
+    }
+    try {
+      await updateSettings({
+        userId,
+        balance_adjustment: delta,
+        balance_adjustment_reason: adjustReason || null,
+      }).unwrap();
+      toast.success(t('profile.balanceAdjusted', 'Balance adjusted'));
+      setAdjustAmount(''); setAdjustReason('');
+    } catch (err) {
+      toast.error(err?.data?.message || t('profile.updateFailed', 'Update failed'));
+    }
+  };
+
+  const fmtMoney = (n, currency = 'USD') => {
+    try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(Number(n || 0)); }
+    catch { return `${currency} ${Number(n || 0).toFixed(2)}`; }
   };
 
   const handleSubmit = async (e) => {
@@ -353,6 +398,68 @@ const UserProfile = ({ userId }) => {
                     <SelectItem value="es">{t('languages.es')}</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('profile.currency', 'Currency')}</Label>
+                <Select value={settings?.currency || 'USD'} onValueChange={handleCurrencyChange}>
+                  <SelectTrigger className="w-full md:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['USD','EUR','GBP','MXN','CAD','AUD','JPY','BRL','ARS','CLP','COP','PEN'].map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">
+                  {t('profile.currencyHint', 'Changing currency does not convert existing amounts — values stay numeric.')}
+                </p>
+              </div>
+
+              {/* Balance adjustment — safe append-only delta, never overwrites history */}
+              <div className="space-y-2 pt-4 border-t">
+                <Label className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-blue-600" />
+                  {t('profile.balanceAdjustment', 'Balance adjustment')}
+                </Label>
+                <p className="text-sm text-gray-500">
+                  {t('profile.balanceAdjustHint', 'Current balance:')}{' '}
+                  <span className="font-semibold text-gray-900">
+                    {fmtMoney(settings?.balance, settings?.currency)}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-500">
+                  {t('profile.balanceAdjustExplain', 'Enter a positive number to add or a negative number to subtract. This appends a single ledger entry; existing transactions are untouched.')}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={adjustAmount}
+                    onChange={(e) => setAdjustAmount(e.target.value)}
+                    placeholder="±0.00"
+                  />
+                  <Input
+                    type="text"
+                    value={adjustReason}
+                    onChange={(e) => setAdjustReason(e.target.value)}
+                    placeholder={t('profile.balanceReasonPlaceholder', 'Reason (optional)')}
+                    className="md:col-span-1"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAdjustBalance}
+                    disabled={isUpdatingSettings}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {isUpdatingSettings
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <Save className="h-4 w-4 mr-1" />}
+                    {t('profile.adjustApply', 'Apply')}
+                  </Button>
+                </div>
               </div>
             </div>
 

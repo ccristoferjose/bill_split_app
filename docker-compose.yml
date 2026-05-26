@@ -87,7 +87,13 @@ services:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
     # Vite reads VITE_* vars from frontend/.env (mounted via volume)
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    # The extra rollup native-binary install works around npm's optional-deps bug
+    # (https://github.com/npm/cli/issues/4828) that omits platform-specific binaries
+    # when the host that generated package-lock.json runs a different OS/arch.
+    command: >
+      sh -c "npm install --include=optional &&
+             npm install --no-save --force @rollup/rollup-linux-arm64-musl @rollup/rollup-linux-x64-musl 2>/dev/null || true &&
+             npm run dev -- --host 0.0.0.0"
 
 # ─── Volumes ──────────────────────────────────────────────────
 volumes:

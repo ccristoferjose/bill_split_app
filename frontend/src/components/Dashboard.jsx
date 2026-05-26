@@ -18,6 +18,8 @@ import FriendsList from './FriendsList';
 import PersonalBillsList from './PersonalBillsList';
 import TransactionInvitationsList from './TransactionInvitationsList';
 import WelcomeModal from './WelcomeModal';
+import OnboardingModal from './OnboardingModal';
+import GlobalBalanceCard from './GlobalBalanceCard';
 import { useGetTransactionInvitationsQuery, useGetPendingRequestsQuery, useGetUserProfileQuery, useGetUserInvitedBillsQuery } from '../services/api';
 import { toast } from 'sonner';
 import { fetchAuthSession } from 'aws-amplify/auth';
@@ -49,6 +51,10 @@ const Dashboard = () => {
   const pendingInvitations = (invitationsData?.transactions?.length || 0) + pendingBillInvitations;
   const pendingFriendRequests = pendingFriendsData?.requests?.length || pendingFriendsData?.length || 0;
   const isPro = profileData?.subscription_tier === 'pro';
+
+  // Onboarding gate: any user who hasn't completed it must go through it.
+  // profileData includes onboarding_completed_at after our backend change.
+  const needsOnboarding = !!profileData && !profileData.onboarding_completed_at;
 
   const handleExport = async () => {
     if (!isPro) {
@@ -130,6 +136,11 @@ const Dashboard = () => {
       />
 
       <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Persistent running balance — survives across months */}
+        <div className="mb-4 sm:mb-6">
+          <GlobalBalanceCard userId={user.id} />
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
 
           {/* ── Tabs — icon-only on mobile, icon+label on sm+ ── */}
@@ -336,7 +347,8 @@ const Dashboard = () => {
         />
       )}
 
-      <WelcomeModal open={showWelcome} onClose={() => setShowWelcome(false)} />
+      <WelcomeModal open={showWelcome && !needsOnboarding} onClose={() => setShowWelcome(false)} />
+      <OnboardingModal open={needsOnboarding} userId={user.id} onClose={() => { /* refetch via tag invalidation */ }} />
     </div>
   );
 };

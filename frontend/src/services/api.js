@@ -33,7 +33,7 @@ const baseQueryWithLogout = async (args, api, extraOptions) => {
 
 export const api = createApi({
   baseQuery: baseQueryWithLogout,
-  tagTypes: ['Bill', 'User', 'Profile', 'BillStatus', 'Friend', 'MonthlyPayment', 'Transaction'],
+  tagTypes: ['Bill', 'User', 'Profile', 'BillStatus', 'Friend', 'MonthlyPayment', 'Transaction', 'Balance', 'Settings'],
   endpoints: (builder) => ({
     // Auth — only sync endpoint remains; login/register handled by Cognito SDK
     syncUser: builder.mutation({
@@ -194,7 +194,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'Balance'],
     }),
 
     getUserTransactions: builder.query({
@@ -213,7 +213,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'Balance'],
     }),
 
     resendTransactionInvitation: builder.mutation({
@@ -222,7 +222,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'Balance'],
     }),
 
     deleteTransaction: builder.mutation({
@@ -231,7 +231,7 @@ export const api = createApi({
         method: 'DELETE',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'Balance'],
     }),
 
     updateTransactionParticipants: builder.mutation({
@@ -240,7 +240,7 @@ export const api = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'Balance'],
     }),
 
     markTransactionPaid: builder.mutation({
@@ -249,7 +249,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'Balance'],
     }),
 
     markParticipantPaid: builder.mutation({
@@ -258,7 +258,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'Balance'],
     }),
 
     markTransactionCyclePaid: builder.mutation({
@@ -267,7 +267,7 @@ export const api = createApi({
         method: 'POST',
         body: { user_id, week },
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'Balance'],
     }),
 
     // User search
@@ -354,6 +354,45 @@ export const api = createApi({
       }),
     }),
 
+    // Balance + settings
+    getBalance: builder.query({
+      query: (userId) => `/user/${userId}/balance`,
+      providesTags: ['Balance'],
+    }),
+
+    getBalanceHistory: builder.query({
+      query: ({ userId, limit = 100 }) => `/user/${userId}/balance/history?limit=${limit}`,
+      providesTags: ['Balance'],
+    }),
+
+    getUserSettings: builder.query({
+      query: (userId) => `/user/${userId}/settings`,
+      providesTags: ['Settings'],
+    }),
+
+    updateUserSettings: builder.mutation({
+      query: ({ userId, ...data }) => ({
+        url: `/user/${userId}/settings`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Settings', 'Balance', 'Profile'],
+    }),
+
+    completeOnboarding: builder.mutation({
+      query: ({ userId, ...data }) => ({
+        url: `/user/${userId}/onboarding`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Settings', 'Balance', 'Profile'],
+    }),
+
+    // Bills/transactions can affect the balance, so invalidate Balance whenever
+    // a payment-related mutation runs. RTK Query's tag invalidation handles this:
+    // every mutation already invalidates 'Transaction' or 'Bill' — we extend
+    // a couple to also bump 'Balance'.
+
     // Export
     exportTransactions: builder.query({
       query: ({ userId, month, year, format }) => {
@@ -409,4 +448,9 @@ export const {
   useRemoveFriendMutation,
   useCreateCheckoutSessionMutation,
   useCreatePortalSessionMutation,
+  useGetBalanceQuery,
+  useGetBalanceHistoryQuery,
+  useGetUserSettingsQuery,
+  useUpdateUserSettingsMutation,
+  useCompleteOnboardingMutation,
 } = api;

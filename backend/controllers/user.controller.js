@@ -1,4 +1,8 @@
 const { findOne, executeQuery } = require('../config/database');
+const ledger = require('../services/ledger.service');
+
+const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'MXN', 'CAD', 'AUD', 'JPY', 'BRL', 'ARS', 'CLP', 'COP', 'PEN'];
+const SUPPORTED_LANGUAGES = ['en', 'es'];
 
 const getUserServices = async (req, res) => {
   try {
@@ -154,7 +158,9 @@ const getProfile = async (req, res) => {
   try {
     const { userId } = req.params;
     const profile = await findOne(
-      'SELECT id, username, email, phone, address, city, country, subscription_tier, created_at FROM users WHERE id = ?',
+      `SELECT id, username, email, phone, address, city, country,
+              subscription_tier, currency, language, onboarding_completed_at, created_at
+         FROM users WHERE id = ?`,
       [userId]
     );
 
@@ -164,6 +170,153 @@ const getProfile = async (req, res) => {
     res.json(profile);
   } catch (error) {
     console.error('Error fetching user profile:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// GET /user/:userId/settings
+const getSettings = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await findOne(
+      `SELECT id, currency, language, onboarding_completed_at FROM users WHERE id = ?`,
+      [userId]
+    );
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const balance = await ledger.getBalance(userId);
+    res.json({
+      currency: user.currency,
+      language: user.language,
+      onboarding_completed_at: user.onboarding_completed_at,
+      balance,
+    });
+  } catch (err) {
+    console.error('[getSettings]', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// PUT /user/:userId/settings
+// Updates language/currency safely. balance_adjustment (delta) writes a
+// 'manual_adjustment' ledger entry — never mutates historical entries.
+const updateSettings = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { currency, language, balance_adjustment, balance_adjustment_reason } = req.body;
+
+    const user = await findOne('SELECT id, currency, language FROM users WHERE id = ?', [userId]);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const updates = [];
+    const params = [];
+
+    if (currency !== undefined) {
+      if (!SUPPORTED_CURRENCIES.includes(currency)) {
+        return res.status(400).json({ message: `Unsupported currency. Supported: ${SUPPORTED_CURRENCIES.join(', ')}` });
+      }
+      updates.push('currency = ?'); params.push(currency);
+    }
+    if (language !== undefined) {
+      if (!SUPPORTED_LANGUAGES.includes(language)) {
+        return res.status(400).json({ message: `Unsupported language. Supported: ${SUPPORTED_LANGUAGES.join(', ')}` });
+      }
+      updates.push('language = ?'); params.push(language);
+    }
+
+    if (updates.length > 0) {
+      params.push(userId);
+      await executeQuery(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+    }
+
+    // Balance adjustment — non-destructive: appends a ledger entry with the delta.
+    if (balance_adjustment !== undefined && balance_adjustment !== null && balance_adjustment !== '') {
+      const delta = Number(balance_adjustment);
+      if (!Number.isFinite(delta)) {
+        return res.status(400).json({ message: 'balance_adjustment must be a number' });
+      }
+      if (delta !== 0) {
+        const adjId = `${userId}:${Date.now()}`;
+        await ledger.recordEntry({
+          userId,
+          amount: delta,
+          entryType: 'manual_adjustment',
+          sourceType: 'adjustment',
+          sourceId: adjId,
+          description: balance_adjustment_reason || 'Manual balance adjustment',
+        });
+      }
+    }
+
+    const balance = await ledger.getBalance(userId);
+    const updated = await findOne(
+      `SELECT currency, language, onboarding_completed_at FROM users WHERE id = ?`,
+      [userId]
+    );
+    res.json({ ...updated, balance });
+  } catch (err) {
+    console.error('[updateSettings]', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// POST /user/:userId/onboarding
+// First-time setup: language, currency, initial balance.
+// Idempotent: rejects if already onboarded (existing users use updateSettings instead).
+const completeOnboarding = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { language, currency, initial_balance } = req.body;
+
+    const user = await findOne(
+      'SELECT id, onboarding_completed_at FROM users WHERE id = ?',
+      [userId]
+    );
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.onboarding_completed_at) {
+      return res.status(409).json({ message: 'Onboarding already completed', already_completed: true });
+    }
+
+    if (currency && !SUPPORTED_CURRENCIES.includes(currency)) {
+      return res.status(400).json({ message: `Unsupported currency. Supported: ${SUPPORTED_CURRENCIES.join(', ')}` });
+    }
+    if (language && !SUPPORTED_LANGUAGES.includes(language)) {
+      return res.status(400).json({ message: `Unsupported language. Supported: ${SUPPORTED_LANGUAGES.join(', ')}` });
+    }
+
+    const initial = Number(initial_balance ?? 0);
+    if (!Number.isFinite(initial)) {
+      return res.status(400).json({ message: 'initial_balance must be a number' });
+    }
+
+    await executeQuery(
+      `UPDATE users
+          SET currency = COALESCE(?, currency),
+              language = COALESCE(?, language),
+              onboarding_completed_at = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+      [currency || null, language || null, userId]
+    );
+
+    if (initial !== 0) {
+      const src = ledger.srcInitial(userId);
+      await ledger.recordEntry({
+        userId,
+        amount: initial,
+        entryType: 'initial_balance',
+        ...src,
+        description: 'Starting balance',
+      });
+    }
+
+    const balance = await ledger.getBalance(userId);
+    const updated = await findOne(
+      'SELECT currency, language, onboarding_completed_at FROM users WHERE id = ?',
+      [userId]
+    );
+    res.json({ ...updated, balance });
+  } catch (err) {
+    console.error('[completeOnboarding]', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -214,5 +367,6 @@ const updateProfile = async (req, res) => {
 
 module.exports = {
   getUserServices, getUserBills, getCreatedBills, getInvitedBills,
-  getParticipatingBills, getMonthlyBills, getMonthlyPayments, searchUsers, getProfile, updateProfile
+  getParticipatingBills, getMonthlyBills, getMonthlyPayments, searchUsers,
+  getProfile, updateProfile, getSettings, updateSettings, completeOnboarding,
 };
