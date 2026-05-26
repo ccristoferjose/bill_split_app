@@ -4,6 +4,7 @@ const {
   getUserServices, getUserBills, getCreatedBills, getInvitedBills,
   getParticipatingBills, getMonthlyBills, getMonthlyPayments, searchUsers, getProfile, updateProfile
 } = require('../controllers/user.controller');
+const { getGlobalBalance } = require('../controllers/balance.controller');
 
 // User search (must be before :userId routes)
 router.get('/search', searchUsers);
@@ -18,5 +19,6 @@ router.get('/:userId/monthly-bills', getMonthlyBills);
 router.get('/:userId/monthly-payments', getMonthlyPayments);
 router.get('/:userId/profile', getProfile);
 router.put('/:userId/profile', updateProfile);
+router.get('/:userId/global-balance', getGlobalBalance);
 
 module.exports = router;

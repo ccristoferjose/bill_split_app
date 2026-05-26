@@ -232,6 +232,8 @@
     "unknownError": "Error desconocido",
     "preferences": "Preferencias",
     "language": "Idioma",
+    "preferredCurrency": "Moneda Preferida",
+    "preferredCurrencyHint": "Se usa como predeterminada para nuevas transacciones y el encabezado del balance global.",
     "subscription": "Plan de Suscripción",
     "upgradeCta": "Mejora para más funciones",
     "upgrade": "Mejorar",
@@ -416,7 +418,13 @@
     "yearly": "Anual",
     "endDate": "Fecha de finalización",
     "indefinite": "Indefinido",
-    "hasEndDate": "Establecer fecha final"
+    "hasEndDate": "Establecer fecha final",
+    "currency": "Moneda"
+  },
+
+  "globalBalance": {
+    "title": "Balance global",
+    "lastMonthClosing": "Cierre del mes pasado: {{amount}}"
   },
 
   "billDetails": {

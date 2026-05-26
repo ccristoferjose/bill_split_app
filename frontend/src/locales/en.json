@@ -232,6 +232,8 @@
     "unknownError": "Unknown error",
     "preferences": "Preferences",
     "language": "Language",
+    "preferredCurrency": "Preferred Currency",
+    "preferredCurrencyHint": "Used as the default for new transactions and the global balance headline.",
     "subscription": "Subscription Plan",
     "upgradeCta": "Upgrade for more features",
     "upgrade": "Upgrade",
@@ -416,7 +418,13 @@
     "yearly": "Yearly",
     "endDate": "End Date",
     "indefinite": "Indefinite",
-    "hasEndDate": "Set end date"
+    "hasEndDate": "Set end date",
+    "currency": "Currency"
+  },
+
+  "globalBalance": {
+    "title": "Global balance",
+    "lastMonthClosing": "Last month closing: {{amount}}"
   },
 
   "billDetails": {

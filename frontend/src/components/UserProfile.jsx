@@ -10,8 +10,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, User, Mail, Phone, MapPin, Calendar, Edit2, Save, X, CheckCircle, Globe, CreditCard } from 'lucide-react';
+import { Loader2, User, Mail, Phone, MapPin, Calendar, Edit2, Save, X, CheckCircle, Globe, CreditCard, Coins } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+const SUPPORTED_CURRENCIES = [
+  { code: 'USD', symbol: '$' },
+  { code: 'EUR', symbol: '€' },
+  { code: 'GBP', symbol: '£' },
+  { code: 'MXN', symbol: '$' },
+  { code: 'CAD', symbol: '$' },
+  { code: 'AUD', symbol: '$' },
+  { code: 'JPY', symbol: '¥' },
+  { code: 'BRL', symbol: 'R$' },
+  { code: 'ARS', symbol: '$' },
+  { code: 'COP', symbol: '$' },
+  { code: 'CLP', symbol: '$' },
+  { code: 'PEN', symbol: 'S/' },
+  { code: 'UYU', symbol: '$' },
+];
 
 const UserProfile = ({ userId }) => {
   const { t, i18n } = useTranslation();
@@ -28,6 +44,7 @@ const UserProfile = ({ userId }) => {
     address: '',
     city: '',
     country: '',
+    preferred_currency: 'USD',
   });
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [updateError, setUpdateError] = useState('');
@@ -42,6 +59,7 @@ const UserProfile = ({ userId }) => {
         address: profile.address || '',
         city: profile.city || '',
         country: profile.country || '',
+        preferred_currency: profile.preferred_currency || 'USD',
       });
     }
   }, [profile]);
@@ -93,6 +111,7 @@ const UserProfile = ({ userId }) => {
         address: profile.address || '',
         city: profile.city || '',
         country: profile.country || '',
+        preferred_currency: profile.preferred_currency || 'USD',
       });
     }
     setIsEditing(false);
@@ -353,6 +372,30 @@ const UserProfile = ({ userId }) => {
                     <SelectItem value="es">{t('languages.es')}</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center">
+                  <Coins className="h-4 w-4 mr-1" />
+                  {t('profile.preferredCurrency')}
+                </Label>
+                <Select
+                  value={formData.preferred_currency}
+                  onValueChange={(v) => setFormData((prev) => ({ ...prev, preferred_currency: v }))}
+                  disabled={!isEditing}
+                >
+                  <SelectTrigger className="w-full md:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.code} — {c.symbol}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">{t('profile.preferredCurrencyHint')}</p>
               </div>
             </div>
 

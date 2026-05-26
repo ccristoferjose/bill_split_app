@@ -6,6 +6,11 @@ const { sendEmail, canSendEmail } = require('../services/email.service');
 const { transactionInvitationTemplate } = require('../templates/emails/transaction-invitation.template');
 const { billStatusTemplate } = require('../templates/emails/bill-status.template');
 
+const SUPPORTED_CURRENCIES = new Set([
+  'USD', 'EUR', 'GBP', 'MXN', 'CAD', 'AUD', 'JPY', 'BRL',
+  'ARS', 'COP', 'CLP', 'PEN', 'UYU',
+]);
+
 // ─────────────────────────────────────────────────────────────
 // Helper — fetch user with email for notifications
 // ─────────────────────────────────────────────────────────────
@@ -140,7 +145,7 @@ const sendResponseEmail = async ({ responder, owner, transaction, action }) => {
 const createTransaction = async (req, res) => {
   try {
     const {
-      user_id, type, title, amount,
+      user_id, type, title, amount, currency,
       date, due_date, category, recurrence,
       recurrence_end_date, notes, is_shared, participants
     } = req.body;
@@ -155,11 +160,21 @@ const createTransaction = async (req, res) => {
       return res.status(400).json({ message: 'type must be expense, bill, or income' });
     }
 
+    if (currency && !SUPPORTED_CURRENCIES.has(currency)) {
+      return res.status(400).json({ message: `Unsupported currency: ${currency}` });
+    }
+
+    let stampedCurrency = currency || null;
+    if (!stampedCurrency) {
+      const user = await findOne('SELECT preferred_currency FROM users WHERE id = ?', [user_id]);
+      stampedCurrency = user?.preferred_currency || 'USD';
+    }
+
     const result = await executeQuery(
-      `INSERT INTO transactions (user_id, type, title, amount, date, due_date, category, recurrence, recurrence_end_date, notes, is_shared)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO transactions (user_id, type, title, amount, currency, date, due_date, category, recurrence, recurrence_end_date, notes, is_shared)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        user_id, type, title, parseFloat(amount),
+        user_id, type, title, parseFloat(amount), stampedCurrency,
         date || null, due_date || null,
         category || null, recurrence || null,
         recurrence_end_date || null,
@@ -711,7 +726,7 @@ const markTransactionCyclePaid = async (req, res) => {
 
     const transaction = await findOne('SELECT * FROM transactions WHERE id = ?', [transactionId]);
     if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
-    if (transaction.recurrence !== 'monthly' && transaction.recurrence !== 'weekly') {
+    if (!['monthly', 'weekly', 'yearly'].includes(transaction.recurrence)) {
       return res.status(400).json({ message: 'Only recurring bills use cycle payments' });
     }
 

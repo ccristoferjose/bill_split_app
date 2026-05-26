@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Receipt, CalendarDays, ArrowDownCircle,
   UtensilsCrossed, Car, Popcorn, ShoppingBag, HeartPulse,
@@ -13,8 +14,13 @@ import {
   CalendarCheck2, CalendarClock, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCreateTransactionMutation, useGetFriendsQuery } from '../services/api';
+import { useCreateTransactionMutation, useGetFriendsQuery, useGetUserProfileQuery } from '../services/api';
 import { useTranslation } from 'react-i18next';
+
+const SUPPORTED_CURRENCIES = [
+  'USD', 'EUR', 'GBP', 'MXN', 'CAD', 'AUD', 'JPY', 'BRL',
+  'ARS', 'COP', 'CLP', 'PEN', 'UYU',
+];
 
 // ─── ChipGroup ────────────────────────────────────────────────────────────────
 
@@ -112,6 +118,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
   const [formData, setFormData] = useState({
     title:        '',
     amount:       '',
+    currency:     '',
     date:         today,
     due_date:     '',
     category:     '',
@@ -126,7 +133,15 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
 
   const [createTransaction, { isLoading }] = useCreateTransactionMutation();
   const { data: friendsData } = useGetFriendsQuery(userId);
+  const { data: profile } = useGetUserProfileQuery(userId);
   const friends = friendsData?.friends || [];
+  const defaultCurrency = profile?.preferred_currency || 'USD';
+
+  React.useEffect(() => {
+    if (!formData.currency && defaultCurrency) {
+      setFormData(prev => ({ ...prev, currency: defaultCurrency }));
+    }
+  }, [defaultCurrency, formData.currency]);
 
   const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
 
@@ -262,6 +277,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
         type:         txType,
         title:        formData.title,
         amount:       parseFloat(formData.amount),
+        currency:     formData.currency || defaultCurrency,
         date:         txType !== 'bill' ? (formData.date || today) : null,
         due_date:     txType === 'bill' ? (formData.due_date || null) : null,
         category:     formData.category  || null,
@@ -341,19 +357,34 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
             />
           </div>
 
-          {/* Amount */}
-          <div>
-            <Label htmlFor="amount">{t('createTransaction.amount')} *</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.amount}
-              onChange={(e) => set('amount', e.target.value)}
-              placeholder="0.00"
-              required
-            />
+          {/* Amount + Currency */}
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <div>
+              <Label htmlFor="amount">{t('createTransaction.amount')} *</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.amount}
+                onChange={(e) => set('amount', e.target.value)}
+                placeholder="0.00"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="currency">{t('createTransaction.currency')}</Label>
+              <Select value={formData.currency || defaultCurrency} onValueChange={(v) => set('currency', v)}>
+                <SelectTrigger id="currency" className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_CURRENCIES.map(code => (
+                    <SelectItem key={code} value={code}>{code}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Date — Expense & Income */}

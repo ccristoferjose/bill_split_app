@@ -29,8 +29,12 @@ services:
     volumes:
       # Persistent data — survives container rebuilds
       - mysql_data:/var/lib/mysql
-      # Auto-import schema on first boot (idempotent CREATE IF NOT EXISTS)
+      # Auto-import schema on first boot (idempotent CREATE IF NOT EXISTS).
+      # Docker's initdb.d only runs these on a fresh volume — for existing
+      # volumes, apply migrations manually with `docker exec billsplit_mysql
+      # mysql -u root -p"$DB_PASSWORD" "$DB_NAME" < backend/database/add_*.sql`.
       - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./backend/database/add_multi_currency.sql:/docker-entrypoint-initdb.d/02_add_multi_currency.sql:ro
 
     networks:
       - backend_net

@@ -18,6 +18,7 @@ import FriendsList from './FriendsList';
 import PersonalBillsList from './PersonalBillsList';
 import TransactionInvitationsList from './TransactionInvitationsList';
 import WelcomeModal from './WelcomeModal';
+import GlobalBalanceCard from './GlobalBalanceCard';
 import { useGetTransactionInvitationsQuery, useGetPendingRequestsQuery, useGetUserProfileQuery, useGetUserInvitedBillsQuery } from '../services/api';
 import { toast } from 'sonner';
 import { fetchAuthSession } from 'aws-amplify/auth';
@@ -130,6 +131,8 @@ const Dashboard = () => {
       />
 
       <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <GlobalBalanceCard userId={user.id} />
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
 
           {/* ── Tabs — icon-only on mobile, icon+label on sm+ ── */}

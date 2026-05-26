@@ -33,7 +33,7 @@ const baseQueryWithLogout = async (args, api, extraOptions) => {
 
 export const api = createApi({
   baseQuery: baseQueryWithLogout,
-  tagTypes: ['Bill', 'User', 'Profile', 'BillStatus', 'Friend', 'MonthlyPayment', 'Transaction'],
+  tagTypes: ['Bill', 'User', 'Profile', 'BillStatus', 'Friend', 'MonthlyPayment', 'Transaction', 'GlobalBalance'],
   endpoints: (builder) => ({
     // Auth — only sync endpoint remains; login/register handled by Cognito SDK
     syncUser: builder.mutation({
@@ -51,7 +51,7 @@ export const api = createApi({
         method: 'POST',
         body: billData,
       }),
-      invalidatesTags: ['Bill'],
+      invalidatesTags: ['Bill', 'GlobalBalance'],
     }),
 
     getUserCreatedBills: builder.query({
@@ -94,6 +94,7 @@ export const api = createApi({
       }),
       invalidatesTags: (result, error, { billId }) => [
         'Bill',
+        'GlobalBalance',
         { type: 'BillStatus', id: billId }
       ],
     }),
@@ -104,7 +105,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Bill'],
+      invalidatesTags: ['Bill', 'GlobalBalance'],
     }),
 
     markBillAsPaid: builder.mutation({
@@ -113,7 +114,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Bill'],
+      invalidatesTags: ['Bill', 'GlobalBalance'],
     }),
 
     deleteBill: builder.mutation({
@@ -122,7 +123,7 @@ export const api = createApi({
         method: 'DELETE',
         body: data,
       }),
-      invalidatesTags: ['Bill'],
+      invalidatesTags: ['Bill', 'GlobalBalance'],
     }),
 
     payBillInFull: builder.mutation({
@@ -131,7 +132,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Bill'],
+      invalidatesTags: ['Bill', 'GlobalBalance'],
     }),
 
     reopenBill: builder.mutation({
@@ -140,7 +141,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Bill'],
+      invalidatesTags: ['Bill', 'GlobalBalance'],
     }),
 
     startMonthlyBillCycle: builder.mutation({
@@ -149,7 +150,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Bill'],
+      invalidatesTags: ['Bill', 'GlobalBalance'],
     }),
 
     getMonthlyPayments: builder.query({
@@ -173,7 +174,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['MonthlyPayment'],
+      invalidatesTags: ['MonthlyPayment', 'GlobalBalance'],
     }),
 
     getBillStatus: builder.query({
@@ -194,7 +195,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'GlobalBalance'],
     }),
 
     getUserTransactions: builder.query({
@@ -213,7 +214,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'GlobalBalance'],
     }),
 
     resendTransactionInvitation: builder.mutation({
@@ -231,7 +232,7 @@ export const api = createApi({
         method: 'DELETE',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'GlobalBalance'],
     }),
 
     updateTransactionParticipants: builder.mutation({
@@ -240,7 +241,7 @@ export const api = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'GlobalBalance'],
     }),
 
     markTransactionPaid: builder.mutation({
@@ -249,7 +250,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'GlobalBalance'],
     }),
 
     markParticipantPaid: builder.mutation({
@@ -258,7 +259,7 @@ export const api = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'GlobalBalance'],
     }),
 
     markTransactionCyclePaid: builder.mutation({
@@ -267,7 +268,16 @@ export const api = createApi({
         method: 'POST',
         body: { user_id, week },
       }),
-      invalidatesTags: ['Transaction'],
+      invalidatesTags: ['Transaction', 'GlobalBalance'],
+    }),
+
+    // Global balance
+    getGlobalBalance: builder.query({
+      query: ({ userId, asOf } = {}) => {
+        const qs = asOf ? `?as_of=${encodeURIComponent(asOf)}` : '';
+        return `/user/${userId}/global-balance${qs}`;
+      },
+      providesTags: ['GlobalBalance'],
     }),
 
     // User search
@@ -288,7 +298,7 @@ export const api = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['Profile'],
+      invalidatesTags: ['Profile', 'GlobalBalance'],
     }),
 
     // Friend endpoints
@@ -409,4 +419,5 @@ export const {
   useRemoveFriendMutation,
   useCreateCheckoutSessionMutation,
   useCreatePortalSessionMutation,
+  useGetGlobalBalanceQuery,
 } = api;

@@ -155,7 +155,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
   // --- Handlers ---
 
   const isCycleBased = (bill) =>
-    bill.recurrence === 'monthly' || bill.recurrence === 'weekly';
+    bill.recurrence === 'monthly' || bill.recurrence === 'weekly' || bill.recurrence === 'yearly';
 
   const handleTogglePaid = async (bill) => {
     try {

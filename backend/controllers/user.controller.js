@@ -1,5 +1,10 @@
 const { findOne, executeQuery } = require('../config/database');
 
+const SUPPORTED_CURRENCIES = new Set([
+  'USD', 'EUR', 'GBP', 'MXN', 'CAD', 'AUD', 'JPY', 'BRL',
+  'ARS', 'COP', 'CLP', 'PEN', 'UYU',
+]);
+
 const getUserServices = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -154,7 +159,7 @@ const getProfile = async (req, res) => {
   try {
     const { userId } = req.params;
     const profile = await findOne(
-      'SELECT id, username, email, phone, address, city, country, subscription_tier, created_at FROM users WHERE id = ?',
+      'SELECT id, username, email, phone, address, city, country, preferred_currency, subscription_tier, created_at FROM users WHERE id = ?',
       [userId]
     );
 
@@ -171,13 +176,17 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { username, email, phone, address, city, country } = req.body;
+    const { username, email, phone, address, city, country, preferred_currency } = req.body;
 
     if (!username || !email) {
       return res.status(400).json({ message: 'Username and email are required' });
     }
 
-    const existingUser = await findOne('SELECT id FROM users WHERE id = ?', [userId]);
+    if (preferred_currency !== undefined && preferred_currency !== null && !SUPPORTED_CURRENCIES.has(preferred_currency)) {
+      return res.status(400).json({ message: `Unsupported currency: ${preferred_currency}` });
+    }
+
+    const existingUser = await findOne('SELECT id, preferred_currency FROM users WHERE id = ?', [userId]);
     if (!existingUser) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -192,13 +201,15 @@ const updateProfile = async (req, res) => {
       return res.status(409).json({ message: 'Email already taken' });
     }
 
+    const nextCurrency = preferred_currency || existingUser.preferred_currency || 'USD';
+
     await executeQuery(
-      'UPDATE users SET username = ?, email = ?, phone = ?, address = ?, city = ?, country = ? WHERE id = ?',
-      [username, email, phone || null, address || null, city || null, country || null, userId]
+      'UPDATE users SET username = ?, email = ?, phone = ?, address = ?, city = ?, country = ?, preferred_currency = ? WHERE id = ?',
+      [username, email, phone || null, address || null, city || null, country || null, nextCurrency, userId]
     );
 
     const updatedUser = await findOne(
-      'SELECT id, username, email, phone, address, city, country, created_at FROM users WHERE id = ?',
+      'SELECT id, username, email, phone, address, city, country, preferred_currency, subscription_tier, created_at FROM users WHERE id = ?',
       [userId]
     );
 
