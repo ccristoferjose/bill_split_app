@@ -166,35 +166,40 @@ const MonthlySummary = ({ income, expenses, bills, month }) => {
   return (
     <Card>
       <CardContent className="p-3 sm:p-5">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h2 className="text-sm sm:text-base font-semibold text-gray-800">
-            {format(month, 'MMMM yyyy')} {t('calendar.summary')}
-          </h2>
-          {isOverspent && (
-            <Badge className="bg-red-50 text-red-600 border-red-200 text-xs font-medium shrink-0">
-              {t('calendar.overBy')} ${fmt(Math.abs(remaining))}
-            </Badge>
-          )}
+        {/* Header — explicitly framed as monthly cashflow, distinct from Current Balance */}
+        <div className="mb-3 sm:mb-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-foreground">
+              {format(month, 'MMMM yyyy')} {t('calendar.summary')}
+            </h2>
+            {isOverspent && (
+              <Badge className="bg-red-50 text-red-600 border-red-200 text-xs font-medium shrink-0">
+                {t('calendar.overBy')} ${fmt(Math.abs(remaining))}
+              </Badge>
+            )}
+          </div>
+          <p className="text-[11px] sm:text-xs text-gray-400 dark:text-muted-foreground/70 mt-0.5">
+            {t('calendar.summaryHint')}
+          </p>
         </div>
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-5">
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">{t('calendar.income')}</p>
+            <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">{t('calendar.income')}</p>
             <p className="text-lg sm:text-xl font-bold text-green-600">${fmt(income)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">{t('calendar.expenses')}</p>
+            <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">{t('calendar.expenses')}</p>
             <p className="text-lg sm:text-xl font-bold text-red-500">${fmt(expenses)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">{t('calendar.billsLabel')}</p>
-            <p className="text-lg sm:text-xl font-bold text-blue-500">${fmt(bills)}</p>
+            <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">{t('calendar.billsLabel')}</p>
+            <p className="text-lg sm:text-xl font-bold text-indigo-500">${fmt(bills)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">{t('calendar.remaining')}</p>
-            <p className={`text-lg sm:text-xl font-bold flex items-center gap-1 ${isOverspent ? 'text-red-600' : 'text-gray-800'}`}>
+            <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">{t('calendar.remaining')}</p>
+            <p className={`text-lg sm:text-xl font-bold flex items-center gap-1 ${isOverspent ? 'text-red-600' : 'text-gray-800 dark:text-foreground'}`}>
               {isOverspent
                 ? <TrendingDown className="h-4 w-4 shrink-0" />
                 : <TrendingUp   className="h-4 w-4 shrink-0 text-green-500" />}
@@ -207,13 +212,13 @@ const MonthlySummary = ({ income, expenses, bills, month }) => {
         {hasData ? (
           <div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className="text-xs text-gray-400 w-12 sm:w-14 shrink-0 text-right tabular-nums">
+              <span className="text-xs text-gray-400 dark:text-muted-foreground/70 w-12 sm:w-14 shrink-0 text-right tabular-nums">
                 ${fmt(income)}
               </span>
-              <div className="flex-1 h-4 sm:h-5 rounded-full overflow-hidden flex bg-gray-100">
+              <div className="flex-1 h-4 sm:h-5 rounded-full overflow-hidden flex bg-gray-100 dark:bg-muted/40">
                 {billPct > 0 && (
                   <div
-                    className="bg-blue-400 h-full transition-all duration-500"
+                    className="bg-indigo-400 h-full transition-all duration-500"
                     style={{ width: `${billPct}%` }}
                     title={`${t('calendar.billsLabel')}: $${fmt(bills)}`}
                   />
@@ -227,27 +232,35 @@ const MonthlySummary = ({ income, expenses, bills, month }) => {
                 )}
                 {remPct > 0 && (
                   <div
-                    className="bg-gray-200 h-full transition-all duration-500"
+                    className="bg-gray-200 dark:bg-muted/60 h-full transition-all duration-500"
                     style={{ width: `${remPct}%` }}
                     title={`${t('calendar.remaining')}: $${fmt(remaining)}`}
                   />
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-400">
+            <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-400 dark:text-muted-foreground/70">
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-sm bg-blue-400 inline-block" />{t('calendar.billsLabel')}
+                <span className="w-2 h-2 rounded-sm bg-indigo-400 inline-block" />{t('calendar.billsLabel')}
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-sm bg-red-400 inline-block" />{t('calendar.expenses')}
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-sm bg-gray-200 border inline-block" />{t('calendar.remaining')}
+                <span className="w-2 h-2 rounded-sm bg-gray-200 dark:bg-muted/60 border inline-block" />{t('calendar.remaining')}
               </span>
             </div>
+            {/* Plain-English explanation so users don't confuse Net with Current balance */}
+            {remaining !== 0 && (
+              <p className={`text-xs mt-2 ${isOverspent ? 'text-red-600' : 'text-emerald-600'}`}>
+                {isOverspent
+                  ? t('calendar.overspentThisMonth', { amount: fmt(Math.abs(remaining)) })
+                  : t('calendar.savedThisMonth',     { amount: fmt(remaining) })}
+              </p>
+            )}
           </div>
         ) : (
-          <p className="text-sm text-gray-400 text-center py-1">
+          <p className="text-sm text-gray-400 dark:text-muted-foreground/70 text-center py-1">
             {t('calendar.noTransactions', { month: format(month, 'MMMM yyyy') })}
           </p>
         )}
@@ -276,7 +289,7 @@ const TransactionRow = ({ transaction, userId, viewMonth, onClick }) => {
       dotClass:     'bg-orange-400',
       bgClass:      'bg-orange-50',
       iconColor:    'text-orange-500',
-      amountColor:  'text-blue-500',
+      amountColor:  'text-indigo-500',
       amountPrefix: '-',
       label:        t('calendar.recurringBill'),
     },
@@ -325,7 +338,7 @@ const TransactionRow = ({ transaction, userId, viewMonth, onClick }) => {
 
   return (
     <div
-      className={`flex items-center justify-between py-2.5 px-2 rounded-lg transition-colors ${onClick ? 'cursor-pointer hover:bg-gray-100 active:bg-gray-200' : 'hover:bg-gray-50'}`}
+      className={`flex items-center justify-between py-2.5 px-2 rounded-lg transition-colors ${onClick ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-muted/50 active:bg-gray-200' : 'hover:bg-gray-50 dark:hover:bg-muted/40'}`}
       onClick={onClick}
     >
       {/* Icon + text */}
@@ -334,12 +347,12 @@ const TransactionRow = ({ transaction, userId, viewMonth, onClick }) => {
           <Icon className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${cfg.iconColor}`} />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-800 truncate leading-tight">{transaction.title}</p>
-          <p className="text-xs text-gray-400 truncate mt-0.5">
+          <p className="text-sm font-medium text-gray-800 dark:text-foreground truncate leading-tight">{transaction.title}</p>
+          <p className="text-xs text-gray-400 dark:text-muted-foreground/70 truncate mt-0.5">
             {cfg.label}
             {transaction.category && <> · <span className="capitalize">{transaction.category}</span></>}
             {txDate && <> · {format(txDate, 'MMM d')}</>}
-            {transaction.is_shared && <> · <span className="text-blue-400">{t('calendar.shared')}</span></>}
+            {transaction.is_shared && <> · <span className="text-indigo-400">{t('calendar.shared')}</span></>}
           </p>
         </div>
       </div>
@@ -431,7 +444,7 @@ const TransactionTimeline = ({ transactions, currentMonth, userId, viewMonth, on
 
   if (groups.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-400">
+      <div className="text-center py-8 text-gray-400 dark:text-muted-foreground/70">
         <Calendar className="h-7 w-7 mx-auto mb-2 opacity-30" />
         <p className="text-sm">{t('calendar.noTransactionsInMonth', { month: format(currentMonth, 'MMMM yyyy') })}</p>
       </div>
@@ -451,7 +464,7 @@ const TransactionTimeline = ({ transactions, currentMonth, userId, viewMonth, on
 
         return (
           <div key={dateStr}>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 pb-1.5 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-400 dark:text-muted-foreground/70 uppercase tracking-wide mb-1 pb-1.5 border-b border-gray-100 dark:border-border/40">
               {dateLabel}
             </p>
             <div>
@@ -674,7 +687,7 @@ const BillCalendar = ({ userId, onSelectBill }) => {
                   {/* Weekday headers */}
                   <div className="grid grid-cols-7 mb-1">
                     {WEEKDAYS.map(d => (
-                      <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
+                      <div key={d} className="text-center text-xs font-medium text-gray-400 dark:text-muted-foreground/70 py-1">{d}</div>
                     ))}
                   </div>
 
@@ -691,25 +704,25 @@ const BillCalendar = ({ userId, onSelectBill }) => {
                           onClick={() => setSelectedDate(day)}
                           className={[
                             'relative h-9 sm:h-10 w-full rounded-lg text-xs sm:text-sm font-medium transition-colors',
-                            isSelected    ? 'bg-blue-600 text-white'
-                              : isCurrentDay ? 'bg-blue-100 text-blue-700'
-                                : 'hover:bg-gray-100 text-gray-700',
+                            isSelected    ? 'bg-indigo-600 text-white'
+                              : isCurrentDay ? 'bg-indigo-100 text-indigo-700'
+                                : 'hover:bg-gray-100 dark:hover:bg-muted/50 text-gray-700 dark:text-foreground/90',
                           ].join(' ')}
                         >
                           {day.getDate()}
                           {activity && (
                             <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
                               {activity.hasBill && (
-                                <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'}`} />
+                                <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSelected ? 'bg-white dark:bg-card' : 'bg-indigo-500'}`} />
                               )}
                               {activity.hasBillTx && (
-                                <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-orange-400'}`} />
+                                <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSelected ? 'bg-white dark:bg-card' : 'bg-orange-400'}`} />
                               )}
                               {activity.hasExpense && (
-                                <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-red-400'}`} />
+                                <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSelected ? 'bg-white dark:bg-card' : 'bg-red-400'}`} />
                               )}
                               {activity.hasIncome && (
-                                <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-green-500'}`} />
+                                <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSelected ? 'bg-white dark:bg-card' : 'bg-green-500'}`} />
                               )}
                             </span>
                           )}
@@ -721,8 +734,8 @@ const BillCalendar = ({ userId, onSelectBill }) => {
               </div>
 
               {/* Dot legend */}
-              <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t text-xs text-gray-400">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500   inline-block" /> {t('calendar.bill')}</span>
+              <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t text-xs text-gray-400 dark:text-muted-foreground/70">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500   inline-block" /> {t('calendar.bill')}</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" /> {t('calendar.recurring')}</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400    inline-block" /> {t('calendar.expense')}</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500  inline-block" /> {t('calendar.income')}</span>
@@ -732,13 +745,13 @@ const BillCalendar = ({ userId, onSelectBill }) => {
 
           {/* Selected-day activity */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 sm:mb-3">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-muted-foreground uppercase tracking-wide mb-2 sm:mb-3">
               {isToday(selectedDate) ? t('common.today') : format(selectedDate, 'MMM d, yyyy')}
               {' '}&mdash; {itemCount} {itemCount !== 1 ? t('calendar.items') : t('calendar.item')}
             </h3>
 
             {selectedBills.length === 0 && selectedTransactions.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-gray-400 dark:text-muted-foreground/70">
                 <Calendar className="h-8 w-8 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">{t('calendar.noActivityOnDate')}</p>
               </div>
@@ -780,7 +793,7 @@ const BillCalendar = ({ userId, onSelectBill }) => {
         <div className="lg:col-span-1">
           <Card className="lg:sticky lg:top-20">
             <CardContent className="p-3 sm:p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 sm:mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground/90 mb-3 sm:mb-4">
                 {format(currentMonth, 'MMMM yyyy')} {t('calendar.transactions')}
               </h3>
               <div className="lg:max-h-[calc(100vh-14rem)] lg:overflow-y-auto lg:pr-1">

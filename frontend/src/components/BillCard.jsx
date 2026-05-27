@@ -36,7 +36,7 @@ import BillSplitModal from './BillSplitModal';
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const STATUS_COLORS = {
-  draft: 'bg-gray-100 text-gray-800',
+  draft: 'bg-gray-100 dark:bg-muted/40 text-gray-800 dark:text-foreground',
   pending_responses: 'bg-yellow-100 text-yellow-800',
   finalized: 'bg-orange-100 text-orange-800',
   paid: 'bg-green-100 text-green-800',
@@ -52,7 +52,7 @@ const STATUS_LABELS = {
   pending: 'Unpaid',
 };
 
-const getStatusColor = (s) => STATUS_COLORS[s] || 'bg-gray-100 text-gray-800';
+const getStatusColor = (s) => STATUS_COLORS[s] || 'bg-gray-100 dark:bg-muted/40 text-gray-800 dark:text-foreground';
 const getStatusLabel = (s) => STATUS_LABELS[s] || s;
 
 const cycleKey = (billId, date) =>
@@ -290,8 +290,8 @@ const BillCard = ({ bill, userId, onSelectBill, onRefresh, calendarDate, paidCyc
               {/* Title row */}
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 {bill.bill_type === 'monthly'
-                  ? <Clock className="h-4 w-4 text-blue-500 shrink-0" />
-                  : <Receipt className="h-4 w-4 text-gray-400 shrink-0" />}
+                  ? <Clock className="h-4 w-4 text-indigo-500 shrink-0" />
+                  : <Receipt className="h-4 w-4 text-gray-400 dark:text-muted-foreground/70 shrink-0" />}
                 <h3 className="font-semibold text-base truncate">{bill.title}</h3>
                 {isCreator && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 shrink-0" />}
                 <Badge className={getStatusColor(displayStatus)}>
@@ -307,7 +307,7 @@ const BillCard = ({ bill, userId, onSelectBill, onRefresh, calendarDate, paidCyc
               </div>
 
               {/* Meta row */}
-              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-muted-foreground">
                 <span className="flex items-center">
                   <DollarSign className="h-4 w-4 mr-0.5" />${bill.total_amount}
                 </span>
@@ -366,7 +366,7 @@ const BillCard = ({ bill, userId, onSelectBill, onRefresh, calendarDate, paidCyc
               </div>
 
               {bill.due_date && !calendarDate && (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
                   Due: {format(new Date(bill.due_date), 'MMM dd, yyyy')}
                 </p>
               )}
@@ -404,7 +404,7 @@ const BillCard = ({ bill, userId, onSelectBill, onRefresh, calendarDate, paidCyc
                 {confirmModal.title}
               </DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-gray-600">{confirmModal.message}</p>
+            <p className="text-sm text-gray-600 dark:text-muted-foreground">{confirmModal.message}</p>
             <div className="flex justify-end gap-2 mt-4">
               <Button variant="outline" onClick={() => setConfirmModal(null)}>Cancel</Button>
               <Button className={confirmModal.confirmClass} onClick={confirmModal.onConfirm}>

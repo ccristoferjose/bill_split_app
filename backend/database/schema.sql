@@ -21,8 +21,38 @@ CREATE TABLE IF NOT EXISTS users (
     country VARCHAR(100) NULL,
     subscription_tier ENUM('free', 'plus', 'pro') NOT NULL DEFAULT 'free',
     stripe_customer_id VARCHAR(255) NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    language VARCHAR(5) NOT NULL DEFAULT 'en',
+    onboarding_completed_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Append-only ledger. Current balance = SUM(amount) for the user.
+-- amount is SIGNED: outflows negative, inflows positive.
+-- (source_type, source_id, entry_type) makes mark-paid toggles idempotent.
+CREATE TABLE IF NOT EXISTS balance_ledger (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(128) NOT NULL,
+    amount DECIMAL(14, 2) NOT NULL,
+    entry_type ENUM(
+        'initial_balance',
+        'expense',
+        'income',
+        'bill_payment',
+        'reimbursement_received',
+        'reimbursement_paid',
+        'manual_adjustment'
+    ) NOT NULL,
+    source_type ENUM('transaction', 'transaction_participant', 'transaction_cycle', 'initial', 'adjustment') NOT NULL,
+    source_id VARCHAR(128) NOT NULL,
+    description VARCHAR(255) NULL,
+    occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_occurred (user_id, occurred_at DESC),
+    INDEX idx_source (source_type, source_id),
+    UNIQUE KEY unique_entry (user_id, source_type, source_id, entry_type),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Friendships — mutual (both must accept)

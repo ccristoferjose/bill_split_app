@@ -1,6 +1,14 @@
 // frontend/src/components/UserProfile.jsx
 import React, { useState } from 'react';
-import { useGetUserProfileQuery, useUpdateUserProfileMutation } from '../services/api';
+import {
+  useGetUserProfileQuery,
+  useUpdateUserProfileMutation,
+  useGetUserSettingsQuery,
+  useUpdateUserSettingsMutation,
+} from '../services/api';
+import { toast } from 'sonner';
+import { useTheme } from '../hooks/useTheme';
+import { Monitor, Sun, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../feature/auth/authSlice';
@@ -18,6 +26,12 @@ const UserProfile = ({ userId }) => {
   const dispatch = useDispatch();
   const { data: profile, isLoading, error, refetch } = useGetUserProfileQuery(userId);
   const [updateProfile, { isLoading: isUpdating }] = useUpdateUserProfileMutation();
+  const { data: settings } = useGetUserSettingsQuery(userId, { skip: !userId });
+  const [updateSettings, { isLoading: isUpdatingSettings }] = useUpdateUserSettingsMutation();
+
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -54,8 +68,42 @@ const UserProfile = ({ userId }) => {
     }));
   };
 
-  const handleLanguageChange = (lang) => {
+  const handleLanguageChange = async (lang) => {
     i18n.changeLanguage(lang);
+    try { await updateSettings({ userId, language: lang }).unwrap(); } catch { /* non-fatal */ }
+  };
+
+  const handleCurrencyChange = async (currency) => {
+    try {
+      await updateSettings({ userId, currency }).unwrap();
+      toast.success(t('profile.currencyUpdated', 'Currency updated'));
+    } catch (err) {
+      toast.error(err?.data?.message || t('profile.updateFailed', 'Update failed'));
+    }
+  };
+
+  const handleAdjustBalance = async () => {
+    const delta = Number(adjustAmount);
+    if (!Number.isFinite(delta) || delta === 0) {
+      toast.error(t('profile.adjustInvalid', 'Enter a non-zero amount'));
+      return;
+    }
+    try {
+      await updateSettings({
+        userId,
+        balance_adjustment: delta,
+        balance_adjustment_reason: adjustReason || null,
+      }).unwrap();
+      toast.success(t('profile.balanceAdjusted', 'Balance adjusted'));
+      setAdjustAmount(''); setAdjustReason('');
+    } catch (err) {
+      toast.error(err?.data?.message || t('profile.updateFailed', 'Update failed'));
+    }
+  };
+
+  const fmtMoney = (n, currency = 'USD') => {
+    try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(Number(n || 0)); }
+    catch { return `${currency} ${Number(n || 0).toFixed(2)}`; }
   };
 
   const handleSubmit = async (e) => {
@@ -103,7 +151,7 @@ const UserProfile = ({ userId }) => {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
         </CardContent>
       </Card>
     );
@@ -169,8 +217,8 @@ const UserProfile = ({ userId }) => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Information Section */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <User className="h-5 w-5 mr-2 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-foreground flex items-center">
+                <User className="h-5 w-5 mr-2 text-indigo-600" />
                 {t('profile.basicInfo')}
               </h3>
 
@@ -184,7 +232,7 @@ const UserProfile = ({ userId }) => {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   required
-                  className={!isEditing ? 'bg-gray-50' : ''}
+                  className={!isEditing ? 'bg-gray-50 dark:bg-muted/30' : ''}
                 />
               </div>
 
@@ -202,7 +250,7 @@ const UserProfile = ({ userId }) => {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   required
-                  className={!isEditing ? 'bg-gray-50' : ''}
+                  className={!isEditing ? 'bg-gray-50 dark:bg-muted/30' : ''}
                 />
               </div>
 
@@ -220,15 +268,15 @@ const UserProfile = ({ userId }) => {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   placeholder={t('profile.phonePlaceholder')}
-                  className={!isEditing ? 'bg-gray-50' : ''}
+                  className={!isEditing ? 'bg-gray-50 dark:bg-muted/30' : ''}
                 />
               </div>
             </div>
 
             {/* Address Section */}
             <div className="space-y-4 pt-6 border-t">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <MapPin className="h-5 w-5 mr-2 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-foreground flex items-center">
+                <MapPin className="h-5 w-5 mr-2 text-indigo-600" />
                 {t('profile.addressInfo')}
               </h3>
 
@@ -242,7 +290,7 @@ const UserProfile = ({ userId }) => {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   placeholder={t('profile.addressPlaceholder')}
-                  className={!isEditing ? 'bg-gray-50' : ''}
+                  className={!isEditing ? 'bg-gray-50 dark:bg-muted/30' : ''}
                 />
               </div>
 
@@ -257,7 +305,7 @@ const UserProfile = ({ userId }) => {
                     onChange={handleInputChange}
                     disabled={!isEditing}
                     placeholder={t('profile.cityPlaceholder')}
-                    className={!isEditing ? 'bg-gray-50' : ''}
+                    className={!isEditing ? 'bg-gray-50 dark:bg-muted/30' : ''}
                   />
                 </div>
 
@@ -270,7 +318,7 @@ const UserProfile = ({ userId }) => {
                     onChange={handleInputChange}
                     disabled={!isEditing}
                     placeholder={t('profile.countryPlaceholder')}
-                    className={!isEditing ? 'bg-gray-50' : ''}
+                    className={!isEditing ? 'bg-gray-50 dark:bg-muted/30' : ''}
                   />
                 </div>
               </div>
@@ -278,33 +326,33 @@ const UserProfile = ({ userId }) => {
 
             {/* Subscription & Account Section */}
             <div className="space-y-4 pt-6 border-t">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-foreground flex items-center">
+                <Calendar className="h-5 w-5 mr-2 text-indigo-600" />
                 {t('profile.accountDetails')}
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-gray-500">{t('profile.subscription')}</Label>
+                  <Label className="text-gray-500 dark:text-muted-foreground">{t('profile.subscription')}</Label>
                   <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border ${
                     profile?.subscription_tier === 'pro'
                       ? 'bg-purple-50 border-purple-200'
                       : profile?.subscription_tier === 'plus'
                         ? 'bg-teal-50 border-teal-200'
-                        : 'bg-gray-50 border-gray-200'
+                        : 'bg-gray-50 dark:bg-muted/30 border-gray-200 dark:border-border'
                   }`}>
                     <div className="flex items-center gap-2">
                       <CreditCard className={`h-4 w-4 ${
                         profile?.subscription_tier === 'pro' ? 'text-purple-500'
                           : profile?.subscription_tier === 'plus' ? 'text-teal-500'
-                            : 'text-gray-400'
+                            : 'text-gray-400 dark:text-muted-foreground/70'
                       }`} />
                       <span className={`text-sm font-semibold capitalize ${
                         profile?.subscription_tier === 'pro'
                           ? 'text-purple-700'
                           : profile?.subscription_tier === 'plus'
                             ? 'text-teal-700'
-                            : 'text-gray-600'
+                            : 'text-gray-600 dark:text-muted-foreground'
                       }`}>
                         {profile?.subscription_tier === 'pro' ? 'Pro' : profile?.subscription_tier === 'plus' ? 'Plus' : 'Free'}
                       </span>
@@ -321,7 +369,7 @@ const UserProfile = ({ userId }) => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-gray-500">{t('profile.memberSince')}</Label>
+                  <Label className="text-gray-500 dark:text-muted-foreground">{t('profile.memberSince')}</Label>
                   <Input
                     value={profile?.created_at ? new Date(profile.created_at).toLocaleDateString(i18n.language === 'es' ? 'es-ES' : 'en-US', {
                       year: 'numeric',
@@ -329,7 +377,7 @@ const UserProfile = ({ userId }) => {
                       day: 'numeric'
                     }) : 'N/A'}
                     disabled
-                    className="bg-gray-50"
+                    className="bg-gray-50 dark:bg-muted/30"
                   />
                 </div>
               </div>
@@ -337,8 +385,8 @@ const UserProfile = ({ userId }) => {
 
             {/* Preferences Section */}
             <div className="space-y-4 pt-6 border-t">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <Globe className="h-5 w-5 mr-2 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-foreground flex items-center">
+                <Globe className="h-5 w-5 mr-2 text-indigo-600" />
                 {t('profile.preferences')}
               </h3>
 
@@ -353,6 +401,98 @@ const UserProfile = ({ userId }) => {
                     <SelectItem value="es">{t('languages.es')}</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Theme picker — System (follows device) / Light / Dark */}
+              <div className="space-y-2">
+                <Label>{t('profile.theme')}</Label>
+                <div className="inline-flex rounded-lg border border-gray-200 dark:border-border overflow-hidden bg-white dark:bg-card">
+                  {[
+                    { id: 'system', label: t('profile.themeSystem'), icon: Monitor },
+                    { id: 'light',  label: t('profile.themeLight'),  icon: Sun },
+                    { id: 'dark',   label: t('profile.themeDark'),   icon: Moon },
+                  ].map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setThemeMode(id)}
+                      className={[
+                        'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors',
+                        themeMode === id
+                          ? 'bg-gray-900 text-white dark:bg-foreground dark:text-background'
+                          : 'text-gray-600 dark:text-muted-foreground hover:bg-gray-50 dark:hover:bg-muted/40',
+                      ].join(' ')}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-muted-foreground">
+                  {t('profile.themeHint')}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('profile.currency', 'Currency')}</Label>
+                <Select value={settings?.currency || 'USD'} onValueChange={handleCurrencyChange}>
+                  <SelectTrigger className="w-full md:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['USD','EUR','GBP','MXN','CAD','AUD','JPY','BRL','ARS','CLP','COP','PEN','GTQ'].map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 dark:text-muted-foreground">
+                  {t('profile.currencyHint', 'Changing currency does not convert existing amounts — values stay numeric.')}
+                </p>
+              </div>
+
+              {/* Balance adjustment — safe append-only delta, never overwrites history */}
+              <div className="space-y-2 pt-4 border-t">
+                <Label className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-indigo-600" />
+                  {t('profile.balanceAdjustment', 'Balance adjustment')}
+                </Label>
+                <p className="text-sm text-gray-500 dark:text-muted-foreground">
+                  {t('profile.balanceAdjustHint', 'Current balance:')}{' '}
+                  <span className="font-semibold text-gray-900 dark:text-foreground">
+                    {fmtMoney(settings?.balance, settings?.currency)}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-500 dark:text-muted-foreground">
+                  {t('profile.balanceAdjustExplain', 'Enter a positive number to add or a negative number to subtract. This appends a single ledger entry; existing transactions are untouched.')}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={adjustAmount}
+                    onChange={(e) => setAdjustAmount(e.target.value)}
+                    placeholder="±0.00"
+                  />
+                  <Input
+                    type="text"
+                    value={adjustReason}
+                    onChange={(e) => setAdjustReason(e.target.value)}
+                    placeholder={t('profile.balanceReasonPlaceholder', 'Reason (optional)')}
+                    className="md:col-span-1"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAdjustBalance}
+                    disabled={isUpdatingSettings}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    {isUpdatingSettings
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <Save className="h-4 w-4 mr-1" />}
+                    {t('profile.adjustApply', 'Apply')}
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -371,7 +511,7 @@ const UserProfile = ({ userId }) => {
                 <Button
                   type="submit"
                   disabled={isUpdating}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-indigo-600 hover:bg-indigo-700"
                 >
                   {isUpdating ? (
                     <>

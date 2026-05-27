@@ -195,26 +195,26 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
             <CardContent>
               <div className={`grid ${paidParticipants.length > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
                 <div>
-                  <p className="text-sm text-gray-600">Total Amount</p>
+                  <p className="text-sm text-gray-600 dark:text-muted-foreground">Total Amount</p>
                   <p className="text-2xl font-bold">${billAmount}</p>
                 </div>
                 {paidParticipants.length > 0 && (
                   <div>
-                    <p className="text-sm text-gray-600">Already Paid</p>
+                    <p className="text-sm text-gray-600 dark:text-muted-foreground">Already Paid</p>
                     <p className="text-2xl font-bold text-green-600">${paidTotal.toFixed(2)}</p>
                   </div>
                 )}
                 <div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-muted-foreground">
                     {paidParticipants.length > 0 ? 'Remaining to Split' : 'You Pay'}
                   </p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-2xl font-bold text-indigo-600">
                     {selectedUsers.length > 0
                       ? `$${getCalculatedAmount(getCreatorPercentage())}`
                       : `$${splittableAmount.toFixed(2)}`}
                   </p>
                   {selectedUsers.length > 0 && (
-                    <p className="text-sm text-gray-500">({getCreatorPercentage()}%)</p>
+                    <p className="text-sm text-gray-500 dark:text-muted-foreground">({getCreatorPercentage()}%)</p>
                   )}
                 </div>
               </div>
@@ -232,7 +232,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
               </CardHeader>
               <CardContent className="space-y-2">
                 {paidParticipants.map(p => (
-                  <div key={p.user_id} className="flex justify-between items-center p-2 bg-white rounded border">
+                  <div key={p.user_id} className="flex justify-between items-center p-2 bg-white dark:bg-card rounded border">
                     <span className="font-medium">{p.username}</span>
                     <Badge className="bg-green-100 text-green-800">${parseFloat(p.amount_owed).toFixed(2)} Paid</Badge>
                   </div>
@@ -247,7 +247,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
               <CardTitle>Add Friends</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {friendsLoading && <p className="text-sm text-gray-500">Loading friends...</p>}
+              {friendsLoading && <p className="text-sm text-gray-500 dark:text-muted-foreground">Loading friends...</p>}
 
               {friendsData?.friends && friendsData.friends.length > 0 ? (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -260,11 +260,11 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                     .map(friend => (
                       <div
                         key={friend.id}
-                        className="flex items-center justify-between p-2 border rounded hover:bg-gray-50"
+                        className="flex items-center justify-between p-2 border rounded hover:bg-gray-50 dark:hover:bg-muted/40"
                       >
                         <div>
                           <p className="font-medium">{friend.username}</p>
-                          <p className="text-sm text-gray-500">{friend.email}</p>
+                          <p className="text-sm text-gray-500 dark:text-muted-foreground">{friend.email}</p>
                         </div>
                         <Button size="sm" onClick={() => addUser(friend)}>
                           <Plus className="h-4 w-4 mr-1" />
@@ -275,7 +275,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                 </div>
               ) : (
                 !friendsLoading && (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-muted-foreground">
                     No friends available. Add friends from the Friends tab first.
                   </p>
                 )
@@ -298,11 +298,11 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                   const amountError = getAmountError(u.id, amount);
 
                   return (
-                    <div key={u.id} className={`p-3 border rounded space-y-3 ${amountError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
+                    <div key={u.id} className={`p-3 border rounded space-y-3 ${amountError ? 'border-red-300 bg-red-50' : 'border-gray-200 dark:border-border'}`}>
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{u.username}</p>
-                          <p className="text-sm text-gray-500">{u.email}</p>
+                          <p className="text-sm text-gray-500 dark:text-muted-foreground">{u.email}</p>
                         </div>
                         <Button size="sm" variant="ghost" onClick={() => removeUser(u.id)}>
                           <X className="h-4 w-4" />
@@ -311,10 +311,10 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
 
                       {/* Slider */}
                       <div className="space-y-1">
-                        <div className="flex justify-between text-xs text-gray-500">
+                        <div className="flex justify-between text-xs text-gray-500 dark:text-muted-foreground">
                           <span>0%</span>
-                          <span className="font-medium text-gray-700">{u.percentage}%</span>
-                          <span className={maxPct < 100 ? 'text-blue-600 font-medium' : ''}>{maxPct}% max</span>
+                          <span className="font-medium text-gray-700 dark:text-foreground/90">{u.percentage}%</span>
+                          <span className={maxPct < 100 ? 'text-indigo-600 font-medium' : ''}>{maxPct}% max</span>
                         </div>
                         <input
                           type="range"
@@ -323,14 +323,14 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                           step="0.1"
                           value={u.percentage}
                           onChange={(e) => updatePercentage(u.id, e.target.value)}
-                          className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                         />
                       </div>
 
                       {/* Amount + Percentage inputs */}
                       <div className="flex items-center gap-2">
-                        <div className={`flex items-center flex-1 border rounded overflow-hidden focus-within:ring-1 ${amountError ? 'border-red-400 focus-within:ring-red-400' : 'focus-within:ring-blue-500'}`}>
-                          <span className="px-2 text-gray-500 text-sm bg-gray-50 border-r">$</span>
+                        <div className={`flex items-center flex-1 border rounded overflow-hidden focus-within:ring-1 ${amountError ? 'border-red-400 focus-within:ring-red-400' : 'focus-within:ring-indigo-500'}`}>
+                          <span className="px-2 text-gray-500 dark:text-muted-foreground text-sm bg-gray-50 dark:bg-muted/30 border-r">$</span>
                           <input
                             type="number"
                             min="0"
@@ -339,10 +339,10 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                             value={displayAmount}
                             onChange={(e) => handleAmountChange(u.id, e.target.value)}
                             onBlur={() => handleAmountBlur(u.id)}
-                            className="flex-1 px-2 py-1.5 text-sm outline-none bg-white"
+                            className="flex-1 px-2 py-1.5 text-sm outline-none bg-white dark:bg-card"
                           />
                         </div>
-                        <div className="flex items-center border rounded overflow-hidden w-24 focus-within:ring-1 focus-within:ring-blue-500">
+                        <div className="flex items-center border rounded overflow-hidden w-24 focus-within:ring-1 focus-within:ring-indigo-500">
                           <input
                             type="number"
                             min="0"
@@ -351,9 +351,9 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                             value={displayPct}
                             onChange={(e) => handlePercentChange(u.id, e.target.value)}
                             onBlur={() => handlePercentBlur(u.id)}
-                            className="flex-1 px-2 py-1.5 text-sm outline-none bg-white w-0"
+                            className="flex-1 px-2 py-1.5 text-sm outline-none bg-white dark:bg-card w-0"
                           />
-                          <span className="px-2 text-gray-500 text-sm bg-gray-50 border-l">%</span>
+                          <span className="px-2 text-gray-500 dark:text-muted-foreground text-sm bg-gray-50 dark:bg-muted/30 border-l">%</span>
                         </div>
                       </div>
 
@@ -368,15 +368,15 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                 <div className="border-t pt-3 space-y-2">
                   {/* Progress bar */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-muted-foreground">
                       <span>Split progress</span>
-                      <span className={getTotalPercentage() > 100 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                      <span className={getTotalPercentage() > 100 ? 'text-red-600 font-medium' : 'text-gray-600 dark:text-muted-foreground'}>
                         {getTotalPercentage()}% assigned
                       </span>
                     </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-gray-100 dark:bg-muted/40 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${getTotalPercentage() > 100 ? 'bg-red-500' : 'bg-blue-500'}`}
+                        className={`h-full rounded-full transition-all ${getTotalPercentage() > 100 ? 'bg-red-500' : 'bg-indigo-500'}`}
                         style={{ width: `${Math.min(100, getTotalPercentage())}%` }}
                       />
                     </div>
@@ -395,7 +395,7 @@ const BillSplitModal = ({ billId, billAmount, billTitle, onClose }) => {
                     </Badge>
                   </div>
                   {paidParticipants.length > 0 && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-muted-foreground">
                       Percentages are calculated on the remaining ${splittableAmount.toFixed(2)}
                     </p>
                   )}

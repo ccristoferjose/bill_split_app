@@ -80,6 +80,17 @@
     </script>
   </head>
   <body>
+    <!-- Apply persisted theme synchronously, before React mounts, to avoid a flash. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('theme'); // 'system' | 'light' | 'dark' | null
+          var mode = saved || 'system';
+          var isDark = mode === 'dark' || (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', isDark);
+        } catch (e) { /* localStorage blocked — leave default light */ }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

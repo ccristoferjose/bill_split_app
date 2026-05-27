@@ -60,21 +60,21 @@ const TransactionSplitModal = ({ bill, userId, onClose }) => {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-blue-500" />
+            <Users className="h-5 w-5 text-indigo-500" />
             Split "{bill.title}"
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Summary */}
-          <div className="flex justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
-            <span className="text-gray-500">Total</span>
+          <div className="flex justify-between text-sm bg-gray-50 dark:bg-muted/30 rounded-lg px-3 py-2">
+            <span className="text-gray-500 dark:text-muted-foreground">Total</span>
             <span className="font-semibold">${Number(bill.amount).toFixed(2)}</span>
           </div>
 
           {/* Friend search */}
           {friends.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-4">
+            <p className="text-sm text-gray-400 dark:text-muted-foreground/70 text-center py-4">
               No friends added yet. Add friends to split bills.
             </p>
           ) : (
@@ -95,8 +95,8 @@ const TransactionSplitModal = ({ bill, userId, onClose }) => {
                         className={[
                           'flex-1 text-left text-sm px-2 py-1 rounded transition-colors',
                           selected
-                            ? 'bg-blue-50 text-blue-700 font-medium'
-                            : 'hover:bg-gray-50 text-gray-700',
+                            ? 'bg-indigo-50 text-indigo-700 font-medium'
+                            : 'hover:bg-gray-50 dark:hover:bg-muted/40 text-gray-700 dark:text-foreground/90',
                         ].join(' ')}
                       >
                         {friend.username}
@@ -122,11 +122,11 @@ const TransactionSplitModal = ({ bill, userId, onClose }) => {
           {/* Assigned summary */}
           {participants.length > 0 && (
             <div className="text-sm space-y-1">
-              <div className="flex justify-between text-gray-500">
+              <div className="flex justify-between text-gray-500 dark:text-muted-foreground">
                 <span>Assigned to others</span>
                 <span>${totalAssigned.toFixed(2)}</span>
               </div>
-              <div className={`flex justify-between font-medium ${remaining < 0 ? 'text-red-600' : 'text-gray-700'}`}>
+              <div className={`flex justify-between font-medium ${remaining < 0 ? 'text-red-600' : 'text-gray-700 dark:text-foreground/90'}`}>
                 <span>Your share (remaining)</span>
                 <span>${remaining.toFixed(2)}</span>
               </div>

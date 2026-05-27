@@ -198,7 +198,7 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 pr-6">
-            <CalendarDays className="h-5 w-5 text-blue-500 shrink-0" />
+            <CalendarDays className="h-5 w-5 text-indigo-500 shrink-0" />
             <span className="truncate">{transaction.title}</span>
           </DialogTitle>
         </DialogHeader>
@@ -206,15 +206,15 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
         <div className="space-y-4">
 
           {/* Bill info grid */}
-          <div className="grid grid-cols-2 gap-3 bg-gray-50 rounded-xl p-3">
+          <div className="grid grid-cols-2 gap-3 bg-gray-50 dark:bg-muted/30 rounded-xl p-3">
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Total Amount</p>
-              <p className="font-semibold text-gray-800 flex items-center gap-0.5">
+              <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Total Amount</p>
+              <p className="font-semibold text-gray-800 dark:text-foreground flex items-center gap-0.5">
                 <DollarSign className="h-3.5 w-3.5" />{Number(transaction.amount).toFixed(2)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">
+              <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">
                 {isMonthly
                   ? `Status (${format(viewMonth || new Date(), 'MMM yyyy')}${weekIndex ? ` Wk ${weekIndex}` : ''})`
                   : 'Status'}
@@ -225,31 +225,31 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
             </div>
             {effectiveDueDate && (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Due Date</p>
+                <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Due Date</p>
                 <p className="text-sm">{format(effectiveDueDate, 'MMM dd, yyyy')}</p>
               </div>
             )}
             {transaction.recurrence && (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Recurrence</p>
+                <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Recurrence</p>
                 <Badge variant="outline" className="text-xs">{RECURRENCE_LABELS[transaction.recurrence]}</Badge>
               </div>
             )}
             {transaction.recurrence_end_date && (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Ends On</p>
+                <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Ends On</p>
                 <p className="text-sm">{format(parseLocalDate(transaction.recurrence_end_date), 'MMM dd, yyyy')}</p>
               </div>
             )}
             {transaction.category && (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Category</p>
+                <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Category</p>
                 <p className="text-sm">{transaction.category}</p>
               </div>
             )}
             {!isOwner && transaction.owner_username && (
               <div className="col-span-2">
-                <p className="text-xs text-gray-400 mb-0.5">Bill Owner</p>
+                <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Bill Owner</p>
                 <p className="text-sm font-medium">{transaction.owner_username}</p>
               </div>
             )}
@@ -258,7 +258,7 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
           {/* Participants list */}
           {transaction.participants?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+              <p className="text-xs font-semibold text-gray-500 dark:text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" /> Split participants
               </p>
               <div className="space-y-2">
@@ -271,12 +271,12 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
                     <div
                       key={p.user_id}
                       className={`flex items-center justify-between px-3 py-2 rounded-lg border ${
-                        isMe ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'
+                        isMe ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 dark:bg-muted/30 border-gray-100 dark:border-border/40'
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-sm font-medium truncate">
-                          {p.username}{isMe && <span className="text-blue-500 font-normal"> (you)</span>}
+                          {p.username}{isMe && <span className="text-indigo-500 font-normal"> (you)</span>}
                         </span>
                         <InvStatusBadge status={p.invitation_status} />
                         {p.invitation_status === 'accepted' && <PayStatusBadge paid={participantPaid} />}
@@ -304,9 +304,9 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
 
           {/* Notes */}
           {transaction.notes && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-400 mb-1">Notes</p>
-              <p className="text-sm text-gray-700">{transaction.notes}</p>
+            <div className="bg-gray-50 dark:bg-muted/30 rounded-lg p-3">
+              <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-1">Notes</p>
+              <p className="text-sm text-gray-700 dark:text-foreground/90">{transaction.notes}</p>
             </div>
           )}
 
@@ -314,7 +314,7 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
           {isOwner && (
             <div className="flex gap-2 pt-1 border-t">
               <Button
-                className={`flex-1 ${myIsPaid ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                className={`flex-1 ${myIsPaid ? 'bg-gray-100 dark:bg-muted/40 text-gray-600 dark:text-muted-foreground hover:bg-gray-200 dark:hover:bg-muted/70' : 'bg-green-600 hover:bg-green-700 text-white'}`}
                 variant={myIsPaid ? 'outline' : 'default'}
                 disabled={isActioning}
                 onClick={handleToggleBillPaid}
@@ -331,7 +331,7 @@ const TransactionBillDetailModal = ({ transaction, userId, viewMonth, weekIndex,
             <div className="pt-1 border-t">
               {confirmDelete ? (
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm text-gray-600 flex items-center gap-1">
+                  <p className="text-sm text-gray-600 dark:text-muted-foreground flex items-center gap-1">
                     <AlertTriangle className="h-4 w-4 text-yellow-500" />
                     Delete this transaction?
                   </p>
