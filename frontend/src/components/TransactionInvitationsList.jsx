@@ -26,8 +26,8 @@ const TransactionInvitationsList = ({ userId }) => {
         {[...Array(2)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-4">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-gray-200 rounded w-1/2" />
+              <div className="h-4 bg-gray-200 dark:bg-muted/60 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-gray-200 dark:bg-muted/60 rounded w-1/2" />
             </CardContent>
           </Card>
         ))}
@@ -39,7 +39,7 @@ const TransactionInvitationsList = ({ userId }) => {
 
   if (invitations.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-400">
+      <div className="text-center py-8 text-gray-400 dark:text-muted-foreground/70">
         <CalendarDays className="h-10 w-10 mx-auto mb-2 opacity-40" />
         <p className="text-sm">{t('invitations.noPending')}</p>
       </div>
@@ -59,7 +59,7 @@ const TransactionInvitationsList = ({ userId }) => {
 
                     {/* Title + badge */}
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      <CalendarDays className="h-4 w-4 text-blue-500 shrink-0" />
+                      <CalendarDays className="h-4 w-4 text-indigo-500 shrink-0" />
                       <h3 className="font-semibold text-sm truncate">{inv.title}</h3>
                       <Badge className="bg-yellow-100 text-yellow-800 text-xs border border-yellow-200">
                         {t('invitations.awaitingResponse')}
@@ -67,23 +67,23 @@ const TransactionInvitationsList = ({ userId }) => {
                     </div>
 
                     {/* Meta */}
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-2">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-muted-foreground mb-2">
                       <span className="flex items-center gap-0.5">
                         <DollarSign className="h-3.5 w-3.5" />
                         {t('common.total')}: <span className="font-medium ml-0.5">${Number(inv.amount).toFixed(2)}</span>
                       </span>
-                      <span className="flex items-center gap-1 text-blue-700 font-medium">
+                      <span className="flex items-center gap-1 text-indigo-700 font-medium">
                         {t('invitations.yourShare')}: ${Number(inv.my_amount).toFixed(2)}
                       </span>
                       {dueDate && (
-                        <span className="flex items-center gap-1 text-gray-500">
+                        <span className="flex items-center gap-1 text-gray-500 dark:text-muted-foreground">
                           {t('common.due')} {format(dueDate, 'MMM dd, yyyy')}
                         </span>
                       )}
                     </div>
 
                     {/* Owner */}
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <p className="text-xs text-gray-500 dark:text-muted-foreground flex items-center gap-1">
                       <User className="h-3 w-3" />
                       {t('invitations.from')} <span className="font-medium">{inv.owner_username}</span>
                     </p>
@@ -91,7 +91,7 @@ const TransactionInvitationsList = ({ userId }) => {
                     {/* All participants preview */}
                     {inv.participants?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
-                        <span className="text-xs text-gray-400 flex items-center gap-1 mr-1">
+                        <span className="text-xs text-gray-400 dark:text-muted-foreground/70 flex items-center gap-1 mr-1">
                           <Users className="h-3 w-3" />{t('invitations.splitWith')}
                         </span>
                         {inv.participants.map(p => (
@@ -99,8 +99,8 @@ const TransactionInvitationsList = ({ userId }) => {
                             key={p.user_id}
                             className={`text-xs rounded-full px-2 py-0.5 border ${
                               String(p.user_id) === String(userId)
-                                ? 'bg-blue-100 border-blue-200 text-blue-700 font-medium'
-                                : 'bg-gray-100 border-gray-200 text-gray-600'
+                                ? 'bg-indigo-100 border-indigo-200 text-indigo-700 font-medium'
+                                : 'bg-gray-100 dark:bg-muted/40 border-gray-200 dark:border-border text-gray-600 dark:text-muted-foreground'
                             }`}
                           >
                             {p.username}
@@ -114,7 +114,7 @@ const TransactionInvitationsList = ({ userId }) => {
                   <Button
                     size="sm"
                     onClick={() => setSelectedInvitation(inv)}
-                    className="bg-blue-600 hover:bg-blue-700 shrink-0"
+                    className="bg-indigo-600 hover:bg-indigo-700 shrink-0"
                   >
                     {t('common.respond')}
                   </Button>

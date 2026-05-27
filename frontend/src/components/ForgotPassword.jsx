@@ -60,7 +60,7 @@ const ForgotPassword = () => {
 
       <button
         onClick={() => navigate('/login')}
-        className="absolute top-6 left-6 z-10 flex items-center gap-1.5 text-gray-400 hover:text-white text-sm transition-colors duration-300"
+        className="absolute top-6 left-6 z-10 flex items-center gap-1.5 text-gray-400 dark:text-muted-foreground/70 hover:text-white text-sm transition-colors duration-300"
       >
         <ArrowLeft className="h-4 w-4" />
         {t('forgotPassword.backToLogin')}
@@ -93,7 +93,7 @@ const ForgotPassword = () => {
             <h2 className="text-xl font-semibold text-white text-center mb-1">
               {t('forgotPassword.title')}
             </h2>
-            <p className="text-gray-400 text-center mb-6 text-sm">
+            <p className="text-gray-400 dark:text-muted-foreground/70 text-center mb-6 text-sm">
               {t('forgotPassword.subtitle')}
             </p>
 
@@ -105,7 +105,7 @@ const ForgotPassword = () => {
 
             <form onSubmit={handleRequest} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('login.email')}</label>
+                <label className="block text-sm font-medium text-gray-300 dark:text-muted-foreground/60 mb-1.5">{t('login.email')}</label>
                 <input
                   type="email"
                   value={email}
@@ -143,7 +143,7 @@ const ForgotPassword = () => {
             <h2 className="text-xl font-semibold text-white text-center mb-1">
               {t('forgotPassword.checkEmail')}
             </h2>
-            <p className="text-gray-400 text-center mb-6 text-sm">
+            <p className="text-gray-400 dark:text-muted-foreground/70 text-center mb-6 text-sm">
               {t('forgotPassword.codeSentTo')} <span className="text-teal-400">{email}</span>
             </p>
 
@@ -155,7 +155,7 @@ const ForgotPassword = () => {
 
             <form onSubmit={handleConfirm} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('forgotPassword.code')}</label>
+                <label className="block text-sm font-medium text-gray-300 dark:text-muted-foreground/60 mb-1.5">{t('forgotPassword.code')}</label>
                 <input
                   type="text"
                   value={code}
@@ -170,7 +170,7 @@ const ForgotPassword = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('forgotPassword.newPassword')}</label>
+                <label className="block text-sm font-medium text-gray-300 dark:text-muted-foreground/60 mb-1.5">{t('forgotPassword.newPassword')}</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -185,7 +185,7 @@ const ForgotPassword = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-muted-foreground hover:text-gray-300 transition-colors"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -214,7 +214,7 @@ const ForgotPassword = () => {
               <button
                 type="button"
                 onClick={() => { setStep('request'); setError(null); }}
-                className="w-full text-sm text-gray-500 hover:text-gray-300 transition-colors text-center"
+                className="w-full text-sm text-gray-500 dark:text-muted-foreground hover:text-gray-300 transition-colors text-center"
               >
                 {t('forgotPassword.wrongEmail')}
               </button>

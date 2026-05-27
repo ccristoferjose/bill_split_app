@@ -5,6 +5,30 @@ const { sendNotificationToUser } = require('../utils/notifications');
 const { sendEmail, canSendEmail } = require('../services/email.service');
 const { transactionInvitationTemplate } = require('../templates/emails/transaction-invitation.template');
 const { billStatusTemplate } = require('../templates/emails/bill-status.template');
+const ledger = require('../services/ledger.service');
+
+// ─── Balance-impact rules ─────────────────────────────────────────────
+// expense (non-shared):    owner ledger -= amount at create
+// expense (shared):        owner ledger -= amount at create (paid full upfront)
+//                          participant marks paid → friend -= owed AND owner += owed
+// income:                  owner ledger += amount at create
+// bill (non-shared):       no ledger at create; mark-paid → owner -= amount
+// bill (shared):           no ledger at create; owner mark-paid → owner -= ownerPortion
+//                          participant marks paid → friend -= owed (no owner credit)
+// recurring bill:          per-cycle, same rules but keyed by (txId, year, month, week?)
+
+// Owner's portion of a shared bill = total - SUM(accepted participants' amount_owed).
+// Pending/rejected participants don't reduce owner's portion.
+async function getOwnerPortion(transactionId, totalAmount) {
+  const row = await findOne(
+    `SELECT COALESCE(SUM(amount_owed), 0) AS sum_owed
+       FROM transaction_participants
+       WHERE transaction_id = ? AND invitation_status = 'accepted'`,
+    [transactionId]
+  );
+  const owed = Number(row?.sum_owed || 0);
+  return Math.max(0, Number(totalAmount) - owed);
+}
 
 // ─────────────────────────────────────────────────────────────
 // Helper — fetch user with email for notifications
@@ -168,6 +192,34 @@ const createTransaction = async (req, res) => {
     );
 
     const transactionId = result.insertId;
+
+    // ── Ledger: immediate-impact transactions ─────────────────────
+    // Recurring bills/expenses do not hit the ledger at create — each occurrence
+    // is recorded via mark-cycle-paid. One-off expenses & income post immediately.
+    const isRecurring = !!recurrence;
+    const numericAmount = parseFloat(amount);
+    if (!isRecurring) {
+      if (type === 'expense') {
+        await ledger.recordEntry({
+          userId: user_id,
+          amount: -numericAmount,
+          entryType: 'expense',
+          ...ledger.srcTransaction(transactionId),
+          description: title,
+          occurredAt: date || null,
+        });
+      } else if (type === 'income') {
+        await ledger.recordEntry({
+          userId: user_id,
+          amount: numericAmount,
+          entryType: 'income',
+          ...ledger.srcTransaction(transactionId),
+          description: title,
+          occurredAt: date || null,
+        });
+      }
+      // bills wait until mark-paid
+    }
 
     // ── If participants included at creation, insert + email them ──
     if (Array.isArray(participants) && participants.length > 0) {
@@ -616,6 +668,32 @@ const markTransactionPaid = async (req, res) => {
     const newStatus = transaction.status === 'paid' ? 'pending' : 'paid';
     await executeQuery('UPDATE transactions SET status = ? WHERE id = ?', [newStatus, transactionId]);
 
+    // ── Ledger: bills hit the balance only when marked paid (owner side) ──
+    // For a non-shared bill, the full amount comes off. For a shared bill, only the
+    // owner's residual portion (total − Σ accepted participants' shares) comes off.
+    // Recurring bills use cycle-paid endpoint instead, so we ignore them here.
+    if (transaction.type === 'bill' && !transaction.recurrence) {
+      const ownerAmount = transaction.is_shared
+        ? await getOwnerPortion(transactionId, transaction.amount)
+        : Number(transaction.amount);
+
+      const src = ledger.srcTransaction(transactionId);
+      if (newStatus === 'paid') {
+        if (ownerAmount > 0) {
+          await ledger.recordEntry({
+            userId: user_id,
+            amount: -ownerAmount,
+            entryType: 'bill_payment',
+            ...src,
+            description: transaction.title,
+            occurredAt: transaction.due_date || null,
+          });
+        }
+      } else {
+        await ledger.removeEntry({ userId: user_id, ...src, entryType: 'bill_payment' });
+      }
+    }
+
     const owner = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
     const participants = await executeQuery(
       `SELECT user_id FROM transaction_participants
@@ -667,6 +745,54 @@ const markParticipantPaid = async (req, res) => {
 
     const transaction = await findOne('SELECT * FROM transactions WHERE id = ?', [transactionId]);
 
+    // ── Ledger: participant's "I paid my share" semantics depend on type ──
+    // Shared EXPENSE: owner paid full upfront. Friend marking paid means friend reimbursed
+    //   the owner → friend ledger -= owed; owner ledger += owed.
+    // Shared BILL: each participant pays their own share (to the provider). Friend marking
+    //   paid means their own balance decreases by their share. Owner is NOT credited.
+    // Recurring is handled by markTransactionCyclePaid, skip here.
+    if (!transaction.recurrence) {
+      const src = ledger.srcParticipant(participant.id);
+      const owed = Number(participant.amount_owed);
+      const ownerId = transaction.user_id;
+
+      if (newStatus === 'paid') {
+        if (transaction.type === 'expense') {
+          if (owed > 0) {
+            await ledger.recordEntry({
+              userId: participantUserId,
+              amount: -owed,
+              entryType: 'reimbursement_paid',
+              ...src,
+              description: `Reimbursed ${transaction.title}`,
+            });
+            await ledger.recordEntry({
+              userId: ownerId,
+              amount: +owed,
+              entryType: 'reimbursement_received',
+              ...src,
+              description: `Reimbursement from share of ${transaction.title}`,
+            });
+          }
+        } else if (transaction.type === 'bill') {
+          if (owed > 0) {
+            await ledger.recordEntry({
+              userId: participantUserId,
+              amount: -owed,
+              entryType: 'bill_payment',
+              ...src,
+              description: `My share of ${transaction.title}`,
+            });
+          }
+        }
+      } else {
+        // Toggling back to pending — reverse whatever entries we wrote.
+        await ledger.removeEntry({ userId: participantUserId, ...src, entryType: 'reimbursement_paid' });
+        await ledger.removeEntry({ userId: ownerId, ...src, entryType: 'reimbursement_received' });
+        await ledger.removeEntry({ userId: participantUserId, ...src, entryType: 'bill_payment' });
+      }
+    }
+
     // Notify owner and other participants — but do NOT auto-mark transaction as paid.
     // Each user (owner + participants) tracks their own payment independently.
     const payer = await findOne('SELECT username FROM users WHERE id = ?', [user_id]);
@@ -711,11 +837,12 @@ const markTransactionCyclePaid = async (req, res) => {
 
     const transaction = await findOne('SELECT * FROM transactions WHERE id = ?', [transactionId]);
     if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
-    if (transaction.recurrence !== 'monthly' && transaction.recurrence !== 'weekly') {
-      return res.status(400).json({ message: 'Only recurring bills use cycle payments' });
+    if (!transaction.recurrence) {
+      return res.status(400).json({ message: 'Only recurring transactions use cycle payments' });
     }
 
-    // Weekly bills require a week index (1-5)
+    // Weekly cycles are sliced into 1-5 occurrences per month. Monthly/yearly/custom
+    // collapse to a single occurrence per (year, month) — we store cycle_week = NULL.
     const cycleWeek = transaction.recurrence === 'weekly' ? (week || null) : null;
     if (transaction.recurrence === 'weekly' && !cycleWeek) {
       return res.status(400).json({ message: 'Weekly bills require a week index' });
@@ -741,11 +868,28 @@ const markTransactionCyclePaid = async (req, res) => {
       [transactionId, user_id, year, month, ...weekParams]
     );
 
+    // Compute this user's share for this cycle (owner = residual; participant = their amount_owed).
+    const cycleSrc = ledger.srcCycle(transactionId, year, month, cycleWeek);
+    let userPortion = 0;
+    if (isOwner) {
+      userPortion = transaction.is_shared
+        ? await getOwnerPortion(transactionId, transaction.amount)
+        : Number(transaction.amount);
+    } else {
+      const me = await findOne(
+        'SELECT amount_owed FROM transaction_participants WHERE transaction_id = ? AND user_id = ?',
+        [transactionId, user_id]
+      );
+      userPortion = Number(me?.amount_owed || 0);
+    }
+
     if (existing) {
       await executeQuery(
         `DELETE FROM transaction_cycle_payments WHERE transaction_id = ? AND user_id = ? AND cycle_year = ? AND cycle_month = ? ${weekCondition}`,
         [transactionId, user_id, year, month, ...weekParams]
       );
+      // Reverse ledger entry for this user's portion of this cycle.
+      await ledger.removeEntry({ userId: user_id, ...cycleSrc, entryType: 'bill_payment' });
       return res.json({ message: 'Marked as unpaid', status: 'pending', allPaid: false });
     }
 
@@ -753,6 +897,31 @@ const markTransactionCyclePaid = async (req, res) => {
       'INSERT INTO transaction_cycle_payments (transaction_id, user_id, cycle_year, cycle_month, cycle_week) VALUES (?, ?, ?, ?, ?)',
       [transactionId, user_id, year, month, cycleWeek]
     );
+
+    // Ledger: bills/expenses debit, income credits — per user, per cycle.
+    if (userPortion > 0) {
+      const label = cycleWeek
+        ? `${transaction.title} (${year}-${String(month).padStart(2, '0')} w${cycleWeek})`
+        : `${transaction.title} (${year}-${String(month).padStart(2, '0')})`;
+
+      if (transaction.type === 'bill' || transaction.type === 'expense') {
+        await ledger.recordEntry({
+          userId: user_id,
+          amount: -userPortion,
+          entryType: 'bill_payment',
+          ...cycleSrc,
+          description: label,
+        });
+      } else if (transaction.type === 'income') {
+        await ledger.recordEntry({
+          userId: user_id,
+          amount: +userPortion,
+          entryType: 'income',
+          ...cycleSrc,
+          description: label,
+        });
+      }
+    }
 
     // For "allPaid" check on weekly bills, only check this specific week
     const [acceptedParticipants, pendingInviteRow, paidUsers] = await Promise.all([
@@ -809,7 +978,32 @@ const deleteTransaction = async (req, res) => {
     );
     if (!transaction) return res.status(404).json({ message: 'Transaction not found or not authorized' });
 
+    // Pull participant row IDs before delete cascades — we need them to wipe
+    // participant-keyed ledger entries (reimbursements, shared-bill payments).
+    const participantRows = await executeQuery(
+      'SELECT id FROM transaction_participants WHERE transaction_id = ?',
+      [transactionId]
+    );
+
+    // Pull cycle keys so we can clean per-cycle ledger entries too.
+    const cycleRows = await executeQuery(
+      'SELECT cycle_year, cycle_month, cycle_week FROM transaction_cycle_payments WHERE transaction_id = ?',
+      [transactionId]
+    );
+
     await executeQuery('DELETE FROM transactions WHERE id = ?', [transactionId]);
+
+    // Cascade-clean derived ledger entries (FK cascade handles participants/cycles tables only).
+    await ledger.removeAllForSourceAcrossUsers({ ...ledger.srcTransaction(transactionId) });
+    for (const p of participantRows) {
+      await ledger.removeAllForSourceAcrossUsers({ ...ledger.srcParticipant(p.id) });
+    }
+    for (const c of cycleRows) {
+      await ledger.removeAllForSourceAcrossUsers({
+        ...ledger.srcCycle(transactionId, c.cycle_year, c.cycle_month, c.cycle_week),
+      });
+    }
+
     res.json({ message: 'Transaction deleted successfully' });
   } catch (error) {
     console.error('Error deleting transaction:', error);

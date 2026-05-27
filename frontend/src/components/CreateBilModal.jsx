@@ -133,7 +133,7 @@ const CreateBillModal = ({ isOpen, onClose, userId }) => {
                 required
               />
               {formData.items.length > 0 && (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
                   Items total: ${calculateTotalFromItems()}
                 </p>
               )}
@@ -183,7 +183,7 @@ const CreateBillModal = ({ isOpen, onClose, userId }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <Label htmlFor="auto_invite_users">Auto-invite Users</Label>
-                  <p className="text-sm text-gray-500">Automatically invite the same users each month</p>
+                  <p className="text-sm text-gray-500 dark:text-muted-foreground">Automatically invite the same users each month</p>
                 </div>
                 <Switch
                   id="auto_invite_users"
@@ -250,11 +250,11 @@ const CreateBillModal = ({ isOpen, onClose, userId }) => {
                 {formData.items.length > 0 && (
                   <div className="space-y-2">
                     {formData.items.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-muted/30 rounded">
                         <div className="flex-1">
                           <span className="font-medium">{item.name}</span>
-                          {item.description && <span className="text-gray-500 ml-2">- {item.description}</span>}
-                          <div className="text-sm text-gray-500">
+                          {item.description && <span className="text-gray-500 dark:text-muted-foreground ml-2">- {item.description}</span>}
+                          <div className="text-sm text-gray-500 dark:text-muted-foreground">
                             {item.quantity} × ${item.unit_price} = ${item.total_price}
                           </div>
                         </div>

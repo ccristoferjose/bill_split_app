@@ -81,7 +81,7 @@ const FriendsList = ({ userId }) => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-muted-foreground/70" />
             <Input
               placeholder={t('friends.searchPlaceholder')}
               value={searchTerm}
@@ -90,15 +90,15 @@ const FriendsList = ({ userId }) => {
             />
           </div>
 
-          {isSearching && <p className="text-sm text-gray-500">{t('friends.searching')}</p>}
+          {isSearching && <p className="text-sm text-gray-500 dark:text-muted-foreground">{t('friends.searching')}</p>}
 
           {searchResults.length > 0 && (
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {searchResults.map(u => (
-                <div key={u.id} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
+                <div key={u.id} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50 dark:hover:bg-muted/40">
                   <div>
                     <p className="font-medium">{u.username}</p>
-                    <p className="text-sm text-gray-500">{u.email}</p>
+                    <p className="text-sm text-gray-500 dark:text-muted-foreground">{u.email}</p>
                   </div>
                   <Button size="sm" onClick={() => handleSendRequest(u.id)}>
                     <UserPlus className="h-4 w-4 mr-1" />
@@ -110,7 +110,7 @@ const FriendsList = ({ userId }) => {
           )}
 
           {debouncedSearch && !isSearching && searchResults.length === 0 && (
-            <p className="text-sm text-gray-500">{t('friends.noUsersFound')}</p>
+            <p className="text-sm text-gray-500 dark:text-muted-foreground">{t('friends.noUsersFound')}</p>
           )}
         </CardContent>
       </Card>
@@ -128,12 +128,12 @@ const FriendsList = ({ userId }) => {
             {/* Incoming */}
             {pendingRequests.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-600">{t('friends.incoming')}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-muted-foreground">{t('friends.incoming')}</p>
                 {pendingRequests.map(r => (
                   <div key={r.friendship_id} className="flex items-center justify-between p-3 border rounded">
                     <div>
                       <p className="font-medium">{r.username}</p>
-                      <p className="text-sm text-gray-500">{r.email}</p>
+                      <p className="text-sm text-gray-500 dark:text-muted-foreground">{r.email}</p>
                     </div>
                     <div className="flex space-x-2">
                       <Button size="sm" onClick={() => handleRespond(r.friendship_id, 'accepted')}>
@@ -153,12 +153,12 @@ const FriendsList = ({ userId }) => {
             {/* Outgoing */}
             {sentRequests.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-600">{t('friends.sent')}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-muted-foreground">{t('friends.sent')}</p>
                 {sentRequests.map(r => (
                   <div key={r.friendship_id} className="flex items-center justify-between p-3 border rounded">
                     <div>
                       <p className="font-medium">{r.username}</p>
-                      <p className="text-sm text-gray-500">{r.email}</p>
+                      <p className="text-sm text-gray-500 dark:text-muted-foreground">{r.email}</p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline">
@@ -187,16 +187,16 @@ const FriendsList = ({ userId }) => {
         </CardHeader>
         <CardContent>
           {friendsLoading ? (
-            <p className="text-sm text-gray-500">{t('friends.loadingFriends')}</p>
+            <p className="text-sm text-gray-500 dark:text-muted-foreground">{t('friends.loadingFriends')}</p>
           ) : friends.length === 0 ? (
-            <p className="text-sm text-gray-500">{t('friends.noFriendsYet')}</p>
+            <p className="text-sm text-gray-500 dark:text-muted-foreground">{t('friends.noFriendsYet')}</p>
           ) : (
             <div className="space-y-2">
               {friends.map(f => (
                 <div key={f.friendship_id} className="flex items-center justify-between p-3 border rounded">
                   <div>
                     <p className="font-medium">{f.username}</p>
-                    <p className="text-sm text-gray-500">{f.email}</p>
+                    <p className="text-sm text-gray-500 dark:text-muted-foreground">{f.email}</p>
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => handleRemove(f.friendship_id)}>
                     <UserMinus className="h-4 w-4 mr-1" />

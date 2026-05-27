@@ -85,25 +85,25 @@ const LandingPage = () => {
             <div className="hidden md:flex items-center gap-8">
               <button
                 onClick={() => scrollTo('features')}
-                className="text-gray-400 hover:text-white text-sm font-medium transition-colors duration-300"
+                className="text-gray-400 dark:text-muted-foreground/70 hover:text-white text-sm font-medium transition-colors duration-300"
               >
                 {t('landing.navFeatures')}
               </button>
               <button
                 onClick={() => scrollTo('pricing')}
-                className="text-gray-400 hover:text-white text-sm font-medium transition-colors duration-300"
+                className="text-gray-400 dark:text-muted-foreground/70 hover:text-white text-sm font-medium transition-colors duration-300"
               >
                 {t('landing.navPricing')}
               </button>
               <button
                 onClick={() => scrollTo('about')}
-                className="text-gray-400 hover:text-white text-sm font-medium transition-colors duration-300"
+                className="text-gray-400 dark:text-muted-foreground/70 hover:text-white text-sm font-medium transition-colors duration-300"
               >
                 {t('landing.navAbout')}
               </button>
               <button
                 onClick={toggleLanguage}
-                className="text-gray-400 hover:text-white text-sm flex items-center gap-1.5 transition-colors duration-300"
+                className="text-gray-400 dark:text-muted-foreground/70 hover:text-white text-sm flex items-center gap-1.5 transition-colors duration-300"
               >
                 <Globe className="h-4 w-4" />
                 {i18n.language === 'en' ? 'ES' : 'EN'}
@@ -122,7 +122,7 @@ const LandingPage = () => {
 
             {/* Mobile Hamburger */}
             <button
-              className="md:hidden text-gray-400 hover:text-white transition-colors"
+              className="md:hidden text-gray-400 dark:text-muted-foreground/70 hover:text-white transition-colors"
               onClick={() => setMobileMenu(!mobileMenu)}
             >
               {mobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -143,16 +143,16 @@ const LandingPage = () => {
           <div className="px-4 py-4 flex flex-col gap-3"
             style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
           >
-            <button onClick={() => scrollTo('features')} className="text-gray-300 text-sm text-left py-2 hover:text-white transition-colors">
+            <button onClick={() => scrollTo('features')} className="text-gray-300 dark:text-muted-foreground/60 text-sm text-left py-2 hover:text-white transition-colors">
               {t('landing.navFeatures')}
             </button>
-            <button onClick={() => scrollTo('pricing')} className="text-gray-300 text-sm text-left py-2 hover:text-white transition-colors">
+            <button onClick={() => scrollTo('pricing')} className="text-gray-300 dark:text-muted-foreground/60 text-sm text-left py-2 hover:text-white transition-colors">
               {t('landing.navPricing')}
             </button>
-            <button onClick={() => scrollTo('about')} className="text-gray-300 text-sm text-left py-2 hover:text-white transition-colors">
+            <button onClick={() => scrollTo('about')} className="text-gray-300 dark:text-muted-foreground/60 text-sm text-left py-2 hover:text-white transition-colors">
               {t('landing.navAbout')}
             </button>
-            <button onClick={toggleLanguage} className="text-gray-300 text-sm text-left py-2 flex items-center gap-1.5 hover:text-white transition-colors">
+            <button onClick={toggleLanguage} className="text-gray-300 dark:text-muted-foreground/60 text-sm text-left py-2 flex items-center gap-1.5 hover:text-white transition-colors">
               <Globe className="h-4 w-4" />
               {i18n.language === 'en' ? 'Español' : 'English'}
             </button>
@@ -226,7 +226,7 @@ const LandingPage = () => {
               <div className="h-px w-16 bg-gradient-to-l from-transparent to-teal-500/50" />
             </div>
 
-            <p className="text-lg sm:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-gray-400 dark:text-muted-foreground/70 mb-10 max-w-2xl mx-auto leading-relaxed">
               {t('landing.heroSubtitle')}
             </p>
 
@@ -245,7 +245,7 @@ const LandingPage = () => {
               </button>
               <button
                 onClick={() => scrollTo('features')}
-                className="px-8 py-3.5 rounded-xl text-gray-300 font-medium text-base transition-all duration-300 hover:text-white hover:bg-white/5"
+                className="px-8 py-3.5 rounded-xl text-gray-300 dark:text-muted-foreground/60 font-medium text-base transition-all duration-300 hover:text-white hover:bg-white dark:hover:bg-card/5"
                 style={{
                   border: '1px solid rgba(255,255,255,0.15)',
                 }}
@@ -258,7 +258,7 @@ const LandingPage = () => {
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-500 text-xs animate-bounce">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-500 dark:text-muted-foreground text-xs animate-bounce">
           <ChevronDown className="h-5 w-5" />
         </div>
       </section>
@@ -285,7 +285,7 @@ const LandingPage = () => {
               <div className="h-1.5 w-1.5 rounded-full bg-teal-400" />
               <div className="h-px w-16 bg-gradient-to-l from-transparent to-teal-500/50" />
             </div>
-            <p className="text-gray-400 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-gray-400 dark:text-muted-foreground/70 max-w-2xl mx-auto leading-relaxed">
               {t('landing.featuresSubtitle')}
             </p>
           </div>
@@ -312,7 +312,7 @@ const LandingPage = () => {
                   <img src={feature.img} alt={feature.title} className="w-full h-full object-contain" />
                 </div>
                 <h3 className="text-base font-semibold text-white mb-2">{feature.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{feature.desc}</p>
+                <p className="text-gray-400 dark:text-muted-foreground/70 text-sm leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -341,13 +341,13 @@ const LandingPage = () => {
               <div className="h-1.5 w-1.5 rounded-full bg-teal-400" />
               <div className="h-px w-16 bg-gradient-to-l from-transparent to-teal-500/50" />
             </div>
-            <p className="text-gray-400 max-w-2xl mx-auto leading-relaxed mb-8">
+            <p className="text-gray-400 dark:text-muted-foreground/70 max-w-2xl mx-auto leading-relaxed mb-8">
               {t('landing.pricingSubtitle')}
             </p>
 
             {/* Billing toggle */}
             <div className="flex items-center justify-center gap-3">
-              <span className={`text-sm font-medium transition-colors ${!yearlyBilling ? 'text-white' : 'text-gray-500'}`}>
+              <span className={`text-sm font-medium transition-colors ${!yearlyBilling ? 'text-white' : 'text-gray-500 dark:text-muted-foreground'}`}>
                 {t('landing.pricingMonthly')}
               </span>
               <button
@@ -356,11 +356,11 @@ const LandingPage = () => {
                 style={{ background: yearlyBilling ? 'linear-gradient(135deg, #0d9488, #0f766e)' : 'rgba(255,255,255,0.15)' }}
               >
                 <div
-                  className="absolute top-1 w-5 h-5 rounded-full bg-white transition-transform duration-300 shadow-md"
+                  className="absolute top-1 w-5 h-5 rounded-full bg-white dark:bg-card transition-transform duration-300 shadow-md"
                   style={{ left: yearlyBilling ? '2rem' : '0.25rem' }}
                 />
               </button>
-              <span className={`text-sm font-medium transition-colors ${yearlyBilling ? 'text-white' : 'text-gray-500'}`}>
+              <span className={`text-sm font-medium transition-colors ${yearlyBilling ? 'text-white' : 'text-gray-500 dark:text-muted-foreground'}`}>
                 {t('landing.pricingYearly')}
               </span>
               {yearlyBilling && (
@@ -382,10 +382,10 @@ const LandingPage = () => {
               }}
             >
               <h3 className="text-lg font-bold text-white mb-1">{t('landing.pricingFree')}</h3>
-              <p className="text-sm text-gray-400 mb-6">{t('landing.pricingFreeDesc')}</p>
+              <p className="text-sm text-gray-400 dark:text-muted-foreground/70 mb-6">{t('landing.pricingFreeDesc')}</p>
               <div className="mb-6">
                 <span className="text-4xl font-extrabold text-white">$0</span>
-                <span className="text-gray-500 text-sm">{t('landing.pricingMo')}</span>
+                <span className="text-gray-500 dark:text-muted-foreground text-sm">{t('landing.pricingMo')}</span>
               </div>
               <button
                 onClick={() => navigate('/register')}
@@ -404,7 +404,7 @@ const LandingPage = () => {
                   `1 ${t('landing.pricingRecurring')}`,
                   t('landing.pricingBudgetCurrent'),
                 ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-gray-400">
+                  <li key={i} className="flex items-start gap-2.5 text-gray-400 dark:text-muted-foreground/70">
                     <Check className="h-4 w-4 text-teal-400 mt-0.5 shrink-0" />
                     {item}
                   </li>
@@ -415,8 +415,8 @@ const LandingPage = () => {
                   t('landing.pricingSmartReminders'),
                   t('landing.pricingHousehold'),
                 ].map((item, i) => (
-                  <li key={`no-${i}`} className="flex items-start gap-2.5 text-gray-600">
-                    <Minus className="h-4 w-4 text-gray-700 mt-0.5 shrink-0" />
+                  <li key={`no-${i}`} className="flex items-start gap-2.5 text-gray-600 dark:text-muted-foreground">
+                    <Minus className="h-4 w-4 text-gray-700 dark:text-foreground/90 mt-0.5 shrink-0" />
                     {item}
                   </li>
                 ))}
@@ -438,12 +438,12 @@ const LandingPage = () => {
                 </span>
               </div>
               <h3 className="text-lg font-bold text-white mb-1">{t('landing.pricingPlus')}</h3>
-              <p className="text-sm text-gray-400 mb-6">{t('landing.pricingPlusDesc')}</p>
+              <p className="text-sm text-gray-400 dark:text-muted-foreground/70 mb-6">{t('landing.pricingPlusDesc')}</p>
               <div className="mb-6">
                 <span className="text-4xl font-extrabold text-white">
                   ${yearlyBilling ? '29.99' : '2.99'}
                 </span>
-                <span className="text-gray-500 text-sm">
+                <span className="text-gray-500 dark:text-muted-foreground text-sm">
                   {yearlyBilling ? t('landing.pricingYr') : t('landing.pricingMo')}
                 </span>
                 {yearlyBilling && (
@@ -473,7 +473,7 @@ const LandingPage = () => {
                   t('landing.pricingBasicReminders'),
                   `3 ${t('landing.pricingSplitTemplates')}`,
                 ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-gray-300">
+                  <li key={i} className="flex items-start gap-2.5 text-gray-300 dark:text-muted-foreground/60">
                     <Check className="h-4 w-4 text-teal-400 mt-0.5 shrink-0" />
                     {item}
                   </li>
@@ -483,8 +483,8 @@ const LandingPage = () => {
                   t('landing.pricingExport'),
                   t('landing.pricingForecasting'),
                 ].map((item, i) => (
-                  <li key={`no-${i}`} className="flex items-start gap-2.5 text-gray-600">
-                    <Minus className="h-4 w-4 text-gray-700 mt-0.5 shrink-0" />
+                  <li key={`no-${i}`} className="flex items-start gap-2.5 text-gray-600 dark:text-muted-foreground">
+                    <Minus className="h-4 w-4 text-gray-700 dark:text-foreground/90 mt-0.5 shrink-0" />
                     {item}
                   </li>
                 ))}
@@ -500,12 +500,12 @@ const LandingPage = () => {
               }}
             >
               <h3 className="text-lg font-bold text-white mb-1">{t('landing.pricingPro')}</h3>
-              <p className="text-sm text-gray-400 mb-6">{t('landing.pricingProDesc')}</p>
+              <p className="text-sm text-gray-400 dark:text-muted-foreground/70 mb-6">{t('landing.pricingProDesc')}</p>
               <div className="mb-6">
                 <span className="text-4xl font-extrabold text-white">
                   ${yearlyBilling ? '79.99' : '7.99'}
                 </span>
-                <span className="text-gray-500 text-sm">
+                <span className="text-gray-500 dark:text-muted-foreground text-sm">
                   {yearlyBilling ? t('landing.pricingYr') : t('landing.pricingMo')}
                 </span>
                 {yearlyBilling && (
@@ -539,7 +539,7 @@ const LandingPage = () => {
                   t('landing.pricingMoveInOut'),
                   t('landing.pricingForecasting'),
                 ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-gray-300">
+                  <li key={i} className="flex items-start gap-2.5 text-gray-300 dark:text-muted-foreground/60">
                     <Check className="h-4 w-4 text-purple-400 mt-0.5 shrink-0" />
                     {item}
                   </li>
@@ -586,7 +586,7 @@ const LandingPage = () => {
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4 tracking-tight">
                 {t('landing.ctaTitle')}
               </h2>
-              <p className="text-lg text-gray-400 mb-8 max-w-lg mx-auto lg:mx-0 leading-relaxed">
+              <p className="text-lg text-gray-400 dark:text-muted-foreground/70 mb-8 max-w-lg mx-auto lg:mx-0 leading-relaxed">
                 {t('landing.ctaSubtitle')}
               </p>
               <button
@@ -620,7 +620,7 @@ const LandingPage = () => {
             </div>
             <span className="text-white font-semibold text-sm">SpendSync</span>
           </div>
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 dark:text-muted-foreground text-sm">
             &copy; {new Date().getFullYear()} SpendSync. {t('landing.allRights')}
           </p>
         </div>

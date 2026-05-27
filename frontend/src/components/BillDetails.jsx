@@ -37,14 +37,14 @@ const MONTH_NAMES = [
 ];
 
 const STATUS_COLORS = {
-  draft: 'bg-gray-100 text-gray-800',
+  draft: 'bg-gray-100 dark:bg-muted/40 text-gray-800 dark:text-foreground',
   pending_responses: 'bg-yellow-100 text-yellow-800',
   finalized: 'bg-orange-100 text-orange-800',
   paid: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
 };
 
-const getStatusColor = (s) => STATUS_COLORS[s] || 'bg-gray-100 text-gray-800';
+const getStatusColor = (s) => STATUS_COLORS[s] || 'bg-gray-100 dark:bg-muted/40 text-gray-800 dark:text-foreground';
 
 // ─── component ────────────────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
         <DialogContent>
           <DialogHeader><DialogTitle>{t('billDetails.loadingTitle')}</DialogTitle></DialogHeader>
           <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
             <span className="ml-2">{t('billDetails.loadingMessage')}</span>
           </div>
         </DialogContent>
@@ -164,7 +164,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
             <div className="flex items-center gap-3">
               <DialogTitle>{bill.title}</DialogTitle>
               {isCalendarMonthly && (
-                <Badge className="bg-blue-100 text-blue-700 flex items-center gap-1">
+                <Badge className="bg-indigo-100 text-indigo-700 flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {format(calendarDate, 'MMMM yyyy')}
                 </Badge>
@@ -205,7 +205,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
                     isCalendarMonthly ? (
                       <>{t('billDetails.billingDate')}: {format(calendarDate, 'MMMM')} {effectiveDay}{getDaySuffix(effectiveDay)}, {format(calendarDate, 'yyyy')}
                         {effectiveDay !== anchorDay && (
-                          <span className="text-gray-400 text-xs ml-1">({t('billDetails.anchor')}: {anchorDay}{getDaySuffix(anchorDay)})</span>
+                          <span className="text-gray-400 dark:text-muted-foreground/70 text-xs ml-1">({t('billDetails.anchor')}: {anchorDay}{getDaySuffix(anchorDay)})</span>
                         )}
                       </>
                     ) : (
@@ -229,7 +229,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
               {bill.notes && (
                 <div>
                   <p className="font-medium">{t('common.notes')}:</p>
-                  <p className="text-gray-600">{bill.notes}</p>
+                  <p className="text-gray-600 dark:text-muted-foreground">{bill.notes}</p>
                 </div>
               )}
             </CardContent>
@@ -242,11 +242,11 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
               <CardContent>
                 <div className="space-y-2">
                   {data.items.map((item, i) => (
-                    <div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-muted/30 rounded">
                       <div>
                         <span className="font-medium">{item.item_name}</span>
                         {item.item_description && (
-                          <span className="text-gray-500 ml-2">- {item.item_description}</span>
+                          <span className="text-gray-500 dark:text-muted-foreground ml-2">- {item.item_description}</span>
                         )}
                       </div>
                       <span>${item.total_price}</span>
@@ -264,7 +264,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
                 <CardTitle className="flex items-center justify-between">
                   {t('billDetails.participants')}
                   {isCalendarMonthly && (
-                    <span className="text-sm font-normal text-gray-500">
+                    <span className="text-sm font-normal text-gray-500 dark:text-muted-foreground">
                       {t('billDetails.paymentStatusFor', { month: format(calendarDate, 'MMMM yyyy') })}
                     </span>
                   )}
@@ -278,7 +278,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
                       : participant.payment_status === 'paid';
 
                     return (
-                      <div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-muted/30 rounded">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">
                             {participant.username}
@@ -321,7 +321,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
                       <div
                         key={i}
                         className={`flex justify-between items-center p-2 rounded ${
-                          isCurrentCycle ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
+                          isCurrentCycle ? 'bg-indigo-50 border border-indigo-200' : 'bg-gray-50 dark:bg-muted/30'
                         }`}
                       >
                         <div className="flex items-center gap-2">
@@ -332,12 +332,12 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
                           <span className="font-medium">
                             {MONTH_NAMES[cycle.cycle_month]} {cycle.cycle_year}
                             {isCurrentCycle && (
-                              <span className="text-blue-600 text-xs ml-1">({t('billDetails.current')})</span>
+                              <span className="text-indigo-600 text-xs ml-1">({t('billDetails.current')})</span>
                             )}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-gray-600 dark:text-muted-foreground">
                             {t('billDetails.paidCount', { paid: cycle.paid_count, total: cycle.total_participants })}
                           </span>
                           <Badge className={allPaid ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
@@ -359,7 +359,7 @@ const BillDetails = ({ billId, calendarDate, onClose }) => {
                 <p className="font-semibold text-red-800">
                   {allRejected ? t('billDetails.allRejected') : t('billDetails.someRejected')}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">
                   {t('billDetails.resendOrDelete')}
                 </p>
                 <div className="flex flex-wrap gap-2">

@@ -4,6 +4,7 @@
     "save": "Save Changes",
     "saving": "Saving...",
     "cancel": "Cancel",
+    "clear": "Clear",
     "delete": "Delete",
     "close": "Close",
     "refresh": "Refresh",
@@ -232,6 +233,11 @@
     "unknownError": "Unknown error",
     "preferences": "Preferences",
     "language": "Language",
+    "theme": "Theme",
+    "themeHint": "System follows your device's light/dark preference.",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
     "subscription": "Subscription Plan",
     "upgradeCta": "Upgrade for more features",
     "upgrade": "Upgrade",
@@ -330,12 +336,15 @@
   },
 
   "calendar": {
-    "summary": "Summary",
+    "summary": "summary",
+    "summaryHint": "Monthly cashflow — separate from your Current balance",
     "income": "Income",
     "expenses": "Expenses",
     "billsLabel": "Bills",
-    "remaining": "Remaining",
+    "remaining": "Net",
     "overBy": "Over by",
+    "overspentThisMonth": "You overspent by ${{amount}} this month",
+    "savedThisMonth": "You saved ${{amount}} this month",
     "noTransactions": "No transactions recorded for {{month}}",
     "noTransactionsInMonth": "No transactions in {{month}}",
     "noActivityOnDate": "No activity on this date",
@@ -416,7 +425,14 @@
     "yearly": "Yearly",
     "endDate": "End Date",
     "indefinite": "Indefinite",
-    "hasEndDate": "Set end date"
+    "hasEndDate": "Set end date",
+    "endDateHint": "Leave empty to keep recurring indefinitely.",
+    "splitMode": "Split by",
+    "splitEqually": "Equally",
+    "splitByAmount": "Amount",
+    "splitByPercent": "Percent",
+    "splitEquallyHint": "{{count}} people · ${{amount}} each",
+    "addParticipant": "Add friend"
   },
 
   "billDetails": {

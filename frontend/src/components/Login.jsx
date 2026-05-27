@@ -71,7 +71,7 @@ const Login = () => {
       {/* Back to home */}
       <button
         onClick={() => navigate('/')}
-        className="absolute top-6 left-6 z-10 flex items-center gap-1.5 text-gray-400 hover:text-white text-sm transition-colors duration-300"
+        className="absolute top-6 left-6 z-10 flex items-center gap-1.5 text-gray-400 dark:text-muted-foreground/70 hover:text-white text-sm transition-colors duration-300"
       >
         <ArrowLeft className="h-4 w-4" />
         {t('landing.backHome')}
@@ -105,7 +105,7 @@ const Login = () => {
         <h2 className="text-xl font-semibold text-white text-center mb-1">
           {t('landing.welcomeBack')}
         </h2>
-        <p className="text-gray-400 text-center mb-6 text-sm">
+        <p className="text-gray-400 dark:text-muted-foreground/70 text-center mb-6 text-sm">
           {t('landing.signInContinue')}
         </p>
 
@@ -124,7 +124,7 @@ const Login = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('login.email')}</label>
+            <label className="block text-sm font-medium text-gray-300 dark:text-muted-foreground/60 mb-1.5">{t('login.email')}</label>
             <input
               type="email"
               value={email}
@@ -138,7 +138,7 @@ const Login = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('login.password')}</label>
+            <label className="block text-sm font-medium text-gray-300 dark:text-muted-foreground/60 mb-1.5">{t('login.password')}</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -153,7 +153,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-muted-foreground hover:text-gray-300 transition-colors"
                 tabIndex={-1}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -182,11 +182,11 @@ const Login = () => {
 
         <div className="mt-6 text-center space-y-2">
           <p className="text-sm">
-            <a href="/forgot-password" className="text-gray-500 hover:text-gray-300 transition-colors duration-300">
+            <a href="/forgot-password" className="text-gray-500 dark:text-muted-foreground hover:text-gray-300 transition-colors duration-300">
               {t('login.forgotPassword')}
             </a>
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-muted-foreground">
             {t('login.needAccount')}{' '}
             <a href="/register" className="text-teal-400 font-medium hover:text-teal-300 transition-colors duration-300">
               {t('login.register')}

@@ -212,7 +212,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      draft: 'bg-gray-100 text-gray-800',
+      draft: 'bg-gray-100 dark:bg-muted/40 text-gray-800 dark:text-foreground',
       pending_responses: 'bg-yellow-100 text-yellow-800',
       finalized: 'bg-orange-100 text-orange-800',
       paid: 'bg-green-100 text-green-800',
@@ -220,7 +220,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
       accepted: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-gray-100 dark:bg-muted/40 text-gray-800 dark:text-foreground';
   };
 
   const getStatusLabel = (status) => {
@@ -342,8 +342,8 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
         {[...Array(3)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-4">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 dark:bg-muted/60 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-gray-200 dark:bg-muted/60 rounded w-1/2"></div>
             </CardContent>
           </Card>
         ))}
@@ -365,8 +365,8 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
   if (bills.length === 0) {
     return (
       <div className="text-center py-8">
-        <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-500">{t('bills.noBills')}</p>
+        <Receipt className="h-12 w-12 text-gray-400 dark:text-muted-foreground/70 mx-auto mb-4" />
+        <p className="text-gray-500 dark:text-muted-foreground">{t('bills.noBills')}</p>
         <Button onClick={handleManualRefresh} className="mt-2" variant="outline">
           {t('common.refresh')}
         </Button>
@@ -382,7 +382,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
           <div
             className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
           />
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-muted-foreground">
             {isConnected ? t('bills.liveUpdates') : t('bills.offline')}
           </span>
         </div>
@@ -423,7 +423,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                  <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-muted-foreground mb-3">
                     <div className="flex items-center">
                       <DollarSign className="h-4 w-4 mr-1" />
                       ${bill.total_amount}
@@ -473,7 +473,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                   </div>
 
                   {bill.due_date && (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-muted-foreground">
                       {t('common.due')}: {format(new Date(bill.due_date), 'MMM dd, yyyy')}
                     </p>
                   )}
@@ -674,7 +674,7 @@ const BillsList = ({ userId, type, viewMonth, onSelectBill }) => {
                 {confirmModal.title}
               </DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-gray-600">{confirmModal.message}</p>
+            <p className="text-sm text-gray-600 dark:text-muted-foreground">{confirmModal.message}</p>
             <div className="flex justify-end gap-2 mt-4">
               <Button variant="outline" onClick={() => setConfirmModal(null)}>
                 {t('common.cancel')}

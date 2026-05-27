@@ -58,35 +58,35 @@ const InvitationResponseModal = ({ bill, invitation, onClose, onResponse }) => {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Total Amount:</span>
+                <span className="text-sm text-gray-600 dark:text-muted-foreground">Total Amount:</span>
                 <span className="font-semibold">${bill.total_amount}</span>
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Your Share:</span>
-                <span className="font-semibold text-blue-600">${invitation.proposed_amount}</span>
+                <span className="text-sm text-gray-600 dark:text-muted-foreground">Your Share:</span>
+                <span className="font-semibold text-indigo-600">${invitation.proposed_amount}</span>
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Bill Date:</span>
+                <span className="text-sm text-gray-600 dark:text-muted-foreground">Bill Date:</span>
                 <span className="text-sm">{format(new Date(bill.bill_date), 'MMM dd, yyyy')}</span>
               </div>
               
               {bill.due_date && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Due Date:</span>
+                  <span className="text-sm text-gray-600 dark:text-muted-foreground">Due Date:</span>
                   <span className="text-sm">{format(new Date(bill.due_date), 'MMM dd, yyyy')}</span>
                 </div>
               )}
               
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Created by:</span>
+                <span className="text-sm text-gray-600 dark:text-muted-foreground">Created by:</span>
                 <span className="text-sm">{bill.creator_name}</span>
               </div>
               
               {bill.bill_type === 'monthly' && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Type:</span>
+                  <span className="text-sm text-gray-600 dark:text-muted-foreground">Type:</span>
                   <Badge variant="outline">Monthly Recurring</Badge>
                 </div>
               )}
@@ -100,14 +100,14 @@ const InvitationResponseModal = ({ bill, invitation, onClose, onResponse }) => {
                 <CardTitle className="text-sm">Notes</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600">{bill.notes}</p>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">{bill.notes}</p>
               </CardContent>
             </Card>
           )}
 
           {/* Invitation Status */}
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-muted-foreground mb-4">
               You've been invited to contribute <strong>${invitation.proposed_amount}</strong> to this bill.
             </p>
             
