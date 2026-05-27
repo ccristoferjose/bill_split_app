@@ -214,8 +214,8 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
         {[...Array(2)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-4">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-gray-200 rounded w-1/2" />
+              <div className="h-4 bg-gray-200 dark:bg-muted/60 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-gray-200 dark:bg-muted/60 rounded w-1/2" />
             </CardContent>
           </Card>
         ))}
@@ -234,7 +234,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
 
   if (bills.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-400">
+      <div className="text-center py-8 text-gray-400 dark:text-muted-foreground/70">
         <CalendarDays className="h-10 w-10 mx-auto mb-2 opacity-40" />
         <p className="text-sm">
           {viewMonth
@@ -286,7 +286,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
 
                     {/* Title row */}
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      <CalendarDays className="h-4 w-4 text-blue-500 shrink-0" />
+                      <CalendarDays className="h-4 w-4 text-indigo-500 shrink-0" />
                       <h3 className="font-semibold text-sm truncate">
                         {bill.title}
                         {bill._weekIndex ? ` (Week ${bill._weekIndex})` : ''}
@@ -309,7 +309,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                         </Badge>
                       )}
                       {bill.recurrence_end_date && (
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 dark:text-muted-foreground/70">
                           {t('personalBills.endsOn', { date: format(parseLocalDate(bill.recurrence_end_date), 'MMM dd, yyyy') })}
                         </span>
                       )}
@@ -319,7 +319,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                     </div>
 
                     {/* Meta row */}
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-2">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-muted-foreground mb-2">
                       <span className="flex items-center">
                         <DollarSign className="h-3.5 w-3.5 mr-0.5" />
                         {Number(bill.amount).toFixed(2)}
@@ -335,7 +335,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                     {/* Participants — shown for owner AND participants */}
                     {bill.participants?.length > 0 && (
                       <div className="mt-2 space-y-1">
-                        <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                        <p className="text-xs font-medium text-gray-500 dark:text-muted-foreground flex items-center gap-1">
                           <Users className="h-3.5 w-3.5" />{t('personalBills.splitWith')}
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -375,14 +375,14 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                                         ? <CheckCircle className="h-3 w-3" />
                                         : <Clock className="h-3 w-3" />}
                                   {p.username}
-                                  <span className="text-gray-500">${Number(p.amount_owed).toFixed(2)}</span>
+                                  <span className="text-gray-500 dark:text-muted-foreground">${Number(p.amount_owed).toFixed(2)}</span>
                                 </button>
                                 {canResend && (
                                   <button
                                     type="button"
                                     title={t('billDetails.resendInvitations')}
                                     onClick={() => resendInvitation({ transactionId: bill.id, participantUserId: p.user_id, user_id: userId }).unwrap().then(() => toast.success(t('friends.requestSent'))).catch(() => toast.error(t('billDetails.failedResend')))}
-                                    className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                                    className="text-xs text-indigo-500 hover:text-indigo-700 transition-colors"
                                   >
                                     <RefreshCw className="h-3 w-3" />
                                   </button>
@@ -396,7 +396,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
 
                     {/* Participant view: my own share status */}
                     {!isOwner && myParticipantRecord && (
-                      <div className="mt-2 text-xs text-gray-500">
+                      <div className="mt-2 text-xs text-gray-500 dark:text-muted-foreground">
                         {t('bills.yourShare')}: <span className="font-medium">${Number(myParticipantRecord.amount_owed).toFixed(2)}</span>
                         {' · '}
                         {myParticipantIsPaid
@@ -406,7 +406,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                     )}
 
                     {bill.notes && (
-                      <p className="text-xs text-gray-400 mt-1.5 truncate">{bill.notes}</p>
+                      <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mt-1.5 truncate">{bill.notes}</p>
                     )}
                   </div>
 
@@ -418,7 +418,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                         size="sm"
                         variant={myIsPaid ? 'outline' : 'default'}
                         className={myIsPaid
-                          ? 'text-gray-600 border-gray-300'
+                          ? 'text-gray-600 dark:text-muted-foreground border-gray-300 dark:border-border'
                           : 'bg-green-600 hover:bg-green-700 text-white'}
                         onClick={() => handleTogglePaid(bill)}
                       >
@@ -445,7 +445,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                         size="sm"
                         variant={myParticipantIsPaid ? 'outline' : 'default'}
                         className={myParticipantIsPaid
-                          ? 'text-gray-600 border-gray-300'
+                          ? 'text-gray-600 dark:text-muted-foreground border-gray-300 dark:border-border'
                           : 'bg-green-600 hover:bg-green-700 text-white'}
                         onClick={() => handleToggleParticipantPaid(bill, myParticipantRecord)}
                       >
@@ -503,7 +503,7 @@ const PersonalBillsList = ({ userId, viewMonth }) => {
                 {t('personalBills.deleteBillTitle')}
               </DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-muted-foreground">
               {t('personalBills.deleteConfirm', { title: confirmDelete.bill.title })}
             </p>
             <div className="flex justify-end gap-2 mt-4">

@@ -121,15 +121,15 @@ const SubscriptionPage = () => {
 
   const colorMap = {
     gray: {
-      border: 'border-gray-200',
+      border: 'border-gray-200 dark:border-border',
       activeBorder: 'border-gray-400 ring-2 ring-gray-200',
-      badge: 'bg-gray-100 text-gray-700',
-      button: 'bg-gray-200 text-gray-600',
-      check: 'text-gray-400',
-      price: 'text-gray-800',
+      badge: 'bg-gray-100 dark:bg-muted/40 text-gray-700 dark:text-foreground/90',
+      button: 'bg-gray-200 dark:bg-muted/60 text-gray-600 dark:text-muted-foreground',
+      check: 'text-gray-400 dark:text-muted-foreground/70',
+      price: 'text-gray-800 dark:text-foreground',
     },
     teal: {
-      border: 'border-gray-200',
+      border: 'border-gray-200 dark:border-border',
       activeBorder: 'border-teal-400 ring-2 ring-teal-100',
       badge: 'bg-teal-100 text-teal-700',
       button: 'bg-teal-600 hover:bg-teal-700 text-white',
@@ -137,7 +137,7 @@ const SubscriptionPage = () => {
       price: 'text-teal-700',
     },
     purple: {
-      border: 'border-gray-200',
+      border: 'border-gray-200 dark:border-border',
       activeBorder: 'border-purple-400 ring-2 ring-purple-100',
       badge: 'bg-purple-100 text-purple-700',
       button: 'bg-purple-600 hover:bg-purple-700 text-white',
@@ -148,14 +148,14 @@ const SubscriptionPage = () => {
 
   if (isProfileLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="min-h-screen bg-gray-50 dark:bg-muted/30 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-muted/30">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Header */}
@@ -164,7 +164,7 @@ const SubscriptionPage = () => {
             variant="ghost"
             size="sm"
             onClick={() => navigate('/dashboard?tab=profile')}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 dark:text-muted-foreground hover:text-gray-700"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             {t('landing.backHome')}
@@ -172,16 +172,16 @@ const SubscriptionPage = () => {
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-foreground mb-2">
             {t('profile.choosePlan')}
           </h1>
-          <p className="text-gray-500 max-w-lg mx-auto">
+          <p className="text-gray-500 dark:text-muted-foreground max-w-lg mx-auto">
             {t('landing.pricingSubtitle')}
           </p>
 
           {/* Billing toggle */}
           <div className="flex items-center justify-center gap-3 mt-6">
-            <span className={`text-sm font-medium transition-colors ${!yearlyBilling ? 'text-gray-900' : 'text-gray-400'}`}>
+            <span className={`text-sm font-medium transition-colors ${!yearlyBilling ? 'text-gray-900 dark:text-foreground' : 'text-gray-400 dark:text-muted-foreground/70'}`}>
               {t('landing.pricingMonthly')}
             </span>
             <button
@@ -189,11 +189,11 @@ const SubscriptionPage = () => {
               className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${yearlyBilling ? 'bg-teal-500' : 'bg-gray-300'}`}
             >
               <div
-                className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-300 shadow"
+                className="absolute top-0.5 w-5 h-5 rounded-full bg-white dark:bg-card transition-transform duration-300 shadow"
                 style={{ left: yearlyBilling ? '1.625rem' : '0.125rem' }}
               />
             </button>
-            <span className={`text-sm font-medium transition-colors ${yearlyBilling ? 'text-gray-900' : 'text-gray-400'}`}>
+            <span className={`text-sm font-medium transition-colors ${yearlyBilling ? 'text-gray-900 dark:text-foreground' : 'text-gray-400 dark:text-muted-foreground/70'}`}>
               {t('landing.pricingYearly')}
             </span>
             {yearlyBilling && (
@@ -241,19 +241,19 @@ const SubscriptionPage = () => {
                 )}
 
                 <CardContent className="p-6 flex flex-col flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">{plan.name}</h3>
-                  <p className="text-sm text-gray-500 mb-4">{plan.desc}</p>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-foreground mb-1">{plan.name}</h3>
+                  <p className="text-sm text-gray-500 dark:text-muted-foreground mb-4">{plan.desc}</p>
 
                   {/* Price */}
                   <div className="mb-6">
                     <span className={`text-3xl font-extrabold ${colors.price}`}>
                       ${price.toFixed(2)}
                     </span>
-                    <span className="text-gray-400 text-sm">
+                    <span className="text-gray-400 dark:text-muted-foreground/70 text-sm">
                       {yearlyBilling ? t('landing.pricingYr') : t('landing.pricingMo')}
                     </span>
                     {yearlyBilling && plan.monthlyPrice > 0 && (
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mt-1">
                         ${(plan.yearlyPrice / 12).toFixed(2)}{t('landing.pricingMo')} · {t('landing.pricingBilledYearly')}
                       </p>
                     )}
@@ -285,7 +285,7 @@ const SubscriptionPage = () => {
                   ) : isDowngrade ? (
                     <Button
                       variant="outline"
-                      className="w-full mb-6 text-gray-500"
+                      className="w-full mb-6 text-gray-500 dark:text-muted-foreground"
                       disabled={isPortalLoading}
                       onClick={handleManage}
                     >
@@ -296,11 +296,11 @@ const SubscriptionPage = () => {
                   {/* Features list */}
                   <ul className="space-y-2.5 text-sm flex-1">
                     {plan.features.map((f, i) => (
-                      <li key={i} className={`flex items-start gap-2 ${f.included ? 'text-gray-700' : 'text-gray-400'}`}>
+                      <li key={i} className={`flex items-start gap-2 ${f.included ? 'text-gray-700 dark:text-foreground/90' : 'text-gray-400 dark:text-muted-foreground/70'}`}>
                         {f.included ? (
                           <Check className={`h-4 w-4 mt-0.5 shrink-0 ${colors.check}`} />
                         ) : (
-                          <Minus className="h-4 w-4 mt-0.5 shrink-0 text-gray-300" />
+                          <Minus className="h-4 w-4 mt-0.5 shrink-0 text-gray-300 dark:text-muted-foreground/60" />
                         )}
                         {f.text}
                       </li>

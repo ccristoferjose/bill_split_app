@@ -24,6 +24,7 @@ const CURRENCIES = [
   { code: 'CLP', label: 'Chilean Peso' },
   { code: 'COP', label: 'Colombian Peso' },
   { code: 'PEN', label: 'Peruvian Sol' },
+  { code: 'GTQ', label: 'Guatemalan Quetzal' },
 ];
 
 const OnboardingModal = ({ open, userId, onClose }) => {
@@ -89,11 +90,11 @@ const OnboardingModal = ({ open, userId, onClose }) => {
                   key={L.code}
                   onClick={() => handleLanguage(L.code)}
                   className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                    language === L.code ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
+                    language === L.code ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 dark:border-border hover:border-gray-300 dark:hover:border-border/80'
                   }`}
                 >
                   <span className="text-2xl">{L.code.toUpperCase()}</span>
-                  <span className="text-sm font-medium text-gray-700">{L.label}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-foreground/90">{L.label}</span>
                 </button>
               ))}
             </div>
@@ -124,7 +125,7 @@ const OnboardingModal = ({ open, userId, onClose }) => {
 
             <div className="space-y-4 my-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-sm font-medium text-gray-700 dark:text-foreground/90 mb-1.5">
                   {t('onboarding.currency', 'Currency')}
                 </label>
                 <Select value={currency} onValueChange={setCurrency}>
@@ -142,7 +143,7 @@ const OnboardingModal = ({ open, userId, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-sm font-medium text-gray-700 dark:text-foreground/90 mb-1.5">
                   {t('onboarding.initialBalance', 'Current balance')}
                 </label>
                 <input
@@ -152,16 +153,16 @@ const OnboardingModal = ({ open, userId, onClose }) => {
                   value={initialBalance}
                   onChange={(e) => setInitialBalance(e.target.value)}
                   placeholder="0.00"
-                  className="w-full h-10 px-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full h-10 px-3 text-sm border border-gray-300 dark:border-border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 dark:text-muted-foreground">
                   {t('onboarding.initialHint', 'Leave 0 if starting fresh. You can adjust this later in settings.')}
                 </p>
               </div>
             </div>
 
             <DialogFooter className="sm:justify-between">
-              <Button variant="ghost" size="sm" onClick={() => setStep(0)} className="text-gray-500">
+              <Button variant="ghost" size="sm" onClick={() => setStep(0)} className="text-gray-500 dark:text-muted-foreground">
                 {t('onboarding.back', 'Back')}
               </Button>
               <Button

@@ -29,7 +29,7 @@ const TYPE_CONFIG = {
     label:     'Recurring Bill',
     badgeCls:  'bg-orange-100 text-orange-700',
     iconColor: 'text-orange-500',
-    amountCls: 'text-blue-600',
+    amountCls: 'text-indigo-600',
     prefix:    '-',
   },
 };
@@ -88,13 +88,13 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
         <div className="space-y-4">
 
           {/* Type + amount */}
-          <div className="grid grid-cols-2 gap-3 bg-gray-50 rounded-xl p-3">
+          <div className="grid grid-cols-2 gap-3 bg-gray-50 dark:bg-muted/30 rounded-xl p-3">
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Type</p>
+              <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Type</p>
               <Badge className={cfg.badgeCls}>{cfg.label}</Badge>
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Amount</p>
+              <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Amount</p>
               <p className={`font-semibold flex items-center gap-0.5 ${cfg.amountCls}`}>
                 <DollarSign className="h-3.5 w-3.5" />
                 {cfg.prefix}{amount.toFixed(2)}
@@ -103,9 +103,9 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
 
             {txDate && (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Date</p>
+                <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Date</p>
                 <p className="text-sm flex items-center gap-1">
-                  <CalendarDays className="h-3.5 w-3.5 text-gray-400" />
+                  <CalendarDays className="h-3.5 w-3.5 text-gray-400 dark:text-muted-foreground/70" />
                   {format(txDate, 'MMM dd, yyyy')}
                 </p>
               </div>
@@ -113,9 +113,9 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
 
             {transaction.category && (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Category</p>
+                <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Category</p>
                 <p className="text-sm flex items-center gap-1 capitalize">
-                  <Tag className="h-3.5 w-3.5 text-gray-400" />
+                  <Tag className="h-3.5 w-3.5 text-gray-400 dark:text-muted-foreground/70" />
                   {transaction.category}
                 </p>
               </div>
@@ -123,7 +123,7 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
 
             {transaction.recurrence && (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Recurrence</p>
+                <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-0.5">Recurrence</p>
                 <Badge variant="outline" className="text-xs capitalize">{transaction.recurrence}</Badge>
               </div>
             )}
@@ -132,15 +132,15 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
           {/* Shared participants */}
           {isShared && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+              <p className="text-xs font-semibold text-gray-500 dark:text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" /> Split participants
               </p>
               <div className="space-y-2">
                 {/* Owner's own share — always first */}
                 {isOwner && (
-                  <div className="flex items-center justify-between px-3 py-2 rounded-lg border bg-blue-50 border-blue-200">
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg border bg-indigo-50 border-indigo-200">
                     <span className="text-sm font-medium">
-                      You <span className="text-blue-500 font-normal">(your share)</span>
+                      You <span className="text-indigo-500 font-normal">(your share)</span>
                     </span>
                     <span className="text-sm font-medium">${ownerShare.toFixed(2)}</span>
                   </div>
@@ -152,39 +152,39 @@ const TransactionDetailModal = ({ transaction, userId, onClose }) => {
                     <div
                       key={p.user_id}
                       className={`flex items-center justify-between px-3 py-2 rounded-lg border ${
-                        isMe ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'
+                        isMe ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 dark:bg-muted/30 border-gray-100 dark:border-border/40'
                       }`}
                     >
                       <span className="text-sm font-medium">
-                        {p.username}{isMe && <span className="text-blue-500 font-normal"> (you)</span>}
+                        {p.username}{isMe && <span className="text-indigo-500 font-normal"> (you)</span>}
                       </span>
                       <span className="text-sm font-medium">${parseFloat(p.amount_owed).toFixed(2)}</span>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-xs text-gray-400 mt-2 text-right">
-                Total: <span className="font-semibold text-gray-600">${amount.toFixed(2)}</span>
+              <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mt-2 text-right">
+                Total: <span className="font-semibold text-gray-600 dark:text-muted-foreground">${amount.toFixed(2)}</span>
               </p>
             </div>
           )}
 
           {/* Notes */}
           {transaction.notes && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+            <div className="bg-gray-50 dark:bg-muted/30 rounded-lg p-3">
+              <p className="text-xs text-gray-400 dark:text-muted-foreground/70 mb-1 flex items-center gap-1">
                 <FileText className="h-3.5 w-3.5" /> Notes
               </p>
-              <p className="text-sm text-gray-700">{transaction.notes}</p>
+              <p className="text-sm text-gray-700 dark:text-foreground/90">{transaction.notes}</p>
             </div>
           )}
 
           {/* Delete — owner only */}
           {isOwner && (
-            <div className="pt-2 border-t border-gray-100">
+            <div className="pt-2 border-t border-gray-100 dark:border-border/40">
               {confirmDelete ? (
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm text-gray-600">Delete this transaction?</p>
+                  <p className="text-sm text-gray-600 dark:text-muted-foreground">Delete this transaction?</p>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
                     <Button size="sm" variant="destructive" onClick={handleDelete} disabled={isDeleting}>

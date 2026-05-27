@@ -1,7 +1,7 @@
 const { findOne, executeQuery } = require('../config/database');
 const ledger = require('../services/ledger.service');
 
-const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'MXN', 'CAD', 'AUD', 'JPY', 'BRL', 'ARS', 'CLP', 'COP', 'PEN'];
+const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'MXN', 'CAD', 'AUD', 'JPY', 'BRL', 'ARS', 'CLP', 'COP', 'PEN', 'GTQ'];
 const SUPPORTED_LANGUAGES = ['en', 'es'];
 
 const getUserServices = async (req, res) => {

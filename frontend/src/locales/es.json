@@ -4,6 +4,7 @@
     "save": "Guardar Cambios",
     "saving": "Guardando...",
     "cancel": "Cancelar",
+    "clear": "Limpiar",
     "delete": "Eliminar",
     "close": "Cerrar",
     "refresh": "Actualizar",
@@ -232,6 +233,11 @@
     "unknownError": "Error desconocido",
     "preferences": "Preferencias",
     "language": "Idioma",
+    "theme": "Tema",
+    "themeHint": "Sistema usa la preferencia clara/oscura del dispositivo.",
+    "themeSystem": "Sistema",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
     "subscription": "Plan de Suscripción",
     "upgradeCta": "Mejora para más funciones",
     "upgrade": "Mejorar",
@@ -330,12 +336,15 @@
   },
 
   "calendar": {
-    "summary": "Resumen",
+    "summary": "resumen",
+    "summaryHint": "Flujo del mes — independiente del Saldo actual",
     "income": "Ingresos",
     "expenses": "Gastos",
     "billsLabel": "Cuentas",
-    "remaining": "Restante",
+    "remaining": "Neto",
     "overBy": "Excedido por",
+    "overspentThisMonth": "Gastaste ${{amount}} más de lo que ingresaste este mes",
+    "savedThisMonth": "Ahorraste ${{amount}} este mes",
     "noTransactions": "No hay transacciones registradas para {{month}}",
     "noTransactionsInMonth": "No hay transacciones en {{month}}",
     "noActivityOnDate": "No hay actividad en esta fecha",
@@ -416,7 +425,14 @@
     "yearly": "Anual",
     "endDate": "Fecha de finalización",
     "indefinite": "Indefinido",
-    "hasEndDate": "Establecer fecha final"
+    "hasEndDate": "Establecer fecha final",
+    "endDateHint": "Déjalo vacío para que se repita indefinidamente.",
+    "splitMode": "Dividir por",
+    "splitEqually": "Igual",
+    "splitByAmount": "Monto",
+    "splitByPercent": "Porcentaje",
+    "splitEquallyHint": "{{count}} personas · ${{amount}} cada uno",
+    "addParticipant": "Agregar amigo"
   },
 
   "billDetails": {

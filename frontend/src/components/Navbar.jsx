@@ -37,13 +37,13 @@ const Navbar = ({ onCreateBill, onNavigateToProfile, onNavigateToCalendar }) => 
   };
 
   return (
-    <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+    <header className="bg-white dark:bg-card shadow-sm border-b sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center cursor-pointer" onClick={onNavigateToCalendar}>
-            <Receipt className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-semibold text-gray-900">{t('nav.appName')}</h1>
+            <Receipt className="h-8 w-8 text-indigo-600 mr-3" />
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">{t('nav.appName')}</h1>
           </div>
 
           {/* Actions */}
@@ -51,7 +51,7 @@ const Navbar = ({ onCreateBill, onNavigateToProfile, onNavigateToCalendar }) => 
             {/* New Transaction Button */}
             <Button
               onClick={onCreateBill}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-indigo-600 hover:bg-indigo-700"
               size="sm"
             >
               <Plus className="h-4 w-4 sm:mr-2" />
@@ -70,7 +70,7 @@ const Navbar = ({ onCreateBill, onNavigateToProfile, onNavigateToCalendar }) => 
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">{user?.username}</p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
+                    <p className="text-xs text-gray-500 dark:text-muted-foreground">{user?.email}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

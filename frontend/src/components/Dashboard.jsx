@@ -120,15 +120,15 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
-          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto" />
+          <p className="mt-4 text-gray-600 dark:text-muted-foreground">{t('common.loading')}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-muted/30">
       <Navbar
         onCreateBill={() => setShowCreateBill(true)}
         onNavigateToProfile={() => setActiveTab('profile')}
@@ -248,7 +248,7 @@ const Dashboard = () => {
                         type="date"
                         value={reportFrom}
                         onChange={(e) => setReportFrom(e.target.value)}
-                        className="h-8 px-2 text-sm border border-purple-300 rounded-md bg-white"
+                        className="h-8 px-2 text-sm border border-purple-300 rounded-md bg-white dark:bg-card"
                       />
                     </div>
                     <div>
@@ -257,7 +257,7 @@ const Dashboard = () => {
                         type="date"
                         value={reportTo}
                         onChange={(e) => setReportTo(e.target.value)}
-                        className="h-8 px-2 text-sm border border-purple-300 rounded-md bg-white"
+                        className="h-8 px-2 text-sm border border-purple-300 rounded-md bg-white dark:bg-card"
                       />
                     </div>
                     <Button

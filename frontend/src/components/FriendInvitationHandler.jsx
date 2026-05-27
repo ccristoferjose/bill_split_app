@@ -54,7 +54,7 @@ const FriendInvitationHandler = () => {
         <>
           <LogIn className="h-12 w-12 text-teal-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-white mb-2">Log in to continue</h2>
-          <p className="text-sm text-gray-400 mb-6">
+          <p className="text-sm text-gray-400 dark:text-muted-foreground/70 mb-6">
             You need to log in to {isAccept ? 'accept' : 'decline'} this friend request.
           </p>
           <button
@@ -76,7 +76,7 @@ const FriendInvitationHandler = () => {
           <h2 className="text-xl font-semibold text-white mb-2">
             {isAccept ? 'Accepting friend request...' : 'Declining friend request...'}
           </h2>
-          <p className="text-sm text-gray-400">Please wait a moment.</p>
+          <p className="text-sm text-gray-400 dark:text-muted-foreground/70">Please wait a moment.</p>
         </>
       );
     }
@@ -87,7 +87,7 @@ const FriendInvitationHandler = () => {
         <>
           <Icon className={`h-12 w-12 mx-auto mb-4 ${isAccept ? 'text-green-400' : 'text-orange-400'}`} />
           <h2 className="text-xl font-semibold text-white mb-2">{message}</h2>
-          <p className="text-sm text-gray-400 mb-6">Redirecting to dashboard...</p>
+          <p className="text-sm text-gray-400 dark:text-muted-foreground/70 mb-6">Redirecting to dashboard...</p>
           <button
             onClick={() => navigate('/dashboard', { replace: true })}
             className="w-full h-11 rounded-lg text-sm font-semibold text-white transition-all duration-300 relative overflow-hidden group"
@@ -105,7 +105,7 @@ const FriendInvitationHandler = () => {
       <>
         <XCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
         <h2 className="text-xl font-semibold text-white mb-2">Something went wrong</h2>
-        <p className="text-sm text-gray-400 mb-6">{message}</p>
+        <p className="text-sm text-gray-400 dark:text-muted-foreground/70 mb-6">{message}</p>
         <button
           onClick={() => navigate('/dashboard', { replace: true })}
           className="w-full h-11 rounded-lg text-sm font-semibold text-white transition-all duration-300 relative overflow-hidden group"

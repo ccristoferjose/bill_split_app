@@ -130,7 +130,7 @@ const VerifyEmail = () => {
             <h2 className="text-xl font-semibold text-white mb-2">
               {status === 'logging-in' ? 'Signing you in...' : 'Verifying your email...'}
             </h2>
-            <p className="text-sm text-gray-400">Please wait a moment.</p>
+            <p className="text-sm text-gray-400 dark:text-muted-foreground/70">Please wait a moment.</p>
           </>
         )}
 
@@ -138,7 +138,7 @@ const VerifyEmail = () => {
           <>
             <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">Email verified!</h2>
-            <p className="text-sm text-gray-400 mb-6">Your account is ready. Redirecting to login...</p>
+            <p className="text-sm text-gray-400 dark:text-muted-foreground/70 mb-6">Your account is ready. Redirecting to login...</p>
             <button
               onClick={() => navigate('/login?verified=true')}
               className="w-full h-11 rounded-lg text-sm font-semibold text-white transition-all duration-300 relative overflow-hidden group"
@@ -154,7 +154,7 @@ const VerifyEmail = () => {
           <>
             <XCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">Verification failed</h2>
-            <p className="text-sm text-gray-400 mb-6">{errorMsg}</p>
+            <p className="text-sm text-gray-400 dark:text-muted-foreground/70 mb-6">{errorMsg}</p>
             <button
               onClick={() => navigate('/register')}
               className="w-full h-11 rounded-lg text-sm font-semibold text-white transition-all duration-300 relative overflow-hidden group"

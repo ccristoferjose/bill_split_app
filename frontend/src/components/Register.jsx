@@ -82,7 +82,7 @@ const Register = () => {
       {/* Back to home */}
       <button
         onClick={() => navigate('/')}
-        className="absolute top-6 left-6 z-10 flex items-center gap-1.5 text-gray-400 hover:text-white text-sm transition-colors duration-300"
+        className="absolute top-6 left-6 z-10 flex items-center gap-1.5 text-gray-400 dark:text-muted-foreground/70 hover:text-white text-sm transition-colors duration-300"
       >
         <ArrowLeft className="h-4 w-4" />
         {t('landing.backHome')}
@@ -131,10 +131,10 @@ const Register = () => {
       <>
         <Mail className="h-12 w-12 text-teal-400 mx-auto mb-4" />
         <h2 className="text-xl font-semibold text-white text-center mb-2">{t('register.checkEmail')}</h2>
-        <p className="text-sm text-gray-400 text-center mb-2">
+        <p className="text-sm text-gray-400 dark:text-muted-foreground/70 text-center mb-2">
           {t('register.verificationLinkSent')} <strong className="text-white">{email}</strong>
         </p>
-        <p className="text-sm text-gray-500 text-center mb-6">
+        <p className="text-sm text-gray-500 dark:text-muted-foreground text-center mb-6">
           {t('register.clickLinkToVerify')}
         </p>
         {error && (
@@ -142,7 +142,7 @@ const Register = () => {
             <p className="text-red-400 text-sm text-center">{error}</p>
           </div>
         )}
-        <p className="text-sm text-center text-gray-500">
+        <p className="text-sm text-center text-gray-500 dark:text-muted-foreground">
           {t('register.didntReceive')}{' '}
           <button
             type="button"
@@ -160,7 +160,7 @@ const Register = () => {
   return renderCard(
     <>
       <h2 className="text-xl font-semibold text-white text-center mb-1">{t('register.title')}</h2>
-      <p className="text-gray-400 text-center mb-6 text-sm">{t('landing.createAccountDesc')}</p>
+      <p className="text-gray-400 dark:text-muted-foreground/70 text-center mb-6 text-sm">{t('landing.createAccountDesc')}</p>
       {error && (
         <div className="rounded-lg px-4 py-3 mb-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
           <p className="text-red-400 text-sm text-center">{error}</p>
@@ -168,7 +168,7 @@ const Register = () => {
       )}
       <form onSubmit={handleRegister} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('register.username')}</label>
+          <label className="block text-sm font-medium text-gray-300 dark:text-muted-foreground/60 mb-1.5">{t('register.username')}</label>
           <input
             type="text"
             value={username}
@@ -181,7 +181,7 @@ const Register = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('register.email')}</label>
+          <label className="block text-sm font-medium text-gray-300 dark:text-muted-foreground/60 mb-1.5">{t('register.email')}</label>
           <input
             type="email"
             value={email}
@@ -194,7 +194,7 @@ const Register = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('register.password')}</label>
+          <label className="block text-sm font-medium text-gray-300 dark:text-muted-foreground/60 mb-1.5">{t('register.password')}</label>
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
@@ -209,7 +209,7 @@ const Register = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-muted-foreground hover:text-gray-300 transition-colors"
               tabIndex={-1}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -229,8 +229,8 @@ const Register = () => {
                 <div key={label} className="flex items-center gap-1.5">
                   {test
                     ? <Check className="h-3.5 w-3.5 text-green-400 shrink-0" />
-                    : <X className="h-3.5 w-3.5 text-gray-600 shrink-0" />}
-                  <span className={`text-xs ${test ? 'text-green-400' : 'text-gray-500'}`}>{label}</span>
+                    : <X className="h-3.5 w-3.5 text-gray-600 dark:text-muted-foreground shrink-0" />}
+                  <span className={`text-xs ${test ? 'text-green-400' : 'text-gray-500 dark:text-muted-foreground'}`}>{label}</span>
                 </div>
               ))}
             </div>
@@ -247,7 +247,7 @@ const Register = () => {
         </button>
       </form>
       <div className="mt-6 text-center">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 dark:text-muted-foreground">
           {t('register.haveAccount')}{' '}
           <a href="/login" className="text-teal-400 font-medium hover:text-teal-300 transition-colors duration-300">
             {t('register.login')}

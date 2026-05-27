@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 
 // ─── ChipGroup ────────────────────────────────────────────────────────────────
 
-const ChipGroup = ({ options, value, onChange, activeColor = 'bg-gray-900 text-white border-gray-900' }) => (
+const ChipGroup = ({ options, value, onChange, activeColor = 'bg-gray-900 text-white border-gray-900 dark:bg-foreground dark:text-background dark:border-foreground' }) => (
   <div className="flex flex-wrap gap-1.5">
     {options.map(({ value: v, label, icon: Icon }) => {
       const selected = value === v;
@@ -31,7 +31,7 @@ const ChipGroup = ({ options, value, onChange, activeColor = 'bg-gray-900 text-w
             'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-150 select-none',
             selected
               ? activeColor
-              : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50',
+              : 'bg-white dark:bg-card text-gray-600 dark:text-muted-foreground border-gray-200 dark:border-border hover:border-gray-400 dark:hover:border-border hover:bg-gray-50 dark:hover:bg-muted/40',
           ].join(' ')}
         >
           {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
@@ -60,7 +60,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
       id: 'bill',
       label: t('createTransaction.bill'),
       icon: CalendarDays,
-      color: 'text-blue-500',
+      color: 'text-indigo-500',
       description: t('createTransaction.billDesc'),
       titlePlaceholder: t('createTransaction.billPlaceholder'),
     },
@@ -109,6 +109,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
   const today = new Date().toISOString().split('T')[0];
 
   const [txType, setTxType] = useState('expense');
+  const [splitMode, setSplitMode] = useState('equal'); // 'equal' | 'amount' | 'percent'
   const [formData, setFormData] = useState({
     title:        '',
     amount:       '',
@@ -134,6 +135,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
 
   const handleTypeChange = (type) => {
     setTxType(type);
+    setSplitMode('equal');
     setFormData(prev => ({
       ...prev,
       date:         today,
@@ -146,6 +148,18 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
     setFriendSearch('');
     setAmountInputValues({});
     setPercentInputValues({});
+  };
+
+  // Switching split mode re-derives percentages so the UI is consistent:
+  //  - equal: redistribute evenly across participants + creator
+  //  - amount/percent: leave as-is (user will type values directly)
+  const handleSplitModeChange = (mode) => {
+    setSplitMode(mode);
+    setAmountInputValues({});
+    setPercentInputValues({});
+    if (mode === 'equal') {
+      setFormData(prev => ({ ...prev, participants: redistributeEvenly(prev.participants) }));
+    }
   };
 
   const redistributeEvenly = (participants) => {
@@ -164,7 +178,11 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
       } else {
         updated = [...prev.participants, { userId: friend.id, username: friend.username, percentage: 0 }];
       }
-      return { ...prev, participants: redistributeEvenly(updated) };
+      // In equal mode, re-balance across all participants + creator. In amount/percent mode,
+      // leave existing shares alone (user is sculpting manually) and start the new friend at 0.
+      // Removing a friend in equal mode triggers re-balance regardless.
+      const shouldRedistribute = splitMode === 'equal' || exists;
+      return { ...prev, participants: shouldRedistribute ? redistributeEvenly(updated) : updated };
     });
     setAmountInputValues({});
     setPercentInputValues({});
@@ -299,7 +317,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
         </DialogHeader>
 
         {/* ── Segmented type selector ── */}
-        <div className="flex rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <div className="flex rounded-xl border border-gray-200 dark:border-border overflow-hidden shadow-sm">
           {TYPES.map(({ id, label, icon: Icon, color }) => {
             const active = txType === id;
             return (
@@ -310,11 +328,12 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                 className={[
                   'flex-1 flex flex-col items-center gap-1 py-3 text-xs font-semibold transition-all duration-150',
                   active
-                    ? 'bg-gray-900 text-white shadow-inner'
-                    : 'bg-white text-gray-500 hover:bg-gray-50',
+                    ? 'bg-gray-900 text-white shadow-inner dark:bg-foreground dark:text-background'
+                    : 'bg-white dark:bg-muted/30 text-gray-500 dark:text-muted-foreground hover:bg-gray-50 dark:hover:bg-muted/50',
                 ].join(' ')}
               >
-                <Icon className={`h-4 w-4 ${active ? 'text-white' : color}`} />
+                {/* Inherit color when active (matches button's text-white / dark:text-background); use category color when idle */}
+                <Icon className={`h-4 w-4 ${active ? '' : color}`} />
                 {label}
               </button>
             );
@@ -322,7 +341,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
         </div>
 
         {/* ── Type description ── */}
-        <p className="text-xs text-gray-500 text-center -mt-1 mb-1">
+        <p className="text-xs text-gray-500 dark:text-muted-foreground text-center -mt-1 mb-1">
           {activeType?.description}
         </p>
 
@@ -395,44 +414,34 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                   set('recurrence', v);
                   if (!v) set('recurrence_end_date', '');
                 }}
-                activeColor="bg-blue-600 text-white border-blue-600"
+                activeColor="bg-indigo-600 text-white border-indigo-600"
               />
             </div>
           )}
 
           {txType === 'bill' && formData.recurrence && (
-            <div className="transition-all duration-200 animate-in fade-in slide-in-from-top-1 space-y-2">
-              <Label>{t('createTransaction.endDate')}</Label>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-                  <input
-                    type="radio"
-                    name="endDateMode"
-                    checked={!formData.recurrence_end_date}
-                    onChange={() => set('recurrence_end_date', '')}
-                    className="accent-blue-600"
-                  />
-                  {t('createTransaction.indefinite')}
-                </label>
-                <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-                  <input
-                    type="radio"
-                    name="endDateMode"
-                    checked={!!formData.recurrence_end_date}
-                    onChange={() => set('recurrence_end_date', formData.due_date || today)}
-                    className="accent-blue-600"
-                  />
-                  {t('createTransaction.hasEndDate')}
-                </label>
-              </div>
-              {formData.recurrence_end_date && (
+            <div className="transition-all duration-200 animate-in fade-in slide-in-from-top-1 space-y-1">
+              <Label htmlFor="recurrence_end_date">{t('createTransaction.endDate')}</Label>
+              <div className="flex items-center gap-2">
                 <Input
+                  id="recurrence_end_date"
                   type="date"
                   value={formData.recurrence_end_date}
                   min={formData.due_date || undefined}
                   onChange={(e) => set('recurrence_end_date', e.target.value)}
+                  className="flex-1"
                 />
-              )}
+                {formData.recurrence_end_date && (
+                  <button
+                    type="button"
+                    onClick={() => set('recurrence_end_date', '')}
+                    className="text-xs text-gray-500 dark:text-muted-foreground hover:text-gray-800 dark:hover:text-foreground underline"
+                  >
+                    {t('common.clear', 'Clear')}
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 dark:text-muted-foreground/70">{t('createTransaction.endDateHint')}</p>
             </div>
           )}
 
@@ -459,7 +468,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
               </Label>
 
               {friends.length === 0 ? (
-                <p className="text-xs text-gray-400">{t('createTransaction.noFriends')}</p>
+                <p className="text-xs text-gray-400 dark:text-muted-foreground/70">{t('createTransaction.noFriends')}</p>
               ) : (
                 <>
                   {/* Friend picker */}
@@ -479,12 +488,12 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                           className={[
                             'w-full text-left text-sm px-3 py-2 transition-colors',
                             selected
-                              ? 'bg-blue-50 text-blue-700 font-medium'
-                              : 'hover:bg-gray-50 text-gray-700',
+                              ? 'bg-indigo-50 text-indigo-700 font-medium'
+                              : 'hover:bg-gray-50 dark:hover:bg-muted/40 text-gray-700 dark:text-foreground/90',
                           ].join(' ')}
                         >
                           {friend.username}
-                          {selected && <span className="ml-2 text-xs text-blue-500">✓ {t('createTransaction.selected')}</span>}
+                          {selected && <span className="ml-2 text-xs text-indigo-500">✓ {t('createTransaction.selected')}</span>}
                         </button>
                       );
                     })}
@@ -492,11 +501,45 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
 
                   {/* Split configuration */}
                   {formData.participants.length > 0 && (
-                    <div className="border rounded-lg p-3 space-y-4 bg-gray-50">
-                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">{t('createTransaction.splitConfig')}</p>
+                    <div className="border rounded-lg p-3 space-y-3 bg-gray-50 dark:bg-muted/30">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-gray-600 dark:text-muted-foreground uppercase tracking-wide">{t('createTransaction.splitConfig')}</p>
+                        {/* Split-mode segmented toggle */}
+                        <div className="flex rounded-md border border-gray-200 dark:border-border overflow-hidden bg-white dark:bg-card text-[11px]">
+                          {[
+                            { id: 'equal',   label: t('createTransaction.splitEqually') },
+                            { id: 'amount',  label: t('createTransaction.splitByAmount') },
+                            { id: 'percent', label: t('createTransaction.splitByPercent') },
+                          ].map(m => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => handleSplitModeChange(m.id)}
+                              className={[
+                                'px-2.5 py-1 font-medium transition-colors',
+                                splitMode === m.id
+                                  ? 'bg-gray-900 text-white dark:bg-foreground dark:text-background'
+                                  : 'bg-white dark:bg-muted/30 text-gray-600 dark:text-muted-foreground hover:bg-gray-50 dark:hover:bg-muted/50',
+                              ].join(' ')}
+                            >
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
                       {totalAmount <= 0 && (
                         <p className="text-xs text-amber-600">{t('createTransaction.enterAmount')}</p>
+                      )}
+
+                      {/* Equal mode hint */}
+                      {splitMode === 'equal' && totalAmount > 0 && formData.participants.length > 0 && (
+                        <p className="text-xs text-gray-500 dark:text-muted-foreground">
+                          {t('createTransaction.splitEquallyHint', {
+                            count: formData.participants.length + 1,
+                            amount: (totalAmount / (formData.participants.length + 1)).toFixed(2),
+                          })}
+                        </p>
                       )}
 
                       {formData.participants.map(p => {
@@ -506,38 +549,34 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                         const displayPct = percentInputValues[p.userId] !== undefined ? percentInputValues[p.userId] : (p.percentage || 0);
                         const amountError = totalAmount > 0 ? getParticipantAmountError(p.userId, amount) : null;
 
-                        return (
-                          <div key={p.userId} className={`p-2.5 border rounded space-y-2 bg-white ${amountError ? 'border-red-300' : 'border-gray-200'}`}>
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">{p.username}</span>
-                              <button type="button" onClick={() => toggleFriend({ id: p.userId, username: p.username })}
-                                className="text-gray-400 hover:text-gray-600">
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-
-                            {/* Slider */}
-                            <div className="space-y-0.5">
-                              <div className="flex justify-between text-xs text-gray-400">
-                                <span>0%</span>
-                                <span className="font-medium text-gray-600">{p.percentage || 0}%</span>
-                                <span className={maxPct < 100 ? 'text-blue-500 font-medium' : ''}>{maxPct}% {t('createTransaction.max')}</span>
+                        // ── Equal mode: 1-line row, no inputs ──
+                        if (splitMode === 'equal') {
+                          return (
+                            <div key={p.userId} className="flex items-center justify-between bg-white dark:bg-card border border-gray-200 dark:border-border rounded px-2.5 py-1.5">
+                              <span className="text-sm">{p.username}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 dark:text-muted-foreground tabular-nums">
+                                  {totalAmount > 0 ? `$${amount}` : `${(p.percentage || 0).toFixed(1)}%`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleFriend({ id: p.userId, username: p.username })}
+                                  className="text-gray-400 dark:text-muted-foreground/70 hover:text-gray-600 dark:hover:text-foreground"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
                               </div>
-                              <input
-                                type="range"
-                                min="0"
-                                max={maxPct}
-                                step="0.1"
-                                value={p.percentage || 0}
-                                onChange={(e) => updatePercentage(p.userId, e.target.value)}
-                                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                              />
                             </div>
+                          );
+                        }
 
-                            {/* Amount + % inputs */}
-                            <div className="flex items-center gap-2">
-                              <div className={`flex items-center flex-1 border rounded overflow-hidden focus-within:ring-1 ${amountError ? 'border-red-400 focus-within:ring-red-400' : 'focus-within:ring-blue-500'}`}>
-                                <span className="px-2 text-gray-400 text-xs bg-gray-50 border-r">$</span>
+                        // ── Amount mode: name + $ input ──
+                        if (splitMode === 'amount') {
+                          return (
+                            <div key={p.userId} className={`flex items-center gap-2 bg-white dark:bg-card border rounded px-2.5 py-1.5 ${amountError ? 'border-red-300' : 'border-gray-200 dark:border-border'}`}>
+                              <span className="text-sm flex-1 truncate">{p.username}</span>
+                              <div className={`flex items-center border rounded overflow-hidden w-32 focus-within:ring-1 ${amountError ? 'border-red-400 focus-within:ring-red-400' : 'focus-within:ring-indigo-500'}`}>
+                                <span className="px-2 text-gray-400 dark:text-muted-foreground/70 text-xs bg-gray-50 dark:bg-muted/30 border-r">$</span>
                                 <input
                                   type="number"
                                   min="0"
@@ -547,27 +586,65 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                                   onChange={(e) => handleAmountChange(p.userId, e.target.value)}
                                   onBlur={() => handleAmountBlur(p.userId)}
                                   disabled={totalAmount <= 0}
-                                  className="flex-1 px-2 py-1 text-xs outline-none bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                                  className="flex-1 px-2 py-1 text-xs outline-none bg-white dark:bg-card disabled:bg-gray-50 disabled:text-gray-400 w-0"
                                 />
                               </div>
-                              <div className="flex items-center border rounded overflow-hidden w-20 focus-within:ring-1 focus-within:ring-blue-500">
+                              <button
+                                type="button"
+                                onClick={() => toggleFriend({ id: p.userId, username: p.username })}
+                                className="text-gray-400 dark:text-muted-foreground/70 hover:text-gray-600 dark:hover:text-foreground shrink-0"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        // ── Percent mode: slider + % input ──
+                        return (
+                          <div key={p.userId} className={`p-2.5 border rounded space-y-2 bg-white dark:bg-card ${amountError ? 'border-red-300' : 'border-gray-200 dark:border-border'}`}>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">{p.username}</span>
+                              <button type="button" onClick={() => toggleFriend({ id: p.userId, username: p.username })}
+                                className="text-gray-400 dark:text-muted-foreground/70 hover:text-gray-600 dark:hover:text-foreground">
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                            <div className="space-y-0.5">
+                              <div className="flex justify-between text-xs text-gray-400 dark:text-muted-foreground/70">
+                                <span>0%</span>
+                                <span className="font-medium text-gray-600 dark:text-muted-foreground">
+                                  {p.percentage || 0}%
+                                  {totalAmount > 0 && <span className="text-gray-400 dark:text-muted-foreground/70"> · ${amount}</span>}
+                                </span>
+                                <span className={maxPct < 100 ? 'text-indigo-500 font-medium' : ''}>{maxPct}% {t('createTransaction.max')}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
                                 <input
-                                  type="number"
+                                  type="range"
                                   min="0"
                                   max={maxPct}
                                   step="0.1"
-                                  value={displayPct}
-                                  onChange={(e) => handlePercentChange(p.userId, e.target.value)}
-                                  onBlur={() => handlePercentBlur(p.userId)}
-                                  className="flex-1 px-2 py-1 text-xs outline-none bg-white w-0"
+                                  value={p.percentage || 0}
+                                  onChange={(e) => updatePercentage(p.userId, e.target.value)}
+                                  className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                 />
-                                <span className="px-1.5 text-gray-400 text-xs bg-gray-50 border-l">%</span>
+                                <div className="flex items-center border rounded overflow-hidden w-20 focus-within:ring-1 focus-within:ring-indigo-500">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={maxPct}
+                                    step="0.1"
+                                    value={displayPct}
+                                    onChange={(e) => handlePercentChange(p.userId, e.target.value)}
+                                    onBlur={() => handlePercentBlur(p.userId)}
+                                    className="flex-1 px-2 py-1 text-xs outline-none bg-white dark:bg-card w-0"
+                                  />
+                                  <span className="px-1.5 text-gray-400 dark:text-muted-foreground/70 text-xs bg-gray-50 dark:bg-muted/30 border-l">%</span>
+                                </div>
                               </div>
                             </div>
-
-                            {amountError && (
-                              <p className="text-xs text-red-600">{amountError}</p>
-                            )}
+                            {amountError && <p className="text-xs text-red-600">{amountError}</p>}
                           </div>
                         );
                       })}
@@ -575,15 +652,15 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                       {/* Summary */}
                       <div className="space-y-1.5 pt-1 border-t">
                         <div className="space-y-0.5">
-                          <div className="flex justify-between text-xs text-gray-500">
+                          <div className="flex justify-between text-xs text-gray-500 dark:text-muted-foreground">
                             <span>{t('createTransaction.splitProgress')}</span>
                             <span className={getTotalPercentage() > 100 ? 'text-red-600 font-medium' : ''}>
                               {getTotalPercentage()}% {t('createTransaction.assigned')}
                             </span>
                           </div>
-                          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="w-full h-1.5 bg-gray-100 dark:bg-muted/40 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all ${getTotalPercentage() > 100 ? 'bg-red-500' : 'bg-blue-500'}`}
+                              className={`h-full rounded-full transition-all ${getTotalPercentage() > 100 ? 'bg-red-500' : 'bg-indigo-500'}`}
                               style={{ width: `${Math.min(100, getTotalPercentage())}%` }}
                             />
                           </div>
@@ -594,7 +671,7 @@ const CreateTransactionModal = ({ isOpen, onClose, userId }) => {
                           </p>
                         )}
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-600">{t('createTransaction.yourShare')}:</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">{t('createTransaction.yourShare')}:</span>
                           <Badge variant="outline" className="text-xs py-0">
                             {getCreatorPercentage()}%{totalAmount > 0 ? ` ($${getCalculatedAmount(getCreatorPercentage())})` : ''}
                           </Badge>

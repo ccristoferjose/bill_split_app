@@ -53,22 +53,22 @@ const WelcomeModal = ({ open, onClose }) => {
                 className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
                   currentLang === 'en'
                     ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    : 'border-gray-200 dark:border-border hover:border-gray-300 dark:hover:border-border/80'
                 }`}
               >
                 <span className="text-2xl">EN</span>
-                <span className="text-sm font-medium text-gray-700">English</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-foreground/90">English</span>
               </button>
               <button
                 onClick={() => handleLanguage('es')}
                 className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
                   currentLang === 'es'
                     ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    : 'border-gray-200 dark:border-border hover:border-gray-300 dark:hover:border-border/80'
                 }`}
               >
                 <span className="text-2xl">ES</span>
-                <span className="text-sm font-medium text-gray-700">Español</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-foreground/90">Español</span>
               </button>
             </div>
 
@@ -91,7 +91,7 @@ const WelcomeModal = ({ open, onClose }) => {
             <div className="space-y-3 my-4">
               {[
                 { icon: Wallet, color: 'text-green-600 bg-green-100', label: t('welcome.featureTransactions') },
-                { icon: CalendarDays, color: 'text-blue-600 bg-blue-100', label: t('welcome.featureCalendar') },
+                { icon: CalendarDays, color: 'text-indigo-600 bg-indigo-100', label: t('welcome.featureCalendar') },
                 { icon: Receipt, color: 'text-amber-600 bg-amber-100', label: t('welcome.featureBills') },
                 { icon: TrendingUp, color: 'text-purple-600 bg-purple-100', label: t('welcome.featureBudget') },
                 { icon: Users, color: 'text-teal-600 bg-teal-100', label: t('welcome.featureSplit') },
@@ -100,13 +100,13 @@ const WelcomeModal = ({ open, onClose }) => {
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
                     <Icon className="h-4.5 w-4.5" />
                   </div>
-                  <span className="text-sm text-gray-700">{label}</span>
+                  <span className="text-sm text-gray-700 dark:text-foreground/90">{label}</span>
                 </div>
               ))}
             </div>
 
             <DialogFooter className="sm:justify-between">
-              <Button variant="ghost" size="sm" onClick={() => setStep(0)} className="text-gray-500">
+              <Button variant="ghost" size="sm" onClick={() => setStep(0)} className="text-gray-500 dark:text-muted-foreground">
                 {t('welcome.back')}
               </Button>
               <Button onClick={() => setStep(2)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6">
@@ -126,12 +126,12 @@ const WelcomeModal = ({ open, onClose }) => {
 
             <div className="my-4 space-y-3">
               {/* Free plan summary */}
-              <div className="p-4 rounded-lg border border-gray-200 bg-gray-50">
+              <div className="p-4 rounded-lg border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/30">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-semibold text-gray-800">{t('welcome.freePlan')}</span>
-                  <span className="text-[10px] font-bold bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full uppercase">{t('welcome.currentPlan')}</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-foreground">{t('welcome.freePlan')}</span>
+                  <span className="text-[10px] font-bold bg-gray-200 dark:bg-muted/60 text-gray-600 dark:text-muted-foreground px-2 py-0.5 rounded-full uppercase">{t('welcome.currentPlan')}</span>
                 </div>
-                <ul className="space-y-1.5 text-xs text-gray-600">
+                <ul className="space-y-1.5 text-xs text-gray-600 dark:text-muted-foreground">
                   <li className="flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-green-500 shrink-0" />
                     {t('welcome.freeFeature1')}
@@ -158,7 +158,7 @@ const WelcomeModal = ({ open, onClose }) => {
             </div>
 
             <DialogFooter className="sm:justify-between">
-              <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="text-gray-500">
+              <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="text-gray-500 dark:text-muted-foreground">
                 {t('welcome.back')}
               </Button>
               <div className="flex gap-2">
